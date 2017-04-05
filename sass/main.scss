@@ -1,0 +1,50 @@
+body {
+  background-color: #eee;
+
+  font-family: 'Ek Mukta'
+}
+
+canvas.painter {
+	background: #fff;
+	// width: 80%;
+	// height: 80%;
+	// position: relative;
+	// left: 10%;
+}
+
+div.painter {
+	display: flex;
+	max-width: 800px;
+	height: 90vh;
+	margin: auto;
+
+	.tools {
+		display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    a.tool {
+    	padding: 7px 15px 7px 0;
+    	// text-transform: uppercase;
+    	// font-size: 10px;
+    	// letter-spacing: 2px;
+    	// display: inline-block;
+    	background: cadetblue;
+    	margin-bottom: 2px;
+    	color: #fff;
+    	text-align: center;
+
+    	&.active {
+    		background: burlywood;
+    	}
+
+    	span {
+    		display: none;
+    	}
+    }
+	}
+
+	canvas {
+		flex-grow: 1;
+	}
+}

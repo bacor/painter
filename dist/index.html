@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Painter</title>
+    <link rel="stylesheet" href="styles/style.css">
+    <link rel="stylesheet" href="styles/flaticon.css">
+    <script src="js/jquery.min.js"></script>
+    <script src="js/paper-full.min.js"></script>
+    <script src="js/painter.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Ek+Mukta:400,300,200,500,600,700,800' rel='stylesheet' type='text/css'>
+  </head>
+  <body>
+    <div class="painter">
+    	<div class="tools">
+    		<a class="tool" data-tool="select">
+    			<i class="flaticon-cursor"></i>
+  				<span>select</span>
+    		</a>
+    		<a class="tool" data-tool="rectangle">
+    			<i class="flaticon-square-17"></i>
+  				<span>rectangle</span>
+    		</a>
+    		<a class="tool" data-tool="circle">
+    			<i class="flaticon-oval"></i>
+  				<span>circle</span>
+    		</a>
+
+    		<a class="tool" data-tool="group">
+    			<i class="flaticon-group"></i>
+  				<span>group</span>
+    		</a>
+
+    		<a class="tool" data-tool="ungroup">
+    			<i class="flaticon-ungroup"></i>
+  				<span>ungroup</span>
+    		</a>
+    	</div>
+    	<canvas class="painter" id="canvas" resize="true"></canvas>
+    </div>
+  </body>
+</html>
