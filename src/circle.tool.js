@@ -9,6 +9,7 @@ circleTool = new Tool()
 var circle;
 
 circleTool.onMouseDown = function(event) {
+	deselectAll()
 	circle = new Path.Circle({
 		center: event.point, 
 		radius: 0,
@@ -36,7 +37,5 @@ circleTool.onMouseDrag = function(event) {
 }
 
 circleTool.onMouseUp = function(event) {
-	project.deselectAll()
-	circle.selected = true
 	circle.type = 'circle'
 }

@@ -26,7 +26,5 @@ rectTool.onMouseDrag = function(event) {
 }
 
 rectTool.onMouseUp = function() {
-	project.deselectAll()
-	rectangle.selected = true
 	rectangle.type = 'rectangle'
 }

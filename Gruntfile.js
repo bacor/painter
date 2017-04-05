@@ -35,6 +35,7 @@ module.exports = function(grunt) {
       dev: {
         files: {
           'dist/js/painter.js': [
+            'src/helpers.js',
             'src/painter.js',
             'src/*.tool.js']
         }
