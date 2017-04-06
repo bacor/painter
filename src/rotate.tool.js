@@ -5,7 +5,6 @@ var rotationSpeed = 2
 var currentItem, crosshair;
 rotationTool.onMouseDown = function(event) {
 	currentItem = getSelected()[0]
-	console.log(currentItem);
 	if(currentItem == undefined) {
 		hitResult = project.hitTest(event.point, {
 			fill: true,

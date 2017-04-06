@@ -61,6 +61,21 @@ function cloneSelection(move=[0,0]) {
 	return copiedItems;
 }
 
+function stopRotatingSelection() {
+	var items = getSelected()
+	items.map(stopRotating);
+}
+
+function continueRotatingSelection() {
+	var items = getSelected()
+  items.map(continueRotating);
+}
+
+function resetRotationSelection() {
+	var items = getSelected();
+	items.map(resetRotation);
+}
+
 $(window).ready(function() {
 
 	paper.setup('canvas');
@@ -71,11 +86,11 @@ $(window).ready(function() {
 		}
 
 		else if(event.key == 'space') {
-			items = project.getItems({
-				class: Path,
-				selected: true
-			})
-			bound(items);
+			$('a.tool[data-tool=playpause]').click();
+		}
+
+		else if(event.key == 'z') {
+			$('a.tool[data-tool=reset]').click();
 		}
 
 		else if(event.key =='g') {
@@ -108,34 +123,37 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 	rotationTool.onKeyDown = onKeyDown;
 
-	// // Demo
-	// r = new Path.Rectangle([20,30,100,140])
-	// r.fillColor = 'red'
-	// // r.selected = true
-	// r.type = 'rectangle'
+	// Demo
+	r = new Path.Rectangle([20,30,100,140])
+	r.fillColor = 'red'
+	// r.selected = true
+	r.type = 'rectangle'
 
-	// c = new Path.Circle([300,100], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
+	c = new Path.Circle([300,100], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = 'green'
+	// r.selected = true
+	r.type = 'rectangle'
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
 	// select(c)
-	// select(r)
-	// groupSelection()
-	// deselectAll()
+	select(r)
 
-
-	// 	// Demo
-	// r = new Path.Rectangle([200,200,100,140])
-	// r.fillColor = 'green'
-	// // r.selected = true
-	// r.type = 'rectangle'
-
-	// c = new Path.Circle([500,300], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
-	// // select(c)
-	// select(r)
+	// rotate(c, new Point([100,100]))
+	// rotate()
 
 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
@@ -172,10 +190,26 @@ $(window).ready(function() {
 		cloneSelection([20,20])
 	})
 
+	$('a.tool[data-tool=playpause]').on('click', function() {
+		if($(this).data('state') == 'play') {
+			continueRotatingSelection()
+			$(this).find('span').html('pause <code>space</code>')
+			$(this).data('state', 'pause')
+		} else {
+			stopRotatingSelection()
+			$(this).find('span').html('play <code>space</code>')
+			$(this).data('state', 'play')
+		}
+	})
+
 	$('a.tool[data-tool=rotate]').on('click', function() {
 		rotationTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
+	})
+
+	$('a.tool[data-tool=reset]').on('click', function() {
+		resetRotationSelection()
 	})
 
 })

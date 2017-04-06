@@ -207,7 +207,7 @@ function moveItems(items, delta) {
 		if(bbox) bbox.position = bbox.position.add(delta);
 		
 		// Move the focus point around which the current item rotates
-		if(isRotating(item))
+		if(item.focusPoint)
 			item.focusPoint = item.focusPoint.add(delta);
 
 
@@ -325,13 +325,13 @@ function isRotating(item) {
  * @param  {Segment} segment 
  * @return {object}         An object `{ sameX: sameXSegment, sameY: sameYSegment }`.
  */
-function getAdjacentSegments(segment) {
+function getAdjacentSegments(segment, tol=1) {
 	var segments = segment.path.segments,
 			sameX, sameY, cur;
 	for(var i=0; i<segments.length; i++) {
 		if(segments[i] == segment) continue;
-		if(segments[i].point.x == segment.point.x) sameX = segments[i];
-		if(segments[i].point.y == segment.point.y) sameY = segments[i];
+		if(Math.abs(segments[i].point.x - segment.point.x) < tol) sameX = segments[i];
+		if(Math.abs(segments[i].point.y - segment.point.y) < tol) sameY = segments[i];
 	}
 	return {sameX: sameX, sameY: sameY };
 }
@@ -494,3 +494,29 @@ function stopRotating(item) {
 	item.onFrame = undefined;
 }
 
+function continueRotating(item) {
+	rotate(item, item.focusPoint)
+}
+
+function resetRotation(item) {
+	stopRotating(item);
+
+	// Rotate back to its original position
+	var deg = - item.rotationDegree
+	item.rotate(deg, item.focusPoint)
+	item.boundingBox.rotate(deg, item.focusPoint);
+	item.rotationDegree = 0;
+
+	// The path might not be exactly rectangular anymore due to the 
+	// rotation. Rounding the coordinates solves the problem.
+	if(isRectangular(item)) {
+		item.segments.map(function(segment) {
+			segment.point.x = Math.round(segment.point.x)
+			segment.point.y = Math.round(segment.point.y)
+		})
+	}
+
+	// Update bounding box etc.
+	redrawBoundingBox(item);
+	selectOnly(item);
+}
