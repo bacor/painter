@@ -464,15 +464,33 @@ function rotateSelection() {
 	for(var i=0;i<items.length; i++) {
 		var item = items[i];
 		item.onFrame = function() {
-			// deselect(this)
+			deselect(this)
 			// this.rotation = (this.rotation + 3) % 360
 			this.rotate(3)
 			// console.log(this, this.rotation)
-			if(!inGroup(this) && this.boundingBox) 
-				§this.boundingBox.rotate(3);
+			// if(!inGroup(this) && this.boundingBox) 
+			// 	this.boundingBox.rotate(3);
 		}
 	}
 
+}
+
+function cloneSelection(move=[0,0]) {
+	items = project.getItems({
+		match: isSelected
+	})
+
+	// Clone all the currently selected items
+	var copiedItems = []
+	for(var i=0; i<items.length; i++) {
+		copy = items[i].clone();
+		copy.position = copy.position.add(move)
+		copiedItems.push(copy)
+	}
+
+	deselectAll();
+	select(copiedItems);
+	return copiedItems;
 }
 
 $(window).ready(function() {
@@ -491,8 +509,6 @@ $(window).ready(function() {
 			})
 			bound(items);
 		}
-
-		console.log(event, event.key, event.modifiers)
 	}
 
 	rectTool.onKeyDown = onKeyDown;
@@ -559,6 +575,9 @@ $(window).ready(function() {
 		deleteSelection()
 	})
 
+	$('a.tool[data-tool=clone]').on('click', function() {
+		cloneSelection([20,20])
+	})
 
 	$('a.tool[data-tool=rotate]').on('click', function() {
 		rotateSelection()
@@ -644,7 +663,7 @@ rectTool.onMouseUp = function() {
  */
 
 selectTool = new Tool()
-var selectRect, handle, mode, currentItems = [];
+var selectRect, handle, mode, cloned = false, currentItems = [];
 
 selectTool.onMouseDown = function(event) {
 	
@@ -715,6 +734,15 @@ selectTool.onMouseDrag = function(event) {
 	// Drag all the currently selected objects, following the movement
 	// of the cursor.
 	else if(mode == 'dragging') {
+
+		if(Key.isDown('alt') && cloned == false) {
+			// Clone & select current items
+			currentItems = cloneSelection();
+			deselectAll()
+			select(currentItems)
+			cloned = true;
+		}
+
 		for(var i=0; i<currentItems.length; i++) {
 			var item = currentItems[i]
 			item.position = item.position.add(event.delta)
@@ -729,9 +757,6 @@ selectTool.onMouseDrag = function(event) {
 	// on the current position of the cursor. Rectangles, circles
 	// and groups are updated differently.
 	else if(mode == 'editing') {
-
-		// to do 
-		// 
 
 		if(currentItems.length == 1) {
 			item = currentItems[0]
@@ -827,10 +852,11 @@ selectTool.onMouseUp = function(event) {
 		});
 
 		// And select!
-		select(items)
+		select(items);
 
 	}
 
 	// Reset the mode
-	mode = ''
+	mode = '';
+	cloned = false;
 }

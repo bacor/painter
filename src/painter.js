@@ -55,15 +55,33 @@ function rotateSelection() {
 	for(var i=0;i<items.length; i++) {
 		var item = items[i];
 		item.onFrame = function() {
-			// deselect(this)
+			deselect(this)
 			// this.rotation = (this.rotation + 3) % 360
 			this.rotate(3)
 			// console.log(this, this.rotation)
-			if(!inGroup(this) && this.boundingBox) 
-				§this.boundingBox.rotate(3);
+			// if(!inGroup(this) && this.boundingBox) 
+			// 	this.boundingBox.rotate(3);
 		}
 	}
 
+}
+
+function cloneSelection(move=[0,0]) {
+	items = project.getItems({
+		match: isSelected
+	})
+
+	// Clone all the currently selected items
+	var copiedItems = []
+	for(var i=0; i<items.length; i++) {
+		copy = items[i].clone();
+		copy.position = copy.position.add(move)
+		copiedItems.push(copy)
+	}
+
+	deselectAll();
+	select(copiedItems);
+	return copiedItems;
 }
 
 $(window).ready(function() {
@@ -82,8 +100,6 @@ $(window).ready(function() {
 			})
 			bound(items);
 		}
-
-		console.log(event, event.key, event.modifiers)
 	}
 
 	rectTool.onKeyDown = onKeyDown;
@@ -150,6 +166,9 @@ $(window).ready(function() {
 		deleteSelection()
 	})
 
+	$('a.tool[data-tool=clone]').on('click', function() {
+		cloneSelection([20,20])
+	})
 
 	$('a.tool[data-tool=rotate]').on('click', function() {
 		rotateSelection()

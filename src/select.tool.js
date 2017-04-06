@@ -9,7 +9,7 @@
  */
 
 selectTool = new Tool()
-var selectRect, handle, mode, currentItems = [];
+var selectRect, handle, mode, cloned = false, currentItems = [];
 
 selectTool.onMouseDown = function(event) {
 	
@@ -80,6 +80,15 @@ selectTool.onMouseDrag = function(event) {
 	// Drag all the currently selected objects, following the movement
 	// of the cursor.
 	else if(mode == 'dragging') {
+
+		if(Key.isDown('alt') && cloned == false) {
+			// Clone & select current items
+			currentItems = cloneSelection();
+			deselectAll()
+			select(currentItems)
+			cloned = true;
+		}
+
 		for(var i=0; i<currentItems.length; i++) {
 			var item = currentItems[i]
 			item.position = item.position.add(event.delta)
@@ -94,9 +103,6 @@ selectTool.onMouseDrag = function(event) {
 	// on the current position of the cursor. Rectangles, circles
 	// and groups are updated differently.
 	else if(mode == 'editing') {
-
-		// to do 
-		// 
 
 		if(currentItems.length == 1) {
 			item = currentItems[0]
@@ -192,10 +198,11 @@ selectTool.onMouseUp = function(event) {
 		});
 
 		// And select!
-		select(items)
+		select(items);
 
 	}
 
 	// Reset the mode
-	mode = ''
+	mode = '';
+	cloned = false;
 }
