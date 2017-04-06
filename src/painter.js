@@ -212,4 +212,8 @@ $(window).ready(function() {
 		resetRotationSelection()
 	})
 
+	$('.swatch[data-color]').each(function(i, el){
+		$(el).css('backgroundColor', $(el).data('color'));
+	})
+
 })
