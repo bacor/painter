@@ -30,20 +30,35 @@ function getBoundingBox(item) {
 
 	// Rectangles, groups or an array of multiple items 
 	// all get a rectangular bounding box
-	if(isGroup(item) || isRectangular(item) || item.className == 'Rectangle') {
+	if((isRectangular(item) || isGroup(item)) || item.className == 'Rectangle') {
+
+		// Bounds around the item
+		var bounds = (isGroup(item) || isRectangular(item)) ? item.bounds : item;
+
+		// Determine the rectangle on which to base the bounding box. For a rectangular
+		// path, this should be that very path (to get the index ordering right),
+		// for others it doesn't matter, but it is convenient to instantiate a Path first
+		var rect = isRectangular(item) ? item : new Path.Rectangle(bounds)
 		
-		var bounds = (isRectangular(item) || isGroup(item)) ? item.bounds : item;
-		var border = new Path.Rectangle(bounds.expand(12))
+		// The border of the bounding box (expanded slightly)
+		var border = new Path.Rectangle(rect.bounds.expand(12))
 		border.strokeColor = 'black'
 		parts.push(border)
 
-		positions = ['topLeft', 'bottomLeft', 'bottomRight', 'topRight']
-		for(var i =0; i<positions.length; i++) {
-			var position = border.bounds[positions[i]]
-			var handle = getHandle(position)
-			handle.type = 'handle:' + positions[i]
+		// Add the handles in the same order as they occur in rect. In this way, the order
+		// is unchanged for rectangular paths and we can relate handles to segments in a
+		// straightforward way.
+		for(var i=0; i<rect.segments.length; i++) {
+			var positionName = getPositionName(rect.segments[i])
+					position = border.bounds[positionName],
+					handle = getHandle(position);
+
+			handle.type = 'handle:' + positionName
 			parts.push(handle)
 		}
+
+		// Remove the auxiliary rectangle for groups/Rectangles
+		if(!isRectangular(item)) rect.remove();
 	}
 
 	// Circles get a circular bounding box
@@ -64,18 +79,18 @@ function getBoundingBox(item) {
 }
 
 function select(items) {
-	if( !(items instanceof Array) ) items = [items];
-	if(items.length == 0) return false;
+	if(items instanceof Array && items.length == 0) return false;
+	if(items instanceof Array && items.length == 1 ) items = items[0]//items = [items];
 	
-	if(items.length == 1) {
-		var item = items[0];
+	if( !(items instanceof Array) ) {
+		// var item = items[0];
 
 		// Only generate bounding box for unselected
-		if(isSelected(item)) return item.boundingBox;
+		if(isSelected(items)) return items.boundingBox;
 
-		var boundingBox = getBoundingBox(item);
-		boundingBox.items = [item];
-		item.boundingBox = boundingBox;
+		var boundingBox = getBoundingBox(items);
+		boundingBox.items = [items];
+		items.boundingBox = boundingBox;
 	}
 
 	else if(items.length > 1) {
@@ -96,7 +111,6 @@ function select(items) {
 			items[i].strokeColor = 'black';
 		}
 	}
-
 	return boundingBox;
 }
 
@@ -108,7 +122,7 @@ function deselect(item) {
 
 function reselect(item){
 	deselect(item)
-	select(item)
+	return select(item)
 }
 
 function deselectAll(items) {
@@ -142,25 +156,103 @@ function isGroup(item) {
 }
 
 function isHandle(item) {
-	return item.type.startsWith('handle')
+	if(item.type == undefined) return false;
+	return item.type.startsWith('handle');
 }
 
-function handlePosition(handle, index=false) {
-	positions = ['bottomLeft', 'topLeft', 'topRight', 'bottomRight']
-	for(var i =0; i<positions.length; i++) {
-		if(handle.type.endsWith(positions[i])) {
-			if(index == true) return i;
-			return positions[i]
-		}	
+function isSegment(item) {
+	return item.className == 'Segment';
+}
+
+function getAdjacentSegments(segment) {
+	var segments = segment.path.segments,
+			sameX, sameY, cur;
+	for(var i=0; i<segments.length; i++) {
+		if(segments[i] == segment) continue;
+		if(segments[i].point.x == segment.point.x) sameX = segments[i];
+		if(segments[i].point.y == segment.point.y) sameY = segments[i];
 	}
-} 
+	return {sameX: sameX, sameY: sameY };
+}
+
+function getPositionName(item) {
+	if(isHandle(item)) {
+		return item.type.split(':')[1];
+	}
+	
+	if(isSegment(item)) {
+		var rectangle = item.path.bounds;
+		positions = ['bottomLeft', 'topLeft', 'topRight', 'bottomRight']
+		for(var i =0; i<positions.length; i++) {
+			if(item.point.equals(rectangle[positions[i]])) return positions[i];
+		}
+	}
+}
+
+function getPositionIndex(item) {
+	if(isHandle(item)) {
+		return item.parent.children.indexOf(item) - 1;
+	}
+
+	if(isSegment(item)) {
+		return item.path.segments.indexOf(item);
+	}
+}
+
+function getSegmentByName(name, rectangle) {
+	var bounds = rectangle.bounds,
+			position = bounds[name];
+
+	for(var i =0; i<rectangle.segments.length; i++) {
+		var segment = rectangle.segments[i];
+		if(position.equals(segment.point)) return segment;
+	}
+}
+
+function getSegmentByIndex(index, rectangle) {
+	return rectangle.segments[index]
+}
+
+function getSegmentByHandle(handle, item) {
+	var item = (item == false) ? getHandleItems(handle) : item
+	var index = getPositionIndex(handle),
+			segment = getSegmentByIndex(index, item);
+	return segment
+}
+
+function getHandleByName(name, boundingBox) {
+	var handles = boundingBox.children.slice(1);
+	for(var i=0; i<handles.length; i++){
+		if(getPositionName(handles[i]) == name) return handles[i];
+	}
+}
 
 function inGroup(item) {
 	return isGroup(item.parent)
 }
 
+
 function getHandleItems(handle) {
-	return handle.parent.items
+	var items = handle.parent.items
+	if(items.length == 1) return items[0];
+	return items
+}
+
+function getHandleByType(boundingBox, type) {
+	var handles = boundingBox.items.filter(function(handle) {
+		return handle.type == type
+	})
+	if( handles.length == 0 ) return false;
+	if( handles.length == 1) return handles[0];
+	return handles;
+}
+
+function getClosestHandle(boundingBox, point) {
+
+}
+
+function getBoundingBoxBorder(boundingBox) {
+	return boundingBox.children[0]
 }
 
 function hitGroup(hitResult) {
@@ -406,36 +498,43 @@ selectTool.onMouseDrag = function(event) {
 	else if(mode == 'editing') {
 
 		// to do 
+		// 
 
 		if(currentItems.length == 1) {
 			item = currentItems[0]
-			
+
 			// Rectangle!
 			if( isRectangular(item) ) {
-				var idx = handlePosition(handle, true),
-						prevIdx = (idx + 1) % 4,
-						nextIdx = (idx - 1) % 4;
-				if(nextIdx < 0) nextIdx = 4 + nextIdx;
-				var cur  = item.segments[idx]
-				var prev = item.segments[prevIdx]
-				var next = item.segments[nextIdx]
+				var segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
 
-				// Move adjacent segments
-				if(prev.point.x == cur.point.x) {
-					prev.point = prev.point.add(new Point(event.delta.x, 0))
-					next.point = next.point.add(new Point(0, event.delta.y))
-				} else {
-					prev.point = prev.point.add(new Point(0, event.delta.y))
-					next.point = next.point.add(new Point(event.delta.x, 0))
-				}
-				cur.point = cur.point.add(event.delta)
+				// Get segment corresponding to the handle, and segments adjacent to that
+				segment = getSegmentByHandle(handle, item);
+				adjacents = getAdjacentSegments(segment);
+				sameX = adjacents.sameX;
+				sameY = adjacents.sameY;
+				
+				// Move segments
+				// To do: this is still a bit buggy... You sometimes get crosses, or the
+				// rectangle is essentially removed.
+				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
+				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
+				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
+				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
+				sameX.point   = sameX.point.add([deltaX, 0]);
+				sameY.point   = sameY.point.add([0, deltaY]);
+				segment.point = segment.point.add([deltaX, deltaY]);
+
+				// Update bounding box
 				reselect(item)
+
+				// Color selected handle
+				var newHandleName = getPositionName(segment);
+				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				newHandle.fillColor = 'black'
 			}
 
-			// Circles and groups can just be scaled
-			// @todo: for groups, the scaling should be such that the
-			// cursor stays on the handles. That doesn't happen now.
-			if( isCircular(item) || isGroup(item) ) {
+			// Circles are just scaled
+			if( isCircular(item) ) {
 				// To do: you can move the handle along with the mouse, 
 				// that'd be nice!
 				var center = item.position,
@@ -444,6 +543,30 @@ selectTool.onMouseDrag = function(event) {
 						scaleFactor = newRadius/radius;
 				item.scale(scaleFactor)
 				reselect(item);
+
+				// Color the selected handle
+				var newHandle = item.boundingBox.children[1];
+				newHandle.fillColor = 'black';
+			}
+
+			// Groups behave very much like circles: they are just scaled.
+			// Their radius is different, however.
+			if( isGroup(item) ) {
+				var center = item.position,
+						width = item.bounds.width,
+						height = item.bounds.height,
+						radius = Math.sqrt(width*width + height*height), // Diagonal
+						newRadius = event.point.subtract(center).length * 2 - 6,
+						scaleFactor = newRadius/radius;
+				item.scale(scaleFactor)
+
+				// Update the selection box
+				reselect(item);
+
+				// Color selected handle
+				var newHandleName = getPositionName(handle)
+				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				newHandle.fillColor = 'black'
 			}
 		}
 

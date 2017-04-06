@@ -440,5 +440,7 @@ div.painter {
         background: burlywood; }
       div.painter .tools a.tool span {
         display: none; }
-  div.painter canvas {
+  div.painter div.canvas-container {
     flex-grow: 1; }
+    div.painter div.canvas-container canvas {
+      width: 100%; }

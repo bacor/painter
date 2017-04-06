@@ -91,36 +91,43 @@ selectTool.onMouseDrag = function(event) {
 	else if(mode == 'editing') {
 
 		// to do 
+		// 
 
 		if(currentItems.length == 1) {
 			item = currentItems[0]
-			
+
 			// Rectangle!
 			if( isRectangular(item) ) {
-				var idx = handlePosition(handle, true),
-						prevIdx = (idx + 1) % 4,
-						nextIdx = (idx - 1) % 4;
-				if(nextIdx < 0) nextIdx = 4 + nextIdx;
-				var cur  = item.segments[idx]
-				var prev = item.segments[prevIdx]
-				var next = item.segments[nextIdx]
+				var segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
 
-				// Move adjacent segments
-				if(prev.point.x == cur.point.x) {
-					prev.point = prev.point.add(new Point(event.delta.x, 0))
-					next.point = next.point.add(new Point(0, event.delta.y))
-				} else {
-					prev.point = prev.point.add(new Point(0, event.delta.y))
-					next.point = next.point.add(new Point(event.delta.x, 0))
-				}
-				cur.point = cur.point.add(event.delta)
+				// Get segment corresponding to the handle, and segments adjacent to that
+				segment = getSegmentByHandle(handle, item);
+				adjacents = getAdjacentSegments(segment);
+				sameX = adjacents.sameX;
+				sameY = adjacents.sameY;
+				
+				// Move segments
+				// To do: this is still a bit buggy... You sometimes get crosses, or the
+				// rectangle is essentially removed.
+				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
+				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
+				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
+				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
+				sameX.point   = sameX.point.add([deltaX, 0]);
+				sameY.point   = sameY.point.add([0, deltaY]);
+				segment.point = segment.point.add([deltaX, deltaY]);
+
+				// Update bounding box
 				reselect(item)
+
+				// Color selected handle
+				var newHandleName = getPositionName(segment);
+				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				newHandle.fillColor = 'black'
 			}
 
-			// Circles and groups can just be scaled
-			// @todo: for groups, the scaling should be such that the
-			// cursor stays on the handles. That doesn't happen now.
-			if( isCircular(item) || isGroup(item) ) {
+			// Circles are just scaled
+			if( isCircular(item) ) {
 				// To do: you can move the handle along with the mouse, 
 				// that'd be nice!
 				var center = item.position,
@@ -129,6 +136,30 @@ selectTool.onMouseDrag = function(event) {
 						scaleFactor = newRadius/radius;
 				item.scale(scaleFactor)
 				reselect(item);
+
+				// Color the selected handle
+				var newHandle = item.boundingBox.children[1];
+				newHandle.fillColor = 'black';
+			}
+
+			// Groups behave very much like circles: they are just scaled.
+			// Their radius is different, however.
+			if( isGroup(item) ) {
+				var center = item.position,
+						width = item.bounds.width,
+						height = item.bounds.height,
+						radius = Math.sqrt(width*width + height*height), // Diagonal
+						newRadius = event.point.subtract(center).length * 2 - 6,
+						scaleFactor = newRadius/radius;
+				item.scale(scaleFactor)
+
+				// Update the selection box
+				reselect(item);
+
+				// Color selected handle
+				var newHandleName = getPositionName(handle)
+				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				newHandle.fillColor = 'black'
 			}
 		}
 

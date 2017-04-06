@@ -20,31 +20,35 @@ div.painter {
 
 	.tools {
 		display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+        flex-direction: column;
+        align-items: flex-start;
 
-    a.tool {
-    	padding: 7px 15px 7px 0;
-    	// text-transform: uppercase;
-    	// font-size: 10px;
-    	// letter-spacing: 2px;
-    	// display: inline-block;
-    	background: cadetblue;
-    	margin-bottom: 2px;
-    	color: #fff;
-    	text-align: center;
+        a.tool {
+        	padding: 7px 15px 7px 0;
+        	// text-transform: uppercase;
+        	// font-size: 10px;
+        	// letter-spacing: 2px;
+        	// display: inline-block;
+        	background: cadetblue;
+        	margin-bottom: 2px;
+        	color: #fff;
+        	text-align: center;
 
-    	&.active {
-    		background: burlywood;
-    	}
+        	&.active {
+        		background: burlywood;
+        	}
 
-    	span {
-    		display: none;
-    	}
+        	span {
+        		display: none;
+        	}
+        }
+	}
+
+    div.canvas-container {
+        flex-grow: 1;
+
+        canvas {
+            width: 100%
+        }
     }
-	}
-
-	canvas {
-		flex-grow: 1;
-	}
 }
