@@ -109,6 +109,11 @@ function select(items) {
 		for(var i=0; i<items.length; i++){
 			items[i].boundingBox = boundingBox;
 			items[i].strokeColor = 'black';
+
+			// Dash items in a group.
+			if( isGroup(items[i]) ) {
+				items[i].dashArray = [6,5];
+			}
 		}
 	}
 	return boundingBox;
@@ -118,6 +123,7 @@ function deselect(item) {
 	item.boundingBox.remove();
 	item.boundingBox = undefined;
 	item.strokeColor = undefined;
+	item.dashArray = undefined;
 }
 
 function reselect(item){
@@ -585,15 +591,12 @@ selectTool.onMouseUp = function(event) {
 		if(selectRect) selectRect.remove();
 
 		// Find all items in the selection area
-		// @todo You cannot select groups using the rectangular
-		// selection. That should be fixed.
 		rect = new Rectangle(event.downPoint, event.point)
-		var items = project.getItems({ 
+		var items = project.activeLayer.getItems({ 
 			overlapping: rect,
-			class: Path,
-			match: function(item) { // Does this work? Or use filter instead?
-				return !inGroup(item)
-			}
+		
+			// Don't match elements inside a group (the group will be selected already)
+			match: function(item) { return !inGroup(item) }
 		});
 
 		// And select!

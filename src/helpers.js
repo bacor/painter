@@ -109,6 +109,11 @@ function select(items) {
 		for(var i=0; i<items.length; i++){
 			items[i].boundingBox = boundingBox;
 			items[i].strokeColor = 'black';
+
+			// Dash items in a group.
+			if( isGroup(items[i]) ) {
+				items[i].dashArray = [6,5];
+			}
 		}
 	}
 	return boundingBox;
@@ -118,6 +123,7 @@ function deselect(item) {
 	item.boundingBox.remove();
 	item.boundingBox = undefined;
 	item.strokeColor = undefined;
+	item.dashArray = undefined;
 }
 
 function reselect(item){
