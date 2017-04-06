@@ -5,7 +5,7 @@
 paper.install(window);
 
 function groupSelection() {
-	var items = project.getItems({
+	var items = project.activeLayer.getItems({
 		match: isSelected
 	})
 	var group = new Group(items);
@@ -54,6 +54,25 @@ $(window).ready(function() {
 	c.fillColor = 'green'
 	// c.selected = true
 	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = 'green'
+	// r.selected = true
+	r.type = 'rectangle'
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
 		rectTool.activate()

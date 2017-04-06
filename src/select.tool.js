@@ -1,19 +1,15 @@
 
-
 /**
- * To do:
- * The selection tool and the drag tool should be merged
- * When nothing is selected, the tool should work as the current
- * selection tool. When something is selected AND you hit
- * that object, then you should drag it.
- * @type {Tool}
+ * Selection tool
+ *
+ * The default and most important tool that selects, drags and edits items.
+ * Depending on where the user clicks, the selection tool enters a different
+ * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
+ * largely through the mode the selector is in.
  */
+
 selectTool = new Tool()
-var selectionTool = new Tool()
-var selectRect;
-var mode = 'selecting'; // selecting / dragging
-var handle;
-var currentItems;
+var selectRect, handle, currentItems, mode;
 
 selectTool.onMouseDown = function(event) {
 	
@@ -38,7 +34,7 @@ selectTool.onMouseDown = function(event) {
 		else {
 
 			// Select the group if the item we hit is in a group
-			if(inGroup(item)) item = item.parent;
+			if(inGroup(item)) item = getOuterGroup(item);
 			
 			// Deselect the other items either if the current target is not 
 			// selected or if there is no group of items selected (i.e., just one)
@@ -108,7 +104,7 @@ selectTool.onMouseDrag = function(event) {
 				
 				// Move segments
 				// To do: this is still a bit buggy... You sometimes get crosses, or the
-				// rectangle is essentially removed.
+				// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
 				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
 				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
 				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
