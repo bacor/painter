@@ -612,7 +612,7 @@ rectTool.onMouseUp = function() {
  */
 
 selectTool = new Tool()
-var selectRect, handle, currentItems, mode;
+var selectRect, handle, mode, currentItems = [];
 
 selectTool.onMouseDown = function(event) {
 	
@@ -635,19 +635,28 @@ selectTool.onMouseDown = function(event) {
 
 		// We hit an object --> drag
 		else {
+			mode = 'dragging'
 
 			// Select the group if the item we hit is in a group
 			if(inGroup(item)) item = getOuterGroup(item);
 			
-			// Deselect the other items either if the current target is not 
-			// selected or if there is no group of items selected (i.e., just one)
-			if(!isSelected(item) 
-				|| (isSelected(item) && item.boundingBox.items.length == 1)) {
-				deselectAll()
+			// If the shift key is pressed, just add the item to the selection.
+			if(Key.isDown('shift')) {
+				currentItems.push(item);
+				deselectAll();
+				select(currentItems);
 			} 
-			select(item)
-			mode = 'dragging'
-			currentItems = item.boundingBox.items
+
+			else {
+				// Deselect the other items either if the current target is not 
+				// selected or if there is no group of items selected (i.e., just one)
+				if(!isSelected(item) 
+					|| (isSelected(item) && item.boundingBox.items.length == 1)) {
+					deselectAll()
+				} 
+				select(item)
+				currentItems = item.boundingBox.items
+			}
 		}
 	} 
 
