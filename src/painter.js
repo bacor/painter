@@ -4,6 +4,8 @@
 
 paper.install(window);
 
+var mainColor = '#78C3D0';
+
 function groupSelection() {
 	var items = project.activeLayer.getItems({
 		match: isSelected
@@ -107,35 +109,35 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 
 	// Demo
-	r = new Path.Rectangle([20,30,100,140])
-	r.fillColor = 'red'
-	// r.selected = true
-	r.type = 'rectangle'
+	// r = new Path.Rectangle([20,30,100,140])
+	// r.fillColor = 'red'
+	// // r.selected = true
+	// r.type = 'rectangle'
 
-	c = new Path.Circle([300,100], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
-	select(c)
-	select(r)
-	groupSelection()
-	deselectAll()
+	// c = new Path.Circle([300,100], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
+	// select(c)
+	// select(r)
+	// groupSelection()
+	// deselectAll()
 
 
-		// Demo
-	r = new Path.Rectangle([200,200,100,140])
-	r.fillColor = 'green'
-	// r.selected = true
-	r.type = 'rectangle'
+	// 	// Demo
+	// r = new Path.Rectangle([200,200,100,140])
+	// r.fillColor = 'green'
+	// // r.selected = true
+	// r.type = 'rectangle'
 
-	c = new Path.Circle([500,300], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
-	select(c)
-	select(r)
-	groupSelection()
-
+	// c = new Path.Circle([500,300], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
+	// select(c)
+	// select(r)
+	// groupSelection()
+// 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
 		rectTool.activate()
 		$('a.tool').removeClass('active')

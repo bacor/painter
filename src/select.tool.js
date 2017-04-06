@@ -134,7 +134,7 @@ selectTool.onMouseDrag = function(event) {
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
 				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
-				newHandle.fillColor = 'black'
+				newHandle.fillColor = mainColor
 			}
 
 			// Circles are just scaled
@@ -150,7 +150,7 @@ selectTool.onMouseDrag = function(event) {
 
 				// Color the selected handle
 				var newHandle = item.boundingBox.children[1];
-				newHandle.fillColor = 'black';
+				newHandle.fillColor = mainColor;
 			}
 
 			// Groups behave very much like circles: they are just scaled.
@@ -170,7 +170,7 @@ selectTool.onMouseDrag = function(event) {
 				// Color selected handle
 				var newHandleName = getPositionName(handle)
 				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
-				newHandle.fillColor = 'black'
+				newHandle.fillColor = mainColor
 			}
 		}
 

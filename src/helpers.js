@@ -13,12 +13,12 @@ function getHandle(position) {
 	var handle = new Path.Circle({
 		center: position, 
 		radius: 4,
-		strokeColor: '#333',
+		strokeColor: mainColor,
 		fillColor: 'white'
 	})
 
 	handle.on('mouseenter', function() {
-		this.fillColor = 'black'
+		this.fillColor = mainColor
 	})
 
 	handle.on('mouseleave', function() {
@@ -58,7 +58,7 @@ function getBoundingBox(item) {
 		
 		// The border of the bounding box (expanded slightly)
 		var border = new Path.Rectangle(rect.bounds.expand(12))
-		border.strokeColor = 'black'
+		border.strokeColor = mainColor
 		parts.push(border)
 
 		// Add the handles in the same order as they occur in rect. In this way, the order
@@ -83,7 +83,7 @@ function getBoundingBox(item) {
 		var radius = (item.bounds.width + 12) / 2
 		var center = item.position 
 		var border = new Path.Circle(item.position, radius)
-		border.strokeColor = 'black'
+		border.strokeColor = mainColor
 		var handle = getHandle([center.x + radius, center.y])
 		parts.push(border)
 		parts.push(handle)
@@ -135,7 +135,7 @@ function select(items) {
 		// Refer from items to bounding box
 		for(var i=0; i<items.length; i++){
 			items[i].boundingBox = boundingBox;
-			items[i].strokeColor = 'black';
+			items[i].strokeColor = mainColor;
 
 			// Dash items in a group.
 			if( isGroup(items[i]) ) {

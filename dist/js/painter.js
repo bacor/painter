@@ -13,12 +13,12 @@ function getHandle(position) {
 	var handle = new Path.Circle({
 		center: position, 
 		radius: 4,
-		strokeColor: '#333',
+		strokeColor: mainColor,
 		fillColor: 'white'
 	})
 
 	handle.on('mouseenter', function() {
-		this.fillColor = 'black'
+		this.fillColor = mainColor
 	})
 
 	handle.on('mouseleave', function() {
@@ -58,7 +58,7 @@ function getBoundingBox(item) {
 		
 		// The border of the bounding box (expanded slightly)
 		var border = new Path.Rectangle(rect.bounds.expand(12))
-		border.strokeColor = 'black'
+		border.strokeColor = mainColor
 		parts.push(border)
 
 		// Add the handles in the same order as they occur in rect. In this way, the order
@@ -83,7 +83,7 @@ function getBoundingBox(item) {
 		var radius = (item.bounds.width + 12) / 2
 		var center = item.position 
 		var border = new Path.Circle(item.position, radius)
-		border.strokeColor = 'black'
+		border.strokeColor = mainColor
 		var handle = getHandle([center.x + radius, center.y])
 		parts.push(border)
 		parts.push(handle)
@@ -135,7 +135,7 @@ function select(items) {
 		// Refer from items to bounding box
 		for(var i=0; i<items.length; i++){
 			items[i].boundingBox = boundingBox;
-			items[i].strokeColor = 'black';
+			items[i].strokeColor = mainColor;
 
 			// Dash items in a group.
 			if( isGroup(items[i]) ) {
@@ -413,6 +413,8 @@ function getOuterGroup(item) {
 
 paper.install(window);
 
+var mainColor = '#78C3D0';
+
 function groupSelection() {
 	var items = project.activeLayer.getItems({
 		match: isSelected
@@ -516,35 +518,35 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 
 	// Demo
-	r = new Path.Rectangle([20,30,100,140])
-	r.fillColor = 'red'
-	// r.selected = true
-	r.type = 'rectangle'
+	// r = new Path.Rectangle([20,30,100,140])
+	// r.fillColor = 'red'
+	// // r.selected = true
+	// r.type = 'rectangle'
 
-	c = new Path.Circle([300,100], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
-	select(c)
-	select(r)
-	groupSelection()
-	deselectAll()
+	// c = new Path.Circle([300,100], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
+	// select(c)
+	// select(r)
+	// groupSelection()
+	// deselectAll()
 
 
-		// Demo
-	r = new Path.Rectangle([200,200,100,140])
-	r.fillColor = 'green'
-	// r.selected = true
-	r.type = 'rectangle'
+	// 	// Demo
+	// r = new Path.Rectangle([200,200,100,140])
+	// r.fillColor = 'green'
+	// // r.selected = true
+	// r.type = 'rectangle'
 
-	c = new Path.Circle([500,300], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
-	select(c)
-	select(r)
-	groupSelection()
-
+	// c = new Path.Circle([500,300], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
+	// select(c)
+	// select(r)
+	// groupSelection()
+// 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
 		rectTool.activate()
 		$('a.tool').removeClass('active')
@@ -788,7 +790,7 @@ selectTool.onMouseDrag = function(event) {
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
 				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
-				newHandle.fillColor = 'black'
+				newHandle.fillColor = mainColor
 			}
 
 			// Circles are just scaled
@@ -804,7 +806,7 @@ selectTool.onMouseDrag = function(event) {
 
 				// Color the selected handle
 				var newHandle = item.boundingBox.children[1];
-				newHandle.fillColor = 'black';
+				newHandle.fillColor = mainColor;
 			}
 
 			// Groups behave very much like circles: they are just scaled.
@@ -824,7 +826,7 @@ selectTool.onMouseDrag = function(event) {
 				// Color selected handle
 				var newHandleName = getPositionName(handle)
 				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
-				newHandle.fillColor = 'black'
+				newHandle.fillColor = mainColor
 			}
 		}
 

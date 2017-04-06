@@ -13,47 +13,57 @@
   <body>
     <div class="painter">
     	<div class="tools">
-    		<a class="tool" data-tool="select">
-    			<i class="flaticon-cursor"></i>
-  				<span>select</span>
-    		</a>
-    		<a class="tool" data-tool="rectangle">
-    			<i class="flaticon-column"></i>
-  				<span>rectangle</span>
-    		</a>
-    		<a class="tool" data-tool="circle">
-    			<i class="flaticon-circle"></i>
-  				<span>circle</span>
-    		</a>
+        <div class="group">
+      		<a class="tool" data-tool="select">
+      			<i class="flaticon-cursor"></i>
+    				<span>select</span>
+      		</a>
+      		<a class="tool" data-tool="rectangle">
+      			<i class="flaticon-column"></i>
+    				<span>rectangle</span>
+      		</a>
+      		<a class="tool" data-tool="circle">
+      			<i class="flaticon-circle"></i>
+    				<span>circle</span>
+      		</a>
+        </div>
 
-    		<a class="tool" data-tool="group">
-    			<i class="flaticon-group"></i>
-  				<span>group</span>
-    		</a>
+        <div class="group">
+      		<a class="tool" data-tool="group">
+      			<i class="flaticon-group"></i>
+    				<span>group</span>
+      		</a>
 
-    		<a class="tool" data-tool="ungroup">
-    			<i class="flaticon-ungroup"></i>
-  				<span>ungroup</span>
-    		</a>
+      		<a class="tool" data-tool="ungroup">
+      			<i class="flaticon-ungroup"></i>
+    				<span>ungroup</span>
+      		</a>
 
-        <a class="tool" data-tool="delete">
-          Delete
-        </a>
+          <a class="tool" data-tool="delete">
+            Delete
+          </a>
 
-        <a class="tool" data-tool="clone">
-          Clone
-        </a>
+          <a class="tool" data-tool="clone">
+            Clone
+          </a>
+        </div>
 
-
-        <a class="tool" data-tool="rotate">
-          <i class="flaticon-spiral"></i>
-          <span>Rotate</span>
-        </a>
+        <div class="group">
+          <a class="tool" data-tool="rotate">
+            <i class="flaticon-spiral"></i>
+            <span>Rotate</span>
+          </a>
+        </div>
 
     	</div>
 
       <div class="canvas-container">
         <canvas class="painter" id="canvas" resize="true"></canvas>
+        <div class="credits">
+          Code by <a href="http://bascornelissen.nl">Bas Cornelissen</a>
+          <span class="sep"></span>
+          <a href="https://github.com/bacor/painter/">GitHub</a>
+        </div>
       </div>
     </div>
   </body>
