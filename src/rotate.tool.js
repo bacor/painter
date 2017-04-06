@@ -4,14 +4,17 @@ var rotationSpeed = 2
 
 var currentItem, crosshair;
 rotationTool.onMouseDown = function(event) {
-
-	// Find and select current item
-	hitResult = project.hitTest(event.point, {
-		fill: true,
-		tolerance: 5
-	})
-	if(!hitResult) return false;
-	currentItem = hitResult.item			
+	currentItem = getSelected()[0]
+	console.log(currentItem);
+	if(currentItem == undefined) {
+		hitResult = project.hitTest(event.point, {
+			fill: true,
+			tolerance: 5
+		})
+		
+		if(!hitResult) return false;
+		currentItem = hitResult.item			
+	}
 	selectOnly(currentItem);
 
 	var d = 7
