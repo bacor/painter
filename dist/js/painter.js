@@ -640,10 +640,10 @@ $(window).ready(function() {
 		}
 	}
 
-	// rectTool.onKeyDown = onKeyDown;
-	// circleTool.onKeyDown = onKeyDown;
-	// selectTool.onKeyDown = onKeyDown;
-	// rotationTool.onKeyDown = onKeyDown;
+	rectTool.onKeyDown = onKeyDown;
+	circleTool.onKeyDown = onKeyDown;
+	selectTool.onKeyDown = onKeyDown;
+	rotationTool.onKeyDown = onKeyDown;
 
 	// // Demo
 	// r = new Path.Rectangle([20,30,100,140])
@@ -734,9 +734,9 @@ $(window).ready(function() {
 		resetRotationSelection()
 	})
 
-	$('.swatch[data-color]').each(function(i, el){
-		$(el).css('backgroundColor', $(el).data('color'));
-	})
+	// $('.swatch[data-color]').each(function(i, el){
+	// 	$(el).css('backgroundColor', $(el).data('color'));
+	// })
 
 });
 /**
