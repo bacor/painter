@@ -11,7 +11,7 @@ body {
 }
 
 a, a:visited {
-    color: inherit !important;
+    color: inherit;
 }
 
 div.painter {
@@ -30,27 +30,44 @@ div.painter {
             display: flex;
             flex-direction:column;
             margin-bottom: $margin;
+            width: 100%;
         }
 
         a.tool {
             width: 100%;
-        	padding: 7px 20px 7px 0;
+        	padding: 7px 10px;
         	margin-bottom: 2px;
         	color: #fff;
-        	text-align: center;
+            // background: $orange;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 1px;
+
+            code {
+                font-family: "Ek Mukta";
+                font-weight: bold;
+
+                &:before{
+                    content: "["
+                }
+
+                &:after{
+                    content: "]"
+                }
+            }
 
         	&.active {
-        		background: $yellow;
-                color: $black;
+        		background: $orange;
+                // color: $yellow;
         	}
 
             &:hover {
                 color: $black
             }
 
-        	span {
-        		display: none;
-        	}
+            i {
+                display: none;
+            }
         }
 	}
 

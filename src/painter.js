@@ -66,7 +66,7 @@ $(window).ready(function() {
 	paper.setup('canvas');
 
 	function onKeyDown(event) {
-		if(event.key == 'backspace') {
+		if(event.key == 'backspace' || event.key == 'd') {
 			deleteSelection()
 		}
 
@@ -93,42 +93,51 @@ $(window).ready(function() {
 		else if(event.key == 'v') {
 			$('a.tool[data-tool=select]').click();
 		}
+
+		else if(event.key == 'c') {
+			$('a.tool[data-tool=circle]').click();
+		}
+
+		else if(event.key == 's') {
+			$('a.tool[data-tool=rectangle]').click();
+		}
 	}
 
 	rectTool.onKeyDown = onKeyDown;
 	circleTool.onKeyDown = onKeyDown;
 	selectTool.onKeyDown = onKeyDown;
+	rotationTool.onKeyDown = onKeyDown;
 
-	// Demo
-	r = new Path.Rectangle([20,30,100,140])
-	r.fillColor = 'red'
-	// r.selected = true
-	r.type = 'rectangle'
+	// // Demo
+	// r = new Path.Rectangle([20,30,100,140])
+	// r.fillColor = 'red'
+	// // r.selected = true
+	// r.type = 'rectangle'
 
-	c = new Path.Circle([300,100], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
-	select(c)
-	select(r)
-	groupSelection()
-	deselectAll()
-
-
-		// Demo
-	r = new Path.Rectangle([200,200,100,140])
-	r.fillColor = 'green'
-	// r.selected = true
-	r.type = 'rectangle'
-
-	c = new Path.Circle([500,300], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
+	// c = new Path.Circle([300,100], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
 	// select(c)
-	select(r)
+	// select(r)
 	// groupSelection()
-// 
+	// deselectAll()
+
+
+	// 	// Demo
+	// r = new Path.Rectangle([200,200,100,140])
+	// r.fillColor = 'green'
+	// // r.selected = true
+	// r.type = 'rectangle'
+
+	// c = new Path.Circle([500,300], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
+	// // select(c)
+	// select(r)
+
+
 	$('a.tool[data-tool=rectangle]').on('click', function() {
 		rectTool.activate()
 		$('a.tool').removeClass('active')
@@ -139,7 +148,7 @@ $(window).ready(function() {
 		circleTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	}).click()
+	})
 
 	$('a.tool[data-tool=select]').on('click', function() {
 		selectTool.activate()
@@ -167,6 +176,6 @@ $(window).ready(function() {
 		rotationTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	})//.click()
+	})
 
 })

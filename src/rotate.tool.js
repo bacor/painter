@@ -4,9 +4,14 @@ var rotationSpeed = 2
 
 var currentItem, crosshair;
 rotationTool.onMouseDown = function(event) {
-	currentItem = project.getItems({
-		match: isSelected
-	})[0]
+
+	// Find and select current item
+	hitResult = project.hitTest(event.point, {
+		fill: true,
+		tolerance: 5
+	})
+	if(!hitResult) return false;
+	currentItem = hitResult.item			
 	selectOnly(currentItem);
 
 	var d = 7
@@ -24,12 +29,13 @@ rotationTool.onMouseDown = function(event) {
 }
 
 rotationTool.onMouseDrag = function(event) {
+	if(!currentItem) return;
 	crosshair.position = crosshair.position.add(event.delta);
 	drawRotationRadius(currentItem, crosshair.position)
 }
 
 rotationTool.onMouseUp = function() {
-	
+	if(!currentItem) return;
 	// Start rotating
 	var center = new Point(crosshair.position)
 	rotate(currentItem, center)

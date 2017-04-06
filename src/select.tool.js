@@ -20,9 +20,7 @@ selectTool.onMouseDown = function(event) {
 	})
 
 	// Get currently selected items
-	currentItems = project.getItems({
-		match: isSelected
-	})
+	currentItems = getSelected()
 
 	// We hit something!
 	if(hitResult) {
@@ -89,7 +87,7 @@ selectTool.onMouseDrag = function(event) {
 			selectOnly(currentItems)
 			cloned = true;
 		}
-		
+
 		moveItems(currentItems, event.delta)
 
 		// for(var i=0; i<currentItems.length; i++) {

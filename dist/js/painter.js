@@ -562,7 +562,7 @@ $(window).ready(function() {
 	paper.setup('canvas');
 
 	function onKeyDown(event) {
-		if(event.key == 'backspace') {
+		if(event.key == 'backspace' || event.key == 'd') {
 			deleteSelection()
 		}
 
@@ -589,42 +589,51 @@ $(window).ready(function() {
 		else if(event.key == 'v') {
 			$('a.tool[data-tool=select]').click();
 		}
+
+		else if(event.key == 'c') {
+			$('a.tool[data-tool=circle]').click();
+		}
+
+		else if(event.key == 's') {
+			$('a.tool[data-tool=rectangle]').click();
+		}
 	}
 
 	rectTool.onKeyDown = onKeyDown;
 	circleTool.onKeyDown = onKeyDown;
 	selectTool.onKeyDown = onKeyDown;
+	rotationTool.onKeyDown = onKeyDown;
 
-	// Demo
-	r = new Path.Rectangle([20,30,100,140])
-	r.fillColor = 'red'
-	// r.selected = true
-	r.type = 'rectangle'
+	// // Demo
+	// r = new Path.Rectangle([20,30,100,140])
+	// r.fillColor = 'red'
+	// // r.selected = true
+	// r.type = 'rectangle'
 
-	c = new Path.Circle([300,100], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
-	select(c)
-	select(r)
-	groupSelection()
-	deselectAll()
-
-
-		// Demo
-	r = new Path.Rectangle([200,200,100,140])
-	r.fillColor = 'green'
-	// r.selected = true
-	r.type = 'rectangle'
-
-	c = new Path.Circle([500,300], 40)
-	c.fillColor = 'green'
-	// c.selected = true
-	c.type = 'circle'
+	// c = new Path.Circle([300,100], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
 	// select(c)
-	select(r)
+	// select(r)
 	// groupSelection()
-// 
+	// deselectAll()
+
+
+	// 	// Demo
+	// r = new Path.Rectangle([200,200,100,140])
+	// r.fillColor = 'green'
+	// // r.selected = true
+	// r.type = 'rectangle'
+
+	// c = new Path.Circle([500,300], 40)
+	// c.fillColor = 'green'
+	// // c.selected = true
+	// c.type = 'circle'
+	// // select(c)
+	// select(r)
+
+
 	$('a.tool[data-tool=rectangle]').on('click', function() {
 		rectTool.activate()
 		$('a.tool').removeClass('active')
@@ -635,7 +644,7 @@ $(window).ready(function() {
 		circleTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	}).click()
+	})
 
 	$('a.tool[data-tool=select]').on('click', function() {
 		selectTool.activate()
@@ -663,7 +672,7 @@ $(window).ready(function() {
 		rotationTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	})//.click()
+	})
 
 });
 /**
@@ -740,9 +749,14 @@ var rotationSpeed = 2
 
 var currentItem, crosshair;
 rotationTool.onMouseDown = function(event) {
-	currentItem = project.getItems({
-		match: isSelected
-	})[0]
+
+	// Find and select current item
+	hitResult = project.hitTest(event.point, {
+		fill: true,
+		tolerance: 5
+	})
+	if(!hitResult) return false;
+	currentItem = hitResult.item			
 	selectOnly(currentItem);
 
 	var d = 7
@@ -760,12 +774,13 @@ rotationTool.onMouseDown = function(event) {
 }
 
 rotationTool.onMouseDrag = function(event) {
+	if(!currentItem) return;
 	crosshair.position = crosshair.position.add(event.delta);
 	drawRotationRadius(currentItem, crosshair.position)
 }
 
 rotationTool.onMouseUp = function() {
-	
+	if(!currentItem) return;
 	// Start rotating
 	var center = new Point(crosshair.position)
 	rotate(currentItem, center)
@@ -792,9 +807,7 @@ selectTool.onMouseDown = function(event) {
 	})
 
 	// Get currently selected items
-	currentItems = project.getItems({
-		match: isSelected
-	})
+	currentItems = getSelected()
 
 	// We hit something!
 	if(hitResult) {
@@ -861,7 +874,7 @@ selectTool.onMouseDrag = function(event) {
 			selectOnly(currentItems)
 			cloned = true;
 		}
-		
+
 		moveItems(currentItems, event.delta)
 
 		// for(var i=0; i<currentItems.length; i++) {
