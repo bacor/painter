@@ -155,7 +155,7 @@ function select(items) {
  * @return {None}
  */
 function deselect(item) {
-	item.boundingBox.remove();
+	if(item.boundingBox) item.boundingBox.remove();
 	item.boundingBox = undefined;
 	item.strokeColor = undefined;
 	item.dashArray = undefined;

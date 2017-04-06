@@ -11,7 +11,7 @@ function groupSelection() {
 	var group = new Group(items);
 	group.type = 'group'
 	group.fillColor = group.children[0].fillColor
-	deselectAll()
+	
 	select(group)
 }
 
@@ -38,19 +38,41 @@ function ungroupSelection() {
 	}
 }
 
+function deleteSelection() {
+	items = project.getItems({
+		match: isSelected
+	})
+	for(var i=0; i<items.length;i++) {
+		deselect(items[i])
+		items[i].remove()
+	}
+}
+
+function rotateSelection() {
+	items = project.getItems({
+		match: isSelected
+	})
+	for(var i=0;i<items.length; i++) {
+		var item = items[i];
+		item.onFrame = function() {
+			// deselect(this)
+			// this.rotation = (this.rotation + 3) % 360
+			this.rotate(3)
+			// console.log(this, this.rotation)
+			if(!inGroup(this) && this.boundingBox) 
+				§this.boundingBox.rotate(3);
+		}
+	}
+
+}
+
 $(window).ready(function() {
 
 	paper.setup('canvas');
 
 	function onKeyDown(event) {
 		if(event.key == 'backspace') {
-			items = project.getItems({
-				match: isSelected
-			})
-			for(var i=0; i<items.length;i++) {
-				deselect(items[i])
-				items[i].remove()
-			}
+			deleteSelection()
 		}
 
 		if(event.key == 'space') {
@@ -59,8 +81,9 @@ $(window).ready(function() {
 				selected: true
 			})
 			bound(items);
-
 		}
+
+		console.log(event, event.key, event.modifiers)
 	}
 
 	rectTool.onKeyDown = onKeyDown;
@@ -121,6 +144,15 @@ $(window).ready(function() {
 
 	$('a.tool[data-tool=ungroup]').on('click', function() {
 		ungroupSelection()
+	})
+
+	$('a.tool[data-tool=delete]').on('click', function() {
+		deleteSelection()
+	})
+
+
+	$('a.tool[data-tool=rotate]').on('click', function() {
+		rotateSelection()
 	})
 
 })
