@@ -91,7 +91,30 @@ function getBoundingBox(item) {
 
 	var boundingBox = new Group(parts)
 	boundingBox.type = 'boundingBox'
+	boundingBox.center = boundingBox.bounds.center;
 	return boundingBox
+}
+
+function showBoundingBox(item) {
+	if(item.boundingBox) {
+		item.boundingBox.visible = true
+	}
+	
+	else {
+		boundingBox = getBoundingBox(item);
+		boundingBox.items = [item];
+		item.boundingBox = boundingBox;
+	}
+}
+
+function hideBoundingBox(item) {
+	if(item.boundingBox) item.boundingBox.visible = false;
+}
+
+function redrawBoundingBox(item) {
+	item.boundingBox.remove()
+	item.boundingBox = undefined
+	return showBoundingBox(item)
 }
 
 /**
@@ -103,47 +126,14 @@ function getBoundingBox(item) {
  * items). To test if an item has been selected using our custom selection
  * method, the test function `isSelected` can be used.
  * @param  {mixed} items An item or multiple items
- * @return {Group}       The bounding box
+ * @return {None}
  */
-function select(items) {
-	if(items instanceof Array && items.length == 0) return false;
-	if(items instanceof Array && items.length == 1 ) items = items[0]//items = [items];
-	
-	if( !(items instanceof Array) ) {
-		// var item = items[0];
+function select(item) {
+	if(item instanceof Array) return item.map(select);
+	if(isSelected(item)) return;
+	showBoundingBox(item)	
 
-		// Only generate bounding box for unselected
-		if(isSelected(items)) return items.boundingBox;
-
-		var boundingBox = getBoundingBox(items);
-		boundingBox.items = [items];
-		items.boundingBox = boundingBox;
-	}
-
-	else if(items.length > 1) {
-
-		// Get bounding box of all items together
-		var bounds = items[0].bounds;
-		for(var i=1; i<items.length; i++){
-			bounds = bounds.unite(items[i].bounds);
-		}
-
-		// The bounding box
-		var boundingBox = getBoundingBox(bounds);
-		boundingBox.items = items;
-
-		// Refer from items to bounding box
-		for(var i=0; i<items.length; i++){
-			items[i].boundingBox = boundingBox;
-			items[i].strokeColor = mainColor;
-
-			// Dash items in a group.
-			if( isGroup(items[i]) ) {
-				items[i].dashArray = [6,5];
-			}
-		}
-	}
-	return boundingBox;
+	// if(isGroup(item)) item.children.map(showBoundingBox);
 }
 
 /**
@@ -155,8 +145,9 @@ function select(items) {
  * @return {None}
  */
 function deselect(item) {
-	if(item.boundingBox) item.boundingBox.remove();
-	item.boundingBox = undefined;
+	hideBoundingBox(item);
+	// if(item.boundingBox) item.boundingBox.visible = false;
+	// // item.boundingBox = undefined;
 	item.strokeColor = undefined;
 	item.dashArray = undefined;
 }
@@ -168,7 +159,7 @@ function deselect(item) {
  */
 function reselect(item){
 	deselect(item)
-	return select(item)
+	select(item)
 }
 
 /**
@@ -190,6 +181,39 @@ function deselectAll(items) {
 	}
 }
 
+function selectOnly(item) {
+	deselectAll();
+	select(item);
+}
+
+function getSelected(match=isSelected) {
+	return project.getItems({
+		match: match
+	})
+}
+
+function moveItems(items, delta) {
+	for(var i=0; i<items.length; i++) {
+		
+		var item = items[i],
+				bbox = item.boundingBox;
+
+		// If this is a group, move all the children individually,
+		// but keep the group itself fixed.
+		if(isGroup(item)) moveItems(item.children, delta);
+		if(!inGroup(item)) item.position = item.position.add(delta);
+
+		// BOunding box, only if it exists
+		if(bbox) bbox.position = bbox.position.add(delta);
+		
+		// Move the focus point around which the current item rotates
+		if(isRotating(item))
+			item.focusPoint = item.focusPoint.add(delta);
+
+
+	}
+}
+
 /********************************************************/
 
 /**
@@ -198,7 +222,7 @@ function deselectAll(items) {
  * @return {Boolean}
  */
 function isSelected(item) {
-	return item.boundingBox != undefined
+	return item.boundingBox != undefined && item.boundingBox.visible == true
 }
 
 /**
@@ -279,6 +303,15 @@ function inGroup(item) {
  */
 function hitGroup(hitResult) {
 	return inGroup(hitResult.item)
+}
+
+/**
+ * Test if an item is rotating
+ * @param  {Item}  item 
+ * @return {Boolean}    
+ */
+function isRotating(item) {
+	return item.rotating != undefined && item.rotating == true;
 }
 
 /********************************************************/
@@ -407,6 +440,60 @@ function getOuterGroup(item) {
 	return item.parent
 }
 
+// function hasRotationRadius(bounding)
+
+/********************************************************/
+
+
+function removeRotationRadius(item) {
+	var children = item.boundingBox.children;
+	for(var i=0; i<children.length; i++) {
+		if(!children[i].type) continue;
+		if(children[i].type.startsWith('radius')) {
+			children[i].remove()
+		}
+	}
+}
+
+function drawRotationRadius(item, center) {
+	var border, tl, br, middle, line, dot;
+	removeRotationRadius(item);
+
+	// Determine the middle of the bounding box: average of two opposite corners
+	corners = item.boundingBox.children[0].segments;
+	middle = corners[0].point.add(corners[2].point).divide(2)
+	
+	line = new Path.Line(middle, center)
+	line.type = 'radius:line'
+	line.strokeColor = mainColor;
+	line.strokeWidth = 1;
+	item.boundingBox.appendTop(line)
+
+	dot = new Path.Circle(center, 3)
+	dot.type = 'radius:dot'
+	dot.fillColor = mainColor;
+	dot.position = center;
+	item.boundingBox.appendTop(dot)
+}
+
+function rotate(item, focusPoint) {
+	focusPoint = focusPoint;
+	item.rotating = true;
+	item.focusPoint = focusPoint;
+	drawRotationRadius(item, focusPoint)
+
+	item.onFrame = function(event) {
+			this.rotate(rotationSpeed, this.focusPoint);
+			this.boundingBox.rotate(rotationSpeed, this.focusPoint);
+			this.rotationDegree = ((this.rotationDegree || 0) + rotationSpeed) % 360
+		}
+}
+
+function stopRotating(item) {
+	item.rotating = false;
+	item.onFrame = undefined;
+}
+
 ;/**
  * Painter.js
  */
@@ -416,14 +503,11 @@ paper.install(window);
 var mainColor = '#78C3D0';
 
 function groupSelection() {
-	var items = project.activeLayer.getItems({
-		match: isSelected
-	})
+	var items = getSelected();
 	var group = new Group(items);
 	group.type = 'group'
-	group.fillColor = group.children[0].fillColor
-	
-	select(group)
+	// group.fillColor = group.children[0].fillColor
+	selectOnly(group)
 }
 
 function ungroupSelection() {
@@ -450,48 +534,26 @@ function ungroupSelection() {
 }
 
 function deleteSelection() {
-	items = project.getItems({
-		match: isSelected
-	})
+	items = getSelected();
 	for(var i=0; i<items.length;i++) {
 		deselect(items[i])
 		items[i].remove()
 	}
 }
 
-function rotateSelection() {
-	items = project.getItems({
-		match: isSelected
-	})
-	for(var i=0;i<items.length; i++) {
-		var item = items[i];
-		item.onFrame = function() {
-			deselect(this)
-			// this.rotation = (this.rotation + 3) % 360
-			this.rotate(3)
-			// console.log(this, this.rotation)
-			// if(!inGroup(this) && this.boundingBox) 
-			// 	this.boundingBox.rotate(3);
-		}
-	}
-
-}
-
 function cloneSelection(move=[0,0]) {
-	items = project.getItems({
-		match: isSelected
-	})
+	var items = getSelected(), 
+			copiedItems = [];
 
 	// Clone all the currently selected items
-	var copiedItems = []
 	for(var i=0; i<items.length; i++) {
 		copy = items[i].clone();
-		copy.position = copy.position.add(move)
-		copiedItems.push(copy)
+		copy.position = copy.position.add(move);
+		copy.type = items[i].type;
+		copiedItems.push(copy);
 	}
 
-	deselectAll();
-	select(copiedItems);
+	selectOnly(copiedItems);
 	return copiedItems;
 }
 
@@ -504,12 +566,28 @@ $(window).ready(function() {
 			deleteSelection()
 		}
 
-		if(event.key == 'space') {
+		else if(event.key == 'space') {
 			items = project.getItems({
 				class: Path,
 				selected: true
 			})
 			bound(items);
+		}
+
+		else if(event.key =='g') {
+			groupSelection()
+		}
+
+		else if(event.key =='u') {
+			ungroupSelection()
+		}
+
+		else if(event.key == 'r') {
+			$('a.tool[data-tool=rotate]').click();
+		}
+
+		else if(event.key == 'v') {
+			$('a.tool[data-tool=select]').click();
 		}
 	}
 
@@ -518,33 +596,33 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 
 	// Demo
-	// r = new Path.Rectangle([20,30,100,140])
-	// r.fillColor = 'red'
-	// // r.selected = true
-	// r.type = 'rectangle'
+	r = new Path.Rectangle([20,30,100,140])
+	r.fillColor = 'red'
+	// r.selected = true
+	r.type = 'rectangle'
 
-	// c = new Path.Circle([300,100], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
+	c = new Path.Circle([300,100], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = 'green'
+	// r.selected = true
+	r.type = 'rectangle'
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
 	// select(c)
-	// select(r)
-	// groupSelection()
-	// deselectAll()
-
-
-	// 	// Demo
-	// r = new Path.Rectangle([200,200,100,140])
-	// r.fillColor = 'green'
-	// // r.selected = true
-	// r.type = 'rectangle'
-
-	// c = new Path.Circle([500,300], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
-	// select(c)
-	// select(r)
+	select(r)
 	// groupSelection()
 // 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
@@ -582,8 +660,10 @@ $(window).ready(function() {
 	})
 
 	$('a.tool[data-tool=rotate]').on('click', function() {
-		rotateSelection()
-	})
+		rotationTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	})//.click()
 
 });
 /**
@@ -625,11 +705,11 @@ circleTool.onMouseDrag = function(event) {
 
 circleTool.onMouseUp = function(event) {
 	circle.type = 'circle'
-};// /**
-//  * Rectangle tool
-//  * 
-//  * Draws rectangles
-//  */
+};/**
+ * Rectangle tool
+ * 
+ * Draws rectangles
+ */
 
 
 rectTool = new Tool();
@@ -655,6 +735,42 @@ rectTool.onMouseDrag = function(event) {
 rectTool.onMouseUp = function() {
 	rectangle.type = 'rectangle'
 };
+rotationTool = new Tool();
+var rotationSpeed = 2
+
+var currentItem, crosshair;
+rotationTool.onMouseDown = function(event) {
+	currentItem = project.getItems({
+		match: isSelected
+	})[0]
+	selectOnly(currentItem);
+
+	var d = 7
+	var line1 = new Path.Line([d, 0], [d, 2*d])
+	var line2 = new Path.Line([0, d], [2*d, d])
+	var circle = new Path.Circle([d, d], d)
+	circle.fillColor = 'white'
+
+	crosshair = new Group([circle, line1, line2])
+	crosshair.strokeColor = mainColor
+	crosshair.position = event.point
+
+	drawRotationRadius(currentItem, crosshair.position)
+	stopRotating(currentItem)
+}
+
+rotationTool.onMouseDrag = function(event) {
+	crosshair.position = crosshair.position.add(event.delta);
+	drawRotationRadius(currentItem, crosshair.position)
+}
+
+rotationTool.onMouseUp = function() {
+	
+	// Start rotating
+	var center = new Point(crosshair.position)
+	rotate(currentItem, center)
+	crosshair.remove()
+};
 /**
  * Selection tool
  *
@@ -673,6 +789,11 @@ selectTool.onMouseDown = function(event) {
 	hitResult = project.hitTest(event.point, {
 		fill: true,
 		tolerance: 5
+	})
+
+	// Get currently selected items
+	currentItems = project.getItems({
+		match: isSelected
 	})
 
 	// We hit something!
@@ -695,30 +816,27 @@ selectTool.onMouseDown = function(event) {
 			
 			// If the shift key is pressed, just add the item to the selection.
 			if(Key.isDown('shift')) {
-				currentItems.push(item);
-				deselectAll();
-				select(currentItems);
-			} 
+				currentItems.push(item);	
+			}
 
-			else {
-				// Deselect the other items either if the current target is not 
-				// selected or if there is no group of items selected (i.e., just one)
-				if(!isSelected(item) 
-					|| (isSelected(item) && item.boundingBox.items.length == 1)) {
-					deselectAll()
-				} 
-				select(item)
-				currentItems = item.boundingBox.items
+			// If you click outside the selection, deselect the current selection
+			// and select the thing you clicked on.
+			else if(!isSelected(item)) {
+				currentItems = [item]
 			}
 		}
 	} 
 
 	// Nothing was hit; start a selection instead
 	else {
-		mode = 'selecting'
-		deselectAll()
+		mode = 'selecting';
+		currentItems = [];
 		selectRect = new Path.Rectangle(event.point, new Size(0,0));
 	}
+
+	// Update the selection
+	selectOnly(currentItems);
+
 }
 
 selectTool.onMouseDrag = function(event) {
@@ -740,28 +858,29 @@ selectTool.onMouseDrag = function(event) {
 		if(Key.isDown('alt') && cloned == false) {
 			// Clone & select current items
 			currentItems = cloneSelection();
-			deselectAll()
-			select(currentItems)
+			selectOnly(currentItems)
 			cloned = true;
 		}
+		
+		moveItems(currentItems, event.delta)
 
-		for(var i=0; i<currentItems.length; i++) {
-			var item = currentItems[i]
-			item.position = item.position.add(event.delta)
-		}
-
-		// All items share one bounding box; so update its position only once
-		boundingBox = currentItems[0].boundingBox	
-		boundingBox.position = boundingBox.position.add(event.delta)
+		// for(var i=0; i<currentItems.length; i++) {
+		// 	var item = currentItems[i], bbox = item.boundingBox;
+		// 	item.position = item.position.add(event.delta)
+		// 	bbox.position = bbox.position.add(event.delta)
+			
+		// 	// Move the focus point around which the current item rotates
+		// 	if(isRotating(item))
+		// 		item.focusPoint = item.focusPoint.add(event.delta);
+		// }
 	}
 
 	// In editing mode we update the shape of the items based
 	// on the current position of the cursor. Rectangles, circles
 	// and groups are updated differently.
 	else if(mode == 'editing') {
-
 		if(currentItems.length == 1) {
-			item = currentItems[0]
+			var item = currentItems[0]
 
 			// Rectangle!
 			if( isRectangular(item) ) {
@@ -785,7 +904,7 @@ selectTool.onMouseDrag = function(event) {
 				segment.point = segment.point.add([deltaX, deltaY]);
 
 				// Update bounding box
-				reselect(item)
+				redrawBoundingBox(item)
 
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
@@ -802,7 +921,7 @@ selectTool.onMouseDrag = function(event) {
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
 				item.scale(scaleFactor)
-				reselect(item);
+				redrawBoundingBox(item);
 
 				// Color the selected handle
 				var newHandle = item.boundingBox.children[1];
@@ -821,7 +940,7 @@ selectTool.onMouseDrag = function(event) {
 				item.scale(scaleFactor)
 
 				// Update the selection box
-				reselect(item);
+				redrawBoundingBox(item);
 
 				// Color selected handle
 				var newHandleName = getPositionName(handle)
@@ -850,7 +969,9 @@ selectTool.onMouseUp = function(event) {
 			overlapping: rect,
 		
 			// Don't match elements inside a group (the group will be selected already)
-			match: function(item) { return !inGroup(item) }
+			match: function(item) { 
+				return !inGroup(item) && !isBoundingBox(item)
+			}
 		});
 
 		// And select!

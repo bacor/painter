@@ -7,14 +7,11 @@ paper.install(window);
 var mainColor = '#78C3D0';
 
 function groupSelection() {
-	var items = project.activeLayer.getItems({
-		match: isSelected
-	})
+	var items = getSelected();
 	var group = new Group(items);
 	group.type = 'group'
-	group.fillColor = group.children[0].fillColor
-	
-	select(group)
+	// group.fillColor = group.children[0].fillColor
+	selectOnly(group)
 }
 
 function ungroupSelection() {
@@ -41,48 +38,26 @@ function ungroupSelection() {
 }
 
 function deleteSelection() {
-	items = project.getItems({
-		match: isSelected
-	})
+	items = getSelected();
 	for(var i=0; i<items.length;i++) {
 		deselect(items[i])
 		items[i].remove()
 	}
 }
 
-function rotateSelection() {
-	items = project.getItems({
-		match: isSelected
-	})
-	for(var i=0;i<items.length; i++) {
-		var item = items[i];
-		item.onFrame = function() {
-			deselect(this)
-			// this.rotation = (this.rotation + 3) % 360
-			this.rotate(3)
-			// console.log(this, this.rotation)
-			// if(!inGroup(this) && this.boundingBox) 
-			// 	this.boundingBox.rotate(3);
-		}
-	}
-
-}
-
 function cloneSelection(move=[0,0]) {
-	items = project.getItems({
-		match: isSelected
-	})
+	var items = getSelected(), 
+			copiedItems = [];
 
 	// Clone all the currently selected items
-	var copiedItems = []
 	for(var i=0; i<items.length; i++) {
 		copy = items[i].clone();
-		copy.position = copy.position.add(move)
-		copiedItems.push(copy)
+		copy.position = copy.position.add(move);
+		copy.type = items[i].type;
+		copiedItems.push(copy);
 	}
 
-	deselectAll();
-	select(copiedItems);
+	selectOnly(copiedItems);
 	return copiedItems;
 }
 
@@ -95,12 +70,28 @@ $(window).ready(function() {
 			deleteSelection()
 		}
 
-		if(event.key == 'space') {
+		else if(event.key == 'space') {
 			items = project.getItems({
 				class: Path,
 				selected: true
 			})
 			bound(items);
+		}
+
+		else if(event.key =='g') {
+			groupSelection()
+		}
+
+		else if(event.key =='u') {
+			ungroupSelection()
+		}
+
+		else if(event.key == 'r') {
+			$('a.tool[data-tool=rotate]').click();
+		}
+
+		else if(event.key == 'v') {
+			$('a.tool[data-tool=select]').click();
 		}
 	}
 
@@ -109,33 +100,33 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 
 	// Demo
-	// r = new Path.Rectangle([20,30,100,140])
-	// r.fillColor = 'red'
-	// // r.selected = true
-	// r.type = 'rectangle'
+	r = new Path.Rectangle([20,30,100,140])
+	r.fillColor = 'red'
+	// r.selected = true
+	r.type = 'rectangle'
 
-	// c = new Path.Circle([300,100], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
+	c = new Path.Circle([300,100], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = 'green'
+	// r.selected = true
+	r.type = 'rectangle'
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = 'green'
+	// c.selected = true
+	c.type = 'circle'
 	// select(c)
-	// select(r)
-	// groupSelection()
-	// deselectAll()
-
-
-	// 	// Demo
-	// r = new Path.Rectangle([200,200,100,140])
-	// r.fillColor = 'green'
-	// // r.selected = true
-	// r.type = 'rectangle'
-
-	// c = new Path.Circle([500,300], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
-	// select(c)
-	// select(r)
+	select(r)
 	// groupSelection()
 // 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
@@ -173,7 +164,9 @@ $(window).ready(function() {
 	})
 
 	$('a.tool[data-tool=rotate]').on('click', function() {
-		rotateSelection()
-	})
+		rotationTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	})//.click()
 
 })

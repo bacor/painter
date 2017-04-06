@@ -19,6 +19,11 @@ selectTool.onMouseDown = function(event) {
 		tolerance: 5
 	})
 
+	// Get currently selected items
+	currentItems = project.getItems({
+		match: isSelected
+	})
+
 	// We hit something!
 	if(hitResult) {
 		var item = hitResult.item
@@ -39,30 +44,27 @@ selectTool.onMouseDown = function(event) {
 			
 			// If the shift key is pressed, just add the item to the selection.
 			if(Key.isDown('shift')) {
-				currentItems.push(item);
-				deselectAll();
-				select(currentItems);
-			} 
+				currentItems.push(item);	
+			}
 
-			else {
-				// Deselect the other items either if the current target is not 
-				// selected or if there is no group of items selected (i.e., just one)
-				if(!isSelected(item) 
-					|| (isSelected(item) && item.boundingBox.items.length == 1)) {
-					deselectAll()
-				} 
-				select(item)
-				currentItems = item.boundingBox.items
+			// If you click outside the selection, deselect the current selection
+			// and select the thing you clicked on.
+			else if(!isSelected(item)) {
+				currentItems = [item]
 			}
 		}
 	} 
 
 	// Nothing was hit; start a selection instead
 	else {
-		mode = 'selecting'
-		deselectAll()
+		mode = 'selecting';
+		currentItems = [];
 		selectRect = new Path.Rectangle(event.point, new Size(0,0));
 	}
+
+	// Update the selection
+	selectOnly(currentItems);
+
 }
 
 selectTool.onMouseDrag = function(event) {
@@ -84,28 +86,29 @@ selectTool.onMouseDrag = function(event) {
 		if(Key.isDown('alt') && cloned == false) {
 			// Clone & select current items
 			currentItems = cloneSelection();
-			deselectAll()
-			select(currentItems)
+			selectOnly(currentItems)
 			cloned = true;
 		}
+		
+		moveItems(currentItems, event.delta)
 
-		for(var i=0; i<currentItems.length; i++) {
-			var item = currentItems[i]
-			item.position = item.position.add(event.delta)
-		}
-
-		// All items share one bounding box; so update its position only once
-		boundingBox = currentItems[0].boundingBox	
-		boundingBox.position = boundingBox.position.add(event.delta)
+		// for(var i=0; i<currentItems.length; i++) {
+		// 	var item = currentItems[i], bbox = item.boundingBox;
+		// 	item.position = item.position.add(event.delta)
+		// 	bbox.position = bbox.position.add(event.delta)
+			
+		// 	// Move the focus point around which the current item rotates
+		// 	if(isRotating(item))
+		// 		item.focusPoint = item.focusPoint.add(event.delta);
+		// }
 	}
 
 	// In editing mode we update the shape of the items based
 	// on the current position of the cursor. Rectangles, circles
 	// and groups are updated differently.
 	else if(mode == 'editing') {
-
 		if(currentItems.length == 1) {
-			item = currentItems[0]
+			var item = currentItems[0]
 
 			// Rectangle!
 			if( isRectangular(item) ) {
@@ -129,7 +132,7 @@ selectTool.onMouseDrag = function(event) {
 				segment.point = segment.point.add([deltaX, deltaY]);
 
 				// Update bounding box
-				reselect(item)
+				redrawBoundingBox(item)
 
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
@@ -146,7 +149,7 @@ selectTool.onMouseDrag = function(event) {
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
 				item.scale(scaleFactor)
-				reselect(item);
+				redrawBoundingBox(item);
 
 				// Color the selected handle
 				var newHandle = item.boundingBox.children[1];
@@ -165,7 +168,7 @@ selectTool.onMouseDrag = function(event) {
 				item.scale(scaleFactor)
 
 				// Update the selection box
-				reselect(item);
+				redrawBoundingBox(item);
 
 				// Color selected handle
 				var newHandleName = getPositionName(handle)
@@ -194,7 +197,9 @@ selectTool.onMouseUp = function(event) {
 			overlapping: rect,
 		
 			// Don't match elements inside a group (the group will be selected already)
-			match: function(item) { return !inGroup(item) }
+			match: function(item) { 
+				return !inGroup(item) && !isBoundingBox(item)
+			}
 		});
 
 		// And select!

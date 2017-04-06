@@ -1,8 +1,8 @@
-// /**
-//  * Rectangle tool
-//  * 
-//  * Draws rectangles
-//  */
+/**
+ * Rectangle tool
+ * 
+ * Draws rectangles
+ */
 
 
 rectTool = new Tool();

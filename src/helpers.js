@@ -91,7 +91,30 @@ function getBoundingBox(item) {
 
 	var boundingBox = new Group(parts)
 	boundingBox.type = 'boundingBox'
+	boundingBox.center = boundingBox.bounds.center;
 	return boundingBox
+}
+
+function showBoundingBox(item) {
+	if(item.boundingBox) {
+		item.boundingBox.visible = true
+	}
+	
+	else {
+		boundingBox = getBoundingBox(item);
+		boundingBox.items = [item];
+		item.boundingBox = boundingBox;
+	}
+}
+
+function hideBoundingBox(item) {
+	if(item.boundingBox) item.boundingBox.visible = false;
+}
+
+function redrawBoundingBox(item) {
+	item.boundingBox.remove()
+	item.boundingBox = undefined
+	return showBoundingBox(item)
 }
 
 /**
@@ -103,47 +126,14 @@ function getBoundingBox(item) {
  * items). To test if an item has been selected using our custom selection
  * method, the test function `isSelected` can be used.
  * @param  {mixed} items An item or multiple items
- * @return {Group}       The bounding box
+ * @return {None}
  */
-function select(items) {
-	if(items instanceof Array && items.length == 0) return false;
-	if(items instanceof Array && items.length == 1 ) items = items[0]//items = [items];
-	
-	if( !(items instanceof Array) ) {
-		// var item = items[0];
+function select(item) {
+	if(item instanceof Array) return item.map(select);
+	if(isSelected(item)) return;
+	showBoundingBox(item)	
 
-		// Only generate bounding box for unselected
-		if(isSelected(items)) return items.boundingBox;
-
-		var boundingBox = getBoundingBox(items);
-		boundingBox.items = [items];
-		items.boundingBox = boundingBox;
-	}
-
-	else if(items.length > 1) {
-
-		// Get bounding box of all items together
-		var bounds = items[0].bounds;
-		for(var i=1; i<items.length; i++){
-			bounds = bounds.unite(items[i].bounds);
-		}
-
-		// The bounding box
-		var boundingBox = getBoundingBox(bounds);
-		boundingBox.items = items;
-
-		// Refer from items to bounding box
-		for(var i=0; i<items.length; i++){
-			items[i].boundingBox = boundingBox;
-			items[i].strokeColor = mainColor;
-
-			// Dash items in a group.
-			if( isGroup(items[i]) ) {
-				items[i].dashArray = [6,5];
-			}
-		}
-	}
-	return boundingBox;
+	// if(isGroup(item)) item.children.map(showBoundingBox);
 }
 
 /**
@@ -155,8 +145,9 @@ function select(items) {
  * @return {None}
  */
 function deselect(item) {
-	if(item.boundingBox) item.boundingBox.remove();
-	item.boundingBox = undefined;
+	hideBoundingBox(item);
+	// if(item.boundingBox) item.boundingBox.visible = false;
+	// // item.boundingBox = undefined;
 	item.strokeColor = undefined;
 	item.dashArray = undefined;
 }
@@ -168,7 +159,7 @@ function deselect(item) {
  */
 function reselect(item){
 	deselect(item)
-	return select(item)
+	select(item)
 }
 
 /**
@@ -190,6 +181,39 @@ function deselectAll(items) {
 	}
 }
 
+function selectOnly(item) {
+	deselectAll();
+	select(item);
+}
+
+function getSelected(match=isSelected) {
+	return project.getItems({
+		match: match
+	})
+}
+
+function moveItems(items, delta) {
+	for(var i=0; i<items.length; i++) {
+		
+		var item = items[i],
+				bbox = item.boundingBox;
+
+		// If this is a group, move all the children individually,
+		// but keep the group itself fixed.
+		if(isGroup(item)) moveItems(item.children, delta);
+		if(!inGroup(item)) item.position = item.position.add(delta);
+
+		// BOunding box, only if it exists
+		if(bbox) bbox.position = bbox.position.add(delta);
+		
+		// Move the focus point around which the current item rotates
+		if(isRotating(item))
+			item.focusPoint = item.focusPoint.add(delta);
+
+
+	}
+}
+
 /********************************************************/
 
 /**
@@ -198,7 +222,7 @@ function deselectAll(items) {
  * @return {Boolean}
  */
 function isSelected(item) {
-	return item.boundingBox != undefined
+	return item.boundingBox != undefined && item.boundingBox.visible == true
 }
 
 /**
@@ -279,6 +303,15 @@ function inGroup(item) {
  */
 function hitGroup(hitResult) {
 	return inGroup(hitResult.item)
+}
+
+/**
+ * Test if an item is rotating
+ * @param  {Item}  item 
+ * @return {Boolean}    
+ */
+function isRotating(item) {
+	return item.rotating != undefined && item.rotating == true;
 }
 
 /********************************************************/
@@ -405,5 +438,59 @@ function getHandleByName(name, boundingBox) {
 function getOuterGroup(item) {
 	if(inGroup(item.parent)) return getOuterGroup(item.parent);
 	return item.parent
+}
+
+// function hasRotationRadius(bounding)
+
+/********************************************************/
+
+
+function removeRotationRadius(item) {
+	var children = item.boundingBox.children;
+	for(var i=0; i<children.length; i++) {
+		if(!children[i].type) continue;
+		if(children[i].type.startsWith('radius')) {
+			children[i].remove()
+		}
+	}
+}
+
+function drawRotationRadius(item, center) {
+	var border, tl, br, middle, line, dot;
+	removeRotationRadius(item);
+
+	// Determine the middle of the bounding box: average of two opposite corners
+	corners = item.boundingBox.children[0].segments;
+	middle = corners[0].point.add(corners[2].point).divide(2)
+	
+	line = new Path.Line(middle, center)
+	line.type = 'radius:line'
+	line.strokeColor = mainColor;
+	line.strokeWidth = 1;
+	item.boundingBox.appendTop(line)
+
+	dot = new Path.Circle(center, 3)
+	dot.type = 'radius:dot'
+	dot.fillColor = mainColor;
+	dot.position = center;
+	item.boundingBox.appendTop(dot)
+}
+
+function rotate(item, focusPoint) {
+	focusPoint = focusPoint;
+	item.rotating = true;
+	item.focusPoint = focusPoint;
+	drawRotationRadius(item, focusPoint)
+
+	item.onFrame = function(event) {
+			this.rotate(rotationSpeed, this.focusPoint);
+			this.boundingBox.rotate(rotationSpeed, this.focusPoint);
+			this.rotationDegree = ((this.rotationDegree || 0) + rotationSpeed) % 360
+		}
+}
+
+function stopRotating(item) {
+	item.rotating = false;
+	item.onFrame = undefined;
 }
 
