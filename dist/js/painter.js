@@ -424,6 +424,29 @@ function groupSelection() {
 	select(group)
 }
 
+function ungroupSelection() {
+		
+	// Get all currently selected groupos
+	var groups = project.getItems({
+		class: Group,
+		match: isSelected
+	})
+
+	// Remove the items from the group and insert them at
+	// the same position in the tree.
+	// See https://github.com/paperjs/paper.js/issues/1026
+	for( var i=0; i<groups.length; i++) {
+		var group = groups[i];
+
+		children = group.removeChildren();
+		select(children)
+
+		group.parent.insertChildren(group.index,  children);
+		deselect(group);
+		group.remove();
+	}
+}
+
 $(window).ready(function() {
 
 	paper.setup('canvas');
@@ -503,6 +526,10 @@ $(window).ready(function() {
 
 	$('a.tool[data-tool=group]').on('click', function() {
 		groupSelection()
+	})
+
+	$('a.tool[data-tool=ungroup]').on('click', function() {
+		ungroupSelection()
 	})
 
 });
