@@ -144,6 +144,10 @@ $(window).ready(function() {
 			$('a.tool[data-tool=rectangle]').click();
 		}
 
+		else if(event.key == 'b') {
+			$('a.tool[data-tool=bounce]').click();	
+		}
+
 		else if(!isNaN(parseInt(event.key))) {
 			var key = parseInt(event.key);
 			$('.swatch').each(function(i, el){
@@ -158,37 +162,37 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 	rotationTool.onKeyDown = onKeyDown;
 
-	// // Demo
-	// r = new Path.Rectangle([20,30,100,140])
-	// r.fillColor = 'red'
-	// // r.selected = true
-	// r.type = 'rectangle'
+	// Demo
+	r = new Path.Rectangle([20,30,100,140])
+	r.fillColor = getColor(0, 7)
+	// r.selected = true
+	r.type = 'rectangle'
 
-	// c = new Path.Circle([300,100], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
+	c = new Path.Circle([300,100], 40)
+	c.fillColor = getColor(1, 7)
+	// c.selected = true
+	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = getColor(3, 7)
+	// r.selected = true
+	r.type = 'rectangle'
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = getColor(4, 7)
+	// c.selected = true
+	c.type = 'circle'
 	// select(c)
-	// select(r)
-	// groupSelection()
-	// deselectAll()
+	select(r)
 
-
-	// 	// Demo
-	// r = new Path.Rectangle([200,200,100,140])
-	// r.fillColor = 'green'
-	// // r.selected = true
-	// r.type = 'rectangle'
-
-	// c = new Path.Circle([500,300], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
-	// // select(c)
-	// select(r)
-
-	// // rotate(c, new Point([100,100]))
-	// // rotate()
+	// rotate(c, new Point([100,100]))
+	// rotate()
 
 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
@@ -207,7 +211,7 @@ $(window).ready(function() {
 		selectTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	}).click()
+	})
 
 	$('a.tool[data-tool=group]').on('click', function() {
 		groupSelection()
@@ -242,6 +246,12 @@ $(window).ready(function() {
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
 	})
+
+	$('a.tool[data-tool=bounce]').on('click', function() {
+		// bounceTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	}).click()
 
 	$('a.tool[data-tool=reset]').on('click', function() {
 		resetRotationSelection()

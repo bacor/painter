@@ -16,3 +16,20 @@ A quick list of software used
 * Some icons (see `dist/styles`)
 * jQuery (Not needed; remove?)
 * ...
+
+# Notes
+
+There are only three kind of items: circles, rectangles and groups. Circles and rectangles are instances of `Path` with type `circle` and `rectangle` respectively; groups are just normal paper groups. Every item has a corresponding bounding box, accessed through the `item.bbox` property (to do), and conversely item is stored in `bbox.item`. The bounding box consists of a border (type `border`) and some handles (type `handle`). The bounding box has a fixed position relative to the object itself. So if the object moves, the bounding box moves with it. 
+
+Every item can have (at most) one animation, stored in a `item.animation` object:
+
+```
+item.animation = {
+    type: "rotate",     // the type of animation (rotate/bounce),
+    handles: group,     // A paper.Group containing all animation handles,
+    properties: { ... } // Object with additional properties
+    active: true        // flag indicating whether the item is animating
+}
+```
+
+Animations are all identified by a name (e.g. `"rotate"` or `"bounce"`)

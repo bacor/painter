@@ -30,7 +30,7 @@ selectTool.onMouseDown = function(event) {
 		if(isHandle(item)) {
 			mode = 'editing'
 			handle = item;
-			currentItems = item.parent.items;
+			currentItems = [item.parent.item];
 		}
 
 		// We hit an object --> drag
@@ -89,16 +89,6 @@ selectTool.onMouseDrag = function(event) {
 		}
 
 		moveItems(currentItems, event.delta)
-
-		// for(var i=0; i<currentItems.length; i++) {
-		// 	var item = currentItems[i], bbox = item.boundingBox;
-		// 	item.position = item.position.add(event.delta)
-		// 	bbox.position = bbox.position.add(event.delta)
-			
-		// 	// Move the focus point around which the current item rotates
-		// 	if(isRotating(item))
-		// 		item.focusPoint = item.focusPoint.add(event.delta);
-		// }
 	}
 
 	// In editing mode we update the shape of the items based
@@ -134,7 +124,7 @@ selectTool.onMouseDrag = function(event) {
 
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
-				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				var	newHandle = getHandleByName(newHandleName, item.bbox);
 				newHandle.fillColor = mainColor
 			}
 
@@ -150,7 +140,7 @@ selectTool.onMouseDrag = function(event) {
 				redrawBoundingBox(item);
 
 				// Color the selected handle
-				var newHandle = item.boundingBox.children[1];
+				var newHandle = item.bbox.children[1];
 				newHandle.fillColor = mainColor;
 			}
 
@@ -170,7 +160,7 @@ selectTool.onMouseDrag = function(event) {
 
 				// Color selected handle
 				var newHandleName = getPositionName(handle)
-				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				var	newHandle = getHandleByName(newHandleName, item.bbox);
 				newHandle.fillColor = mainColor
 			}
 		}

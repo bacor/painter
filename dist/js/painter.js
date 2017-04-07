@@ -96,24 +96,24 @@ function getBoundingBox(item) {
 }
 
 function showBoundingBox(item) {
-	if(item.boundingBox) {
-		item.boundingBox.visible = true
+	if(item.bbox) {
+		item.bbox.visible = true
 	}
 	
 	else {
 		boundingBox = getBoundingBox(item);
-		boundingBox.items = [item];
-		item.boundingBox = boundingBox;
+		boundingBox.item = item;
+		item.bbox = boundingBox;
 	}
 }
 
 function hideBoundingBox(item) {
-	if(item.boundingBox) item.boundingBox.visible = false;
+	if(item.bbox) item.bbox.visible = false;
 }
 
 function redrawBoundingBox(item) {
-	item.boundingBox.remove()
-	item.boundingBox = undefined
+	item.bbox.remove()
+	item.bbox = undefined
 	return showBoundingBox(item)
 }
 
@@ -146,8 +146,6 @@ function select(item) {
  */
 function deselect(item) {
 	hideBoundingBox(item);
-	// if(item.boundingBox) item.boundingBox.visible = false;
-	// // item.boundingBox = undefined;
 	item.strokeColor = undefined;
 	item.dashArray = undefined;
 }
@@ -196,7 +194,7 @@ function moveItems(items, delta) {
 	for(var i=0; i<items.length; i++) {
 		
 		var item = items[i],
-				bbox = item.boundingBox;
+				bbox = item.bbox;
 
 		// If this is a group, move all the children individually,
 		// but keep the group itself fixed.
@@ -222,7 +220,7 @@ function moveItems(items, delta) {
  * @return {Boolean}
  */
 function isSelected(item) {
-	return item.boundingBox != undefined && item.boundingBox.visible == true
+	return item.bbox != undefined && item.bbox.visible == true
 }
 
 /**
@@ -446,7 +444,7 @@ function getOuterGroup(item) {
 
 
 function removeRotationRadius(item) {
-	var children = item.boundingBox.children;
+	var children = item.bbox.children;
 	for(var i=0; i<children.length; i++) {
 		if(!children[i].type) continue;
 		if(children[i].type.startsWith('radius')) {
@@ -460,31 +458,30 @@ function drawRotationRadius(item, center) {
 	removeRotationRadius(item);
 
 	// Determine the middle of the bounding box: average of two opposite corners
-	corners = item.boundingBox.children[0].segments;
+	corners = item.bbox.children[0].segments;
 	middle = corners[0].point.add(corners[2].point).divide(2)
 	
 	line = new Path.Line(middle, center)
 	line.type = 'radius:line'
 	line.strokeColor = mainColor;
 	line.strokeWidth = 1;
-	item.boundingBox.appendTop(line)
+	item.bbox.appendTop(line)
 
 	dot = new Path.Circle(center, 3)
 	dot.type = 'radius:dot'
 	dot.fillColor = mainColor;
 	dot.position = center;
-	item.boundingBox.appendTop(dot)
+	item.bbox.appendTop(dot)
 }
 
 function rotate(item, focusPoint) {
-	focusPoint = focusPoint;
 	item.rotating = true;
 	item.focusPoint = focusPoint;
 	drawRotationRadius(item, focusPoint)
 
 	item.onFrame = function(event) {
 			this.rotate(rotationSpeed, this.focusPoint);
-			this.boundingBox.rotate(rotationSpeed, this.focusPoint);
+			this.bbox.rotate(rotationSpeed, this.focusPoint);
 			this.rotationDegree = ((this.rotationDegree || 0) + rotationSpeed) % 360
 		}
 }
@@ -504,7 +501,7 @@ function resetRotation(item) {
 	// Rotate back to its original position
 	var deg = - item.rotationDegree
 	item.rotate(deg, item.focusPoint)
-	item.boundingBox.rotate(deg, item.focusPoint);
+	item.bbox.rotate(deg, item.focusPoint);
 	item.rotationDegree = 0;
 
 	// The path might not be exactly rectangular anymore due to the 
@@ -519,6 +516,49 @@ function resetRotation(item) {
 	// Update bounding box etc.
 	redrawBoundingBox(item);
 	selectOnly(item);
+}
+
+function bounce(item, startPoint, endPoint) {
+	item.bouncing = true;
+	item.startPoint = startPoint;
+	item.endPoint = endPoint
+	item.bouncePosition = 0;
+	// drawRotationRadius(item, focusPoint)
+	var dot = new Path.Circle([20,20], 5)
+	dot.fillColor = 'orange'
+	// console.log(dot)
+
+	item.onFrame = function(event) {
+		var center = this.bbox.center;
+		var trajectory = this.startPoint.subtract(this.endPoint)
+
+		this.bouncePosition += .01
+		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
+		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
+
+		var delta = newPoint.subtract(this.position);
+		
+		moveItems([this], delta)
+	}
+}
+
+
+/********************************************************/
+
+function getCrosshair(d=7) {
+	// Old: crosshair with lines
+	// var line1 = new Path.Line([d, 0], [d, 2*d])
+	// var line2 = new Path.Line([0, d], [2*d, d])
+
+	var circle = new Path.Circle([d, d], d)
+	circle.fillColor = 'white'
+	circle.strokeColor = mainColor
+
+	var dot = new Path.Circle([d, d], 3)
+	dot.fillColor = mainColor
+	var crosshair = new Group([circle, dot])
+	
+	return crosshair
 }
 ;/**
  * Painter.js
@@ -666,6 +706,10 @@ $(window).ready(function() {
 			$('a.tool[data-tool=rectangle]').click();
 		}
 
+		else if(event.key == 'b') {
+			$('a.tool[data-tool=bounce]').click();	
+		}
+
 		else if(!isNaN(parseInt(event.key))) {
 			var key = parseInt(event.key);
 			$('.swatch').each(function(i, el){
@@ -680,37 +724,37 @@ $(window).ready(function() {
 	selectTool.onKeyDown = onKeyDown;
 	rotationTool.onKeyDown = onKeyDown;
 
-	// // Demo
-	// r = new Path.Rectangle([20,30,100,140])
-	// r.fillColor = 'red'
-	// // r.selected = true
-	// r.type = 'rectangle'
+	// Demo
+	r = new Path.Rectangle([20,30,100,140])
+	r.fillColor = getColor(0, 7)
+	// r.selected = true
+	r.type = 'rectangle'
 
-	// c = new Path.Circle([300,100], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
+	c = new Path.Circle([300,100], 40)
+	c.fillColor = getColor(1, 7)
+	// c.selected = true
+	c.type = 'circle'
+	select(c)
+	select(r)
+	groupSelection()
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = getColor(3, 7)
+	// r.selected = true
+	r.type = 'rectangle'
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = getColor(4, 7)
+	// c.selected = true
+	c.type = 'circle'
 	// select(c)
-	// select(r)
-	// groupSelection()
-	// deselectAll()
+	select(r)
 
-
-	// 	// Demo
-	// r = new Path.Rectangle([200,200,100,140])
-	// r.fillColor = 'green'
-	// // r.selected = true
-	// r.type = 'rectangle'
-
-	// c = new Path.Circle([500,300], 40)
-	// c.fillColor = 'green'
-	// // c.selected = true
-	// c.type = 'circle'
-	// // select(c)
-	// select(r)
-
-	// // rotate(c, new Point([100,100]))
-	// // rotate()
+	// rotate(c, new Point([100,100]))
+	// rotate()
 
 
 	$('a.tool[data-tool=rectangle]').on('click', function() {
@@ -729,7 +773,7 @@ $(window).ready(function() {
 		selectTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	}).click()
+	})
 
 	$('a.tool[data-tool=group]').on('click', function() {
 		groupSelection()
@@ -765,6 +809,12 @@ $(window).ready(function() {
 		$(this).addClass('active')
 	})
 
+	$('a.tool[data-tool=bounce]').on('click', function() {
+		// bounceTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	}).click()
+
 	$('a.tool[data-tool=reset]').on('click', function() {
 		resetRotationSelection()
 	})
@@ -794,6 +844,42 @@ $(window).ready(function() {
 
 
 });
+// bounceTool = new Tool();
+// var bounceSpeed = 2
+
+// var currentItem, startHandle, endHandle;
+// bounceTool.onMouseDown = function(event) {
+// 	currentItem = getSelected()[0]
+// 	if(currentItem == undefined) {
+// 		hitResult = project.hitTest(event.point, {
+// 			fill: true,
+// 			tolerance: 5
+// 		})
+		
+// 		if(!hitResult) return false;
+// 		currentItem = hitResult.item			
+// 	}
+// 	selectOnly(currentItem);
+
+// 	drawRotationRadius(currentItem, event.point)
+// }
+
+// bounceTool.onMouseDrag = function(event) {
+// 	if(!currentItem) return;
+// 	drawRotationRadius(currentItem, event.point)
+// }
+
+// bounceTool.onMouseUp = function(event) {
+// 	if(!currentItem) return;
+	
+	
+// 	var endPoint = new Point(event.point);
+// 	var startPoint = new Point(currentItem.position);
+
+// 	// corners = currentItem.boundingBox.children[0].segments;
+// 	// startPoint = corners[0].point.add(corners[2].point).divide(2)
+// 	bounce(currentItem, startPoint, endPoint)
+// };
 /**
  * Circle tool
  *
@@ -872,14 +958,7 @@ rotationTool.onMouseDown = function(event) {
 	}
 	selectOnly(currentItem);
 
-	var d = 7
-	var line1 = new Path.Line([d, 0], [d, 2*d])
-	var line2 = new Path.Line([0, d], [2*d, d])
-	var circle = new Path.Circle([d, d], d)
-	circle.fillColor = 'white'
-
-	crosshair = new Group([circle, line1, line2])
-	crosshair.strokeColor = mainColor
+	crosshair = getCrosshair()
 	crosshair.position = event.point
 
 	drawRotationRadius(currentItem, crosshair.position)
@@ -930,7 +1009,7 @@ selectTool.onMouseDown = function(event) {
 		if(isHandle(item)) {
 			mode = 'editing'
 			handle = item;
-			currentItems = item.parent.items;
+			currentItems = [item.parent.item];
 		}
 
 		// We hit an object --> drag
@@ -989,16 +1068,6 @@ selectTool.onMouseDrag = function(event) {
 		}
 
 		moveItems(currentItems, event.delta)
-
-		// for(var i=0; i<currentItems.length; i++) {
-		// 	var item = currentItems[i], bbox = item.boundingBox;
-		// 	item.position = item.position.add(event.delta)
-		// 	bbox.position = bbox.position.add(event.delta)
-			
-		// 	// Move the focus point around which the current item rotates
-		// 	if(isRotating(item))
-		// 		item.focusPoint = item.focusPoint.add(event.delta);
-		// }
 	}
 
 	// In editing mode we update the shape of the items based
@@ -1034,7 +1103,7 @@ selectTool.onMouseDrag = function(event) {
 
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
-				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				var	newHandle = getHandleByName(newHandleName, item.bbox);
 				newHandle.fillColor = mainColor
 			}
 
@@ -1050,7 +1119,7 @@ selectTool.onMouseDrag = function(event) {
 				redrawBoundingBox(item);
 
 				// Color the selected handle
-				var newHandle = item.boundingBox.children[1];
+				var newHandle = item.bbox.children[1];
 				newHandle.fillColor = mainColor;
 			}
 
@@ -1070,7 +1139,7 @@ selectTool.onMouseDrag = function(event) {
 
 				// Color selected handle
 				var newHandleName = getPositionName(handle)
-				var	newHandle = getHandleByName(newHandleName, item.boundingBox);
+				var	newHandle = getHandleByName(newHandleName, item.bbox);
 				newHandle.fillColor = mainColor
 			}
 		}

@@ -96,24 +96,24 @@ function getBoundingBox(item) {
 }
 
 function showBoundingBox(item) {
-	if(item.boundingBox) {
-		item.boundingBox.visible = true
+	if(item.bbox) {
+		item.bbox.visible = true
 	}
 	
 	else {
 		boundingBox = getBoundingBox(item);
-		boundingBox.items = [item];
-		item.boundingBox = boundingBox;
+		boundingBox.item = item;
+		item.bbox = boundingBox;
 	}
 }
 
 function hideBoundingBox(item) {
-	if(item.boundingBox) item.boundingBox.visible = false;
+	if(item.bbox) item.bbox.visible = false;
 }
 
 function redrawBoundingBox(item) {
-	item.boundingBox.remove()
-	item.boundingBox = undefined
+	item.bbox.remove()
+	item.bbox = undefined
 	return showBoundingBox(item)
 }
 
@@ -146,8 +146,6 @@ function select(item) {
  */
 function deselect(item) {
 	hideBoundingBox(item);
-	// if(item.boundingBox) item.boundingBox.visible = false;
-	// // item.boundingBox = undefined;
 	item.strokeColor = undefined;
 	item.dashArray = undefined;
 }
@@ -196,7 +194,7 @@ function moveItems(items, delta) {
 	for(var i=0; i<items.length; i++) {
 		
 		var item = items[i],
-				bbox = item.boundingBox;
+				bbox = item.bbox;
 
 		// If this is a group, move all the children individually,
 		// but keep the group itself fixed.
@@ -222,7 +220,7 @@ function moveItems(items, delta) {
  * @return {Boolean}
  */
 function isSelected(item) {
-	return item.boundingBox != undefined && item.boundingBox.visible == true
+	return item.bbox != undefined && item.bbox.visible == true
 }
 
 /**
@@ -446,7 +444,7 @@ function getOuterGroup(item) {
 
 
 function removeRotationRadius(item) {
-	var children = item.boundingBox.children;
+	var children = item.bbox.children;
 	for(var i=0; i<children.length; i++) {
 		if(!children[i].type) continue;
 		if(children[i].type.startsWith('radius')) {
@@ -460,31 +458,30 @@ function drawRotationRadius(item, center) {
 	removeRotationRadius(item);
 
 	// Determine the middle of the bounding box: average of two opposite corners
-	corners = item.boundingBox.children[0].segments;
+	corners = item.bbox.children[0].segments;
 	middle = corners[0].point.add(corners[2].point).divide(2)
 	
 	line = new Path.Line(middle, center)
 	line.type = 'radius:line'
 	line.strokeColor = mainColor;
 	line.strokeWidth = 1;
-	item.boundingBox.appendTop(line)
+	item.bbox.appendTop(line)
 
 	dot = new Path.Circle(center, 3)
 	dot.type = 'radius:dot'
 	dot.fillColor = mainColor;
 	dot.position = center;
-	item.boundingBox.appendTop(dot)
+	item.bbox.appendTop(dot)
 }
 
 function rotate(item, focusPoint) {
-	focusPoint = focusPoint;
 	item.rotating = true;
 	item.focusPoint = focusPoint;
 	drawRotationRadius(item, focusPoint)
 
 	item.onFrame = function(event) {
 			this.rotate(rotationSpeed, this.focusPoint);
-			this.boundingBox.rotate(rotationSpeed, this.focusPoint);
+			this.bbox.rotate(rotationSpeed, this.focusPoint);
 			this.rotationDegree = ((this.rotationDegree || 0) + rotationSpeed) % 360
 		}
 }
@@ -504,7 +501,7 @@ function resetRotation(item) {
 	// Rotate back to its original position
 	var deg = - item.rotationDegree
 	item.rotate(deg, item.focusPoint)
-	item.boundingBox.rotate(deg, item.focusPoint);
+	item.bbox.rotate(deg, item.focusPoint);
 	item.rotationDegree = 0;
 
 	// The path might not be exactly rectangular anymore due to the 
@@ -519,4 +516,47 @@ function resetRotation(item) {
 	// Update bounding box etc.
 	redrawBoundingBox(item);
 	selectOnly(item);
+}
+
+function bounce(item, startPoint, endPoint) {
+	item.bouncing = true;
+	item.startPoint = startPoint;
+	item.endPoint = endPoint
+	item.bouncePosition = 0;
+	// drawRotationRadius(item, focusPoint)
+	var dot = new Path.Circle([20,20], 5)
+	dot.fillColor = 'orange'
+	// console.log(dot)
+
+	item.onFrame = function(event) {
+		var center = this.bbox.center;
+		var trajectory = this.startPoint.subtract(this.endPoint)
+
+		this.bouncePosition += .01
+		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
+		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
+
+		var delta = newPoint.subtract(this.position);
+		
+		moveItems([this], delta)
+	}
+}
+
+
+/********************************************************/
+
+function getCrosshair(d=7) {
+	// Old: crosshair with lines
+	// var line1 = new Path.Line([d, 0], [d, 2*d])
+	// var line2 = new Path.Line([0, d], [2*d, d])
+
+	var circle = new Path.Circle([d, d], d)
+	circle.fillColor = 'white'
+	circle.strokeColor = mainColor
+
+	var dot = new Path.Circle([d, d], 3)
+	dot.fillColor = mainColor
+	var crosshair = new Group([circle, dot])
+	
+	return crosshair
 }
