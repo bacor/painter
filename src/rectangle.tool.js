@@ -10,11 +10,7 @@ var rectangle;
 
 rectTool.onMouseDown = function(event) {
 	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	rectangle.fillColor = {
-		hue: Math.random() * 360,
-		saturation: .7,
-		brightness: 1
-	}
+	rectangle.fillColor = getActiveSwatch()
 }
 
 rectTool.onMouseDrag = function(event) {

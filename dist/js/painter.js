@@ -598,6 +598,25 @@ function resetRotationSelection() {
 	items.map(resetRotation);
 }
 
+function getColor(i, num_colors, noise=.4, css=true) {
+	var noise = Math.random() * noise - .5*noise
+	var hue = ( (i+noise) / num_colors * 360 ) % 360
+	if(hue < 0) hue = 360 + hue;
+	var color = {
+		hue: Math.round(hue),
+		saturation: 75,
+		brightness: 60
+	}
+	if(css) return "hsl(" + color.hue+', '+color.saturation+'%, '+color.brightness+'%)';
+	else return color
+}
+
+function getActiveSwatch() {
+	var index = $('.swatch.active').data('colorIndex');
+	var numSwatches = $('.swatch.active').data('numSwatches');
+	return getColor(index, numSwatches)
+}
+
 $(window).ready(function() {
 
 	paper.setup('canvas');
@@ -637,6 +656,14 @@ $(window).ready(function() {
 
 		else if(event.key == 's') {
 			$('a.tool[data-tool=rectangle]').click();
+		}
+
+		else if(!isNaN(parseInt(event.key))) {
+			var key = parseInt(event.key);
+			$('.swatch').each(function(i, el){
+				var index = $(el).data('colorIndex')
+				if(index+1 == key) $(el).click();
+			})
 		}
 	}
 
@@ -734,9 +761,28 @@ $(window).ready(function() {
 		resetRotationSelection()
 	})
 
-	// $('.swatch[data-color]').each(function(i, el){
-	// 	$(el).css('backgroundColor', $(el).data('color'));
-	// })
+	// Add all swatches
+	var $swatches = $('.swatches'),
+			numSwatches = parseInt($swatches.data('num-swatches'));
+	for(var i=0; i<numSwatches; i++) {
+
+		// Get color without noise
+		var color = getColor(i, numSwatches, 0);
+
+		// Add swatch handle
+		var $swatch = $('<a class="swatch">' + (i+1) + '</a>')
+					.css('backgroundColor', color)
+					.data('colorIndex', i)
+					.data('numSwatches', numSwatches)
+					.appendTo($swatches)
+					.on('click', function() {
+						$('.swatch').removeClass('active')
+						$(this).addClass('active')
+					})
+		if(i == 0) $swatch.addClass('active');
+	}
+
+
 
 });
 /**
@@ -753,11 +799,7 @@ circleTool.onMouseDown = function(event) {
 	circle = new Path.Circle({
 		center: event.point, 
 		radius: 0,
-		fillColor: {
-			hue: Math.random() * 360,
-			saturation: .7,
-			brightness: .8
-		}
+		fillColor: getActiveSwatch()
 	});
 }
 
@@ -790,11 +832,7 @@ var rectangle;
 
 rectTool.onMouseDown = function(event) {
 	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	rectangle.fillColor = {
-		hue: Math.random() * 360,
-		saturation: .7,
-		brightness: 1
-	}
+	rectangle.fillColor = getActiveSwatch()
 }
 
 rectTool.onMouseDrag = function(event) {

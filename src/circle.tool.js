@@ -13,11 +13,7 @@ circleTool.onMouseDown = function(event) {
 	circle = new Path.Circle({
 		center: event.point, 
 		radius: 0,
-		fillColor: {
-			hue: Math.random() * 360,
-			saturation: .7,
-			brightness: .8
-		}
+		fillColor: getActiveSwatch()
 	});
 }
 
