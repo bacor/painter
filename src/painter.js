@@ -95,6 +95,14 @@ function getActiveSwatch() {
 	return getColor(index, numSwatches)
 }
 
+function changeColorSelection() {
+	var items = getSelected();
+	for(var i=0; i<items.length; i++){
+		var item = items[i];
+		item.fillColor = getActiveSwatch();
+	}
+}
+
 $(window).ready(function() {
 
 	paper.setup('canvas');
@@ -254,8 +262,9 @@ $(window).ready(function() {
 					.data('numSwatches', numSwatches)
 					.appendTo($swatches)
 					.on('click', function() {
-						$('.swatch').removeClass('active')
-						$(this).addClass('active')
+						$('.swatch').removeClass('active');
+						$(this).addClass('active');
+						changeColorSelection();
 					})
 		if(i == 0) $swatch.addClass('active');
 	}
