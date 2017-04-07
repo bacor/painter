@@ -4,6 +4,13 @@
  * This file contains various helpers
  */
 
+
+function setupItem(item) {
+	item.animation = undefined;
+}
+
+/********************************************************/
+
 /**
  * Generate a handle object
  * @param  {Point} position The position for the handle
@@ -130,8 +137,11 @@ function redrawBoundingBox(item) {
  */
 function select(item) {
 	if(item instanceof Array) return item.map(select);
-	if(isSelected(item)) return;
-	showBoundingBox(item)	
+	if(!item || isSelected(item)) return;
+	showBoundingBox(item)
+
+	if(hasAnimation(item))
+		drawAnimationHandles(item);
 
 	// if(isGroup(item)) item.children.map(showBoundingBox);
 }
@@ -148,6 +158,7 @@ function deselect(item) {
 	hideBoundingBox(item);
 	item.strokeColor = undefined;
 	item.dashArray = undefined;
+	removeAnimationHandles(item);
 }
 
 /**
@@ -188,28 +199,6 @@ function getSelected(match=isSelected) {
 	return project.getItems({
 		match: match
 	})
-}
-
-function moveItems(items, delta) {
-	for(var i=0; i<items.length; i++) {
-		
-		var item = items[i],
-				bbox = item.bbox;
-
-		// If this is a group, move all the children individually,
-		// but keep the group itself fixed.
-		if(isGroup(item)) moveItems(item.children, delta);
-		if(!inGroup(item)) item.position = item.position.add(delta);
-
-		// BOunding box, only if it exists
-		if(bbox) bbox.position = bbox.position.add(delta);
-		
-		// Move the focus point around which the current item rotates
-		if(item.focusPoint)
-			item.focusPoint = item.focusPoint.add(delta);
-
-
-	}
 }
 
 /********************************************************/
@@ -263,8 +252,17 @@ function isCircular(item) {
  * @return {Boolean}
  */
 function isHandle(item) {
-	if(item.type == undefined) return false;
+	if(item.type == undefined) {
+		return inGroup(item) ? isHandle(item.parent) : false;
+	}
 	return item.type.startsWith('handle');
+}
+
+function isAnimationHandle(item) {
+	if(item.type == undefined) {
+		return inGroup(item) ? isAnimationHandle(item.parent) : false;
+	}
+	return item.type == 'handle:animation';
 }
 
 /**
@@ -291,7 +289,9 @@ function isGroup(item) {
  * @return {Boolean}
  */
 function inGroup(item) {
-	return isGroup(item.parent)
+	if(item.parent)
+		return isGroup(item.parent);
+	return false;
 }
 
 /**
@@ -303,13 +303,25 @@ function hitGroup(hitResult) {
 	return inGroup(hitResult.item)
 }
 
+function hasAnimation(item, type=false) {
+	if(item.animation == undefined) return false; 
+	if(item.animation.type == undefined) return false;
+	if(type) return item.animation.type == type;
+	return true;
+}
+
+function isAnimating(item, type=false) {
+	return hasAnimation(item, type) && item.animation.active == true;
+} 
+
 /**
  * Test if an item is rotating
  * @param  {Item}  item 
  * @return {Boolean}    
  */
 function isRotating(item) {
-	return item.rotating != undefined && item.rotating == true;
+	return isAnimating(item, 'rotate')
+	// return hasAnimation(item, 'rotate') && item.animation.active == true;
 }
 
 /********************************************************/
@@ -438,125 +450,55 @@ function getOuterGroup(item) {
 	return item.parent
 }
 
-// function hasRotationRadius(bounding)
-
 /********************************************************/
 
-
-function removeRotationRadius(item) {
-	var children = item.bbox.children;
-	for(var i=0; i<children.length; i++) {
-		if(!children[i].type) continue;
-		if(children[i].type.startsWith('radius')) {
-			children[i].remove()
-		}
-	}
-}
-
-function drawRotationRadius(item, center) {
-	var border, tl, br, middle, line, dot;
-	removeRotationRadius(item);
-
-	// Determine the middle of the bounding box: average of two opposite corners
-	corners = item.bbox.children[0].segments;
-	middle = corners[0].point.add(corners[2].point).divide(2)
-	
-	line = new Path.Line(middle, center)
-	line.type = 'radius:line'
-	line.strokeColor = mainColor;
-	line.strokeWidth = 1;
-	item.bbox.appendTop(line)
-
-	dot = new Path.Circle(center, 3)
-	dot.type = 'radius:dot'
-	dot.fillColor = mainColor;
-	dot.position = center;
-	item.bbox.appendTop(dot)
-}
-
-function rotate(item, focusPoint) {
-	item.rotating = true;
-	item.focusPoint = focusPoint;
-	drawRotationRadius(item, focusPoint)
-
-	item.onFrame = function(event) {
-			this.rotate(rotationSpeed, this.focusPoint);
-			this.bbox.rotate(rotationSpeed, this.focusPoint);
-			this.rotationDegree = ((this.rotationDegree || 0) + rotationSpeed) % 360
-		}
-}
-
-function stopRotating(item) {
-	item.rotating = false;
-	item.onFrame = undefined;
-}
-
-function continueRotating(item) {
-	rotate(item, item.focusPoint)
-}
-
-function resetRotation(item) {
-	stopRotating(item);
-
-	// Rotate back to its original position
-	var deg = - item.rotationDegree
-	item.rotate(deg, item.focusPoint)
-	item.bbox.rotate(deg, item.focusPoint);
-	item.rotationDegree = 0;
-
-	// The path might not be exactly rectangular anymore due to the 
-	// rotation. Rounding the coordinates solves the problem.
-	if(isRectangular(item)) {
-		item.segments.map(function(segment) {
-			segment.point.x = Math.round(segment.point.x)
-			segment.point.y = Math.round(segment.point.y)
-		})
-	}
-
-	// Update bounding box etc.
-	redrawBoundingBox(item);
-	selectOnly(item);
-}
-
-function bounce(item, startPoint, endPoint) {
-	item.bouncing = true;
-	item.startPoint = startPoint;
-	item.endPoint = endPoint
-	item.bouncePosition = 0;
-	// drawRotationRadius(item, focusPoint)
-	var dot = new Path.Circle([20,20], 5)
-	dot.fillColor = 'orange'
-	// console.log(dot)
-
-	item.onFrame = function(event) {
-		var center = this.bbox.center;
-		var trajectory = this.startPoint.subtract(this.endPoint)
-
-		this.bouncePosition += .01
-		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
-		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
-
-		var delta = newPoint.subtract(this.position);
+function moveItems(items, delta) {
+	for(var i=0; i<items.length; i++) {
 		
-		moveItems([this], delta)
+		var item = items[i], bbox = item.bbox;
+
+		// If this is a group, move all the children individually,
+		// but keep the group itself fixed.
+		if(isGroup(item)) moveItems(item.children, delta);
+		if(!inGroup(item)) item.position = item.position.add(delta);
+
+		// Bounding box, only if it exists
+		if(bbox) bbox.position = bbox.position.add(delta);
+		
+		// Update the animations
+		if(hasAnimation(item)) {
+			var type = item.animation.type; 
+			var properties = item.animation.properties;
+
+			var onMove = animations[type].onMove || function(){};
+			onMove(delta, item, properties);
+
+			if(isSelected(item)) drawAnimationHandles(item);
+		}
 	}
 }
 
 
-/********************************************************/
+// function bounce(item, startPoint, endPoint) {
+// 	item.bouncing = true;
+// 	item.startPoint = startPoint;
+// 	item.endPoint = endPoint
+// 	item.bouncePosition = 0;
+// 	// drawRotationRadius(item, focusPoint)
+// 	var dot = new Path.Circle([20,20], 5)
+// 	dot.fillColor = 'orange'
+// 	// console.log(dot)
 
-function getCrosshair(d=7) {
-	// Old: crosshair with lines
-	// var line1 = new Path.Line([d, 0], [d, 2*d])
-	// var line2 = new Path.Line([0, d], [2*d, d])
+// 	item.onFrame = function(event) {
+// 		var center = this.bbox.center;
+// 		var trajectory = this.startPoint.subtract(this.endPoint)
 
-	var circle = new Path.Circle([d, d], d)
-	circle.fillColor = 'white'
-	circle.strokeColor = mainColor
+// 		this.bouncePosition += .01
+// 		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
+// 		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
 
-	var dot = new Path.Circle([d, d], 3)
-	dot.fillColor = mainColor
-	var crosshair = new Group([circle, dot])
-	
-	return crosshair
-}
+// 		var delta = newPoint.subtract(this.position);
+		
+// 		moveItems([this], delta)
+// 	}
+// }

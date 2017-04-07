@@ -4,6 +4,13 @@
  * This file contains various helpers
  */
 
+
+function setupItem(item) {
+	item.animation = undefined;
+}
+
+/********************************************************/
+
 /**
  * Generate a handle object
  * @param  {Point} position The position for the handle
@@ -130,8 +137,11 @@ function redrawBoundingBox(item) {
  */
 function select(item) {
 	if(item instanceof Array) return item.map(select);
-	if(isSelected(item)) return;
-	showBoundingBox(item)	
+	if(!item || isSelected(item)) return;
+	showBoundingBox(item)
+
+	if(hasAnimation(item))
+		drawAnimationHandles(item);
 
 	// if(isGroup(item)) item.children.map(showBoundingBox);
 }
@@ -148,6 +158,7 @@ function deselect(item) {
 	hideBoundingBox(item);
 	item.strokeColor = undefined;
 	item.dashArray = undefined;
+	removeAnimationHandles(item);
 }
 
 /**
@@ -188,28 +199,6 @@ function getSelected(match=isSelected) {
 	return project.getItems({
 		match: match
 	})
-}
-
-function moveItems(items, delta) {
-	for(var i=0; i<items.length; i++) {
-		
-		var item = items[i],
-				bbox = item.bbox;
-
-		// If this is a group, move all the children individually,
-		// but keep the group itself fixed.
-		if(isGroup(item)) moveItems(item.children, delta);
-		if(!inGroup(item)) item.position = item.position.add(delta);
-
-		// BOunding box, only if it exists
-		if(bbox) bbox.position = bbox.position.add(delta);
-		
-		// Move the focus point around which the current item rotates
-		if(item.focusPoint)
-			item.focusPoint = item.focusPoint.add(delta);
-
-
-	}
 }
 
 /********************************************************/
@@ -263,8 +252,17 @@ function isCircular(item) {
  * @return {Boolean}
  */
 function isHandle(item) {
-	if(item.type == undefined) return false;
+	if(item.type == undefined) {
+		return inGroup(item) ? isHandle(item.parent) : false;
+	}
 	return item.type.startsWith('handle');
+}
+
+function isAnimationHandle(item) {
+	if(item.type == undefined) {
+		return inGroup(item) ? isAnimationHandle(item.parent) : false;
+	}
+	return item.type == 'handle:animation';
 }
 
 /**
@@ -291,7 +289,9 @@ function isGroup(item) {
  * @return {Boolean}
  */
 function inGroup(item) {
-	return isGroup(item.parent)
+	if(item.parent)
+		return isGroup(item.parent);
+	return false;
 }
 
 /**
@@ -303,13 +303,25 @@ function hitGroup(hitResult) {
 	return inGroup(hitResult.item)
 }
 
+function hasAnimation(item, type=false) {
+	if(item.animation == undefined) return false; 
+	if(item.animation.type == undefined) return false;
+	if(type) return item.animation.type == type;
+	return true;
+}
+
+function isAnimating(item, type=false) {
+	return hasAnimation(item, type) && item.animation.active == true;
+} 
+
 /**
  * Test if an item is rotating
  * @param  {Item}  item 
  * @return {Boolean}    
  */
 function isRotating(item) {
-	return item.rotating != undefined && item.rotating == true;
+	return isAnimating(item, 'rotate')
+	// return hasAnimation(item, 'rotate') && item.animation.active == true;
 }
 
 /********************************************************/
@@ -438,127 +450,207 @@ function getOuterGroup(item) {
 	return item.parent
 }
 
-// function hasRotationRadius(bounding)
-
 /********************************************************/
 
+function moveItems(items, delta) {
+	for(var i=0; i<items.length; i++) {
+		
+		var item = items[i], bbox = item.bbox;
 
-function removeRotationRadius(item) {
-	var children = item.bbox.children;
-	for(var i=0; i<children.length; i++) {
-		if(!children[i].type) continue;
-		if(children[i].type.startsWith('radius')) {
-			children[i].remove()
+		// If this is a group, move all the children individually,
+		// but keep the group itself fixed.
+		if(isGroup(item)) moveItems(item.children, delta);
+		if(!inGroup(item)) item.position = item.position.add(delta);
+
+		// Bounding box, only if it exists
+		if(bbox) bbox.position = bbox.position.add(delta);
+		
+		// Update the animations
+		if(hasAnimation(item)) {
+			var type = item.animation.type; 
+			var properties = item.animation.properties;
+
+			var onMove = animations[type].onMove || function(){};
+			onMove(delta, item, properties);
+
+			if(isSelected(item)) drawAnimationHandles(item);
 		}
 	}
 }
 
-function drawRotationRadius(item, center) {
-	var border, tl, br, middle, line, dot;
-	removeRotationRadius(item);
 
-	// Determine the middle of the bounding box: average of two opposite corners
-	corners = item.bbox.children[0].segments;
-	middle = corners[0].point.add(corners[2].point).divide(2)
+// function bounce(item, startPoint, endPoint) {
+// 	item.bouncing = true;
+// 	item.startPoint = startPoint;
+// 	item.endPoint = endPoint
+// 	item.bouncePosition = 0;
+// 	// drawRotationRadius(item, focusPoint)
+// 	var dot = new Path.Circle([20,20], 5)
+// 	dot.fillColor = 'orange'
+// 	// console.log(dot)
+
+// 	item.onFrame = function(event) {
+// 		var center = this.bbox.center;
+// 		var trajectory = this.startPoint.subtract(this.endPoint)
+
+// 		this.bouncePosition += .01
+// 		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
+// 		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
+
+// 		var delta = newPoint.subtract(this.position);
+		
+// 		moveItems([this], delta)
+// 	}
+// }
+;
+/**
+ * All registered animations
+ * @type {Object}
+ */
+var animations = {}
+
+/**
+ * Initialize an animation.
+ *
+ * Set up an item to be able to start an animation later on.
+ * @param  {mixed} item        The item
+ * @param  {string} type       The type of animation
+ * @param  {object} properties An object of animation properties
+ * @return {item}        		   The item
+ */
+function initAnimation(item, type, properties) {
+	if(hasAnimation(item))
+		item.animation.handles.remove();
 	
-	line = new Path.Line(middle, center)
-	line.type = 'radius:line'
-	line.strokeColor = mainColor;
-	line.strokeWidth = 1;
-	item.bbox.appendTop(line)
+	item.animation = {
+		type: type,
+		properties: properties
+	};
 
-	dot = new Path.Circle(center, 3)
-	dot.type = 'radius:dot'
-	dot.fillColor = mainColor;
-	dot.position = center;
-	item.bbox.appendTop(dot)
+	var onInit = animations[type].onInit || function(){};
+	onInit(item, properties);
+	return item;
 }
 
-function rotate(item, focusPoint) {
-	item.rotating = true;
-	item.focusPoint = focusPoint;
-	drawRotationRadius(item, focusPoint)
+/**
+ * Starts an animation
+ * @param  {item/array} item		 An item or array of items
+ * @param  {string} type  The type of animation to start
+ * @return {Boolean}			`true` on success; `false` if item does not have this  animation
+ */
+function startAnimation(item, type) {
+	if(item instanceof Array) 
+		return item.map(function(i) { startAnimation(i, type) });
+	if(!hasAnimation(item, type)) 
+		return false;
+
+	item.animation.active = true;
+	var onStart = animations[type].onStart || function(){};
+	onStart(item, item.animation.properties);
 
 	item.onFrame = function(event) {
-			this.rotate(rotationSpeed, this.focusPoint);
-			this.bbox.rotate(rotationSpeed, this.focusPoint);
-			this.rotationDegree = ((this.rotationDegree || 0) + rotationSpeed) % 360
+		animations[type].onFrame(event, this, this.animation.properties)
+		if(isSelected(this)){
+			drawAnimationHandles(this, type, this.animation.properties);
 		}
-}
-
-function stopRotating(item) {
-	item.rotating = false;
-	item.onFrame = undefined;
-}
-
-function continueRotating(item) {
-	rotate(item, item.focusPoint)
-}
-
-function resetRotation(item) {
-	stopRotating(item);
-
-	// Rotate back to its original position
-	var deg = - item.rotationDegree
-	item.rotate(deg, item.focusPoint)
-	item.bbox.rotate(deg, item.focusPoint);
-	item.rotationDegree = 0;
-
-	// The path might not be exactly rectangular anymore due to the 
-	// rotation. Rounding the coordinates solves the problem.
-	if(isRectangular(item)) {
-		item.segments.map(function(segment) {
-			segment.point.x = Math.round(segment.point.x)
-			segment.point.y = Math.round(segment.point.y)
-		})
 	}
+	return true;
+}
+
+/**
+ * Stops an animation
+ *
+ * Stops the animation in its current state. The animation can be continued by
+ * calling `startAnimation`. The function fires the `onStop` method of the 
+ * current animation type.
+ * @param  {item} item 
+ * @param  {String} type 	Animation type
+ * @return {Boolean}			`true` on success; `false` if item does not have this  animation
+ */
+function stopAnimation(item, type) {
+	if(item instanceof Array)
+		return item.map(function(i) { stopAnimation(i, type) });
+	if(!hasAnimation(item, type)) 
+		return false;
+
+	item.animation.active = false;
+	item.onFrame = undefined;
+
+	var onStop = animations[type].onStop || function(){};
+	onStop(item, item.animation.properties);
+	return true;
+}
+
+/**
+ * Reset an animation
+ *
+ * The item is restored to it original, unanimated state.
+ * @param  {item} item 
+ * @param  {String} type type of animation
+ * @return {Boolean}     `true` on success; `false` if item does not have this  animation
+ */
+function resetAnimation(item) {
+	if(item instanceof Array)
+		return item.map(function(i) { resetAnimation(i) });
+	if(!hasAnimation(item)) 
+		return false;
+
+	var type = item.animation.type;
+	stopAnimation(item, type);
+
+	// Do animation specific stuff
+	var onReset = animations[type].onReset || function(){}
+	onReset(item, item.animation.properties);
 
 	// Update bounding box etc.
 	redrawBoundingBox(item);
 	selectOnly(item);
+	return true;
 }
 
-function bounce(item, startPoint, endPoint) {
-	item.bouncing = true;
-	item.startPoint = startPoint;
-	item.endPoint = endPoint
-	item.bouncePosition = 0;
-	// drawRotationRadius(item, focusPoint)
-	var dot = new Path.Circle([20,20], 5)
-	dot.fillColor = 'orange'
-	// console.log(dot)
-
-	item.onFrame = function(event) {
-		var center = this.bbox.center;
-		var trajectory = this.startPoint.subtract(this.endPoint)
-
-		this.bouncePosition += .01
-		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
-		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
-
-		var delta = newPoint.subtract(this.position);
-		
-		moveItems([this], delta)
-	}
-}
-
-
-/********************************************************/
-
-function getCrosshair(d=7) {
-	// Old: crosshair with lines
-	// var line1 = new Path.Line([d, 0], [d, 2*d])
-	// var line2 = new Path.Line([0, d], [2*d, d])
-
-	var circle = new Path.Circle([d, d], d)
-	circle.fillColor = 'white'
-	circle.strokeColor = mainColor
-
-	var dot = new Path.Circle([d, d], 3)
-	dot.fillColor = mainColor
-	var crosshair = new Group([circle, dot])
+/**
+ * Draws the animation handles for an item
+ *
+ * It uses the drawing method in the animation object.
+ * @param  {item} item 
+ * @return {Group} The animation handles
+ */
+function drawAnimationHandles(item) {
 	
-	return crosshair
+	// Clean up old animations
+	removeAnimationHandles(item)
+
+	// Draw handles
+	var type = item.animation.type;
+	var props = item.animation.properties;
+
+	var drawHandles = animations[type].drawHandles || function() {};
+	var handles = drawHandles(item, props);
+	handles.type = 'handle:animation';
+	item.animation.handles = handles;	
+
+	return handles;
+}
+
+/**
+ * Remove the animation handles for an item.
+ * @param  {item} item 
+ * @return {None}      
+ */
+function removeAnimationHandles(item) {
+	if(item.animation && item.animation.handles)
+		item.animation.handles.remove();
+}
+
+/**
+ * Update the animation properties of an item 
+ * @param  {item} item       
+ * @param  {Object} properties An object with animation properties
+ * @return {Object}            The updated properties
+ */
+function updateAnimationProperties(item, properties) {
+	item.animation.properties = $.extend(item.animation.properties, properties);
+	return item.animation.properties
 }
 ;/**
  * Painter.js
@@ -572,7 +664,7 @@ function groupSelection() {
 	var items = getSelected();
 	var group = new Group(items);
 	group.type = 'group'
-	// group.fillColor = group.children[0].fillColor
+	setupItem(group);
 	selectOnly(group)
 }
 
@@ -621,21 +713,6 @@ function cloneSelection(move=[0,0]) {
 
 	selectOnly(copiedItems);
 	return copiedItems;
-}
-
-function stopRotatingSelection() {
-	var items = getSelected()
-	items.map(stopRotating);
-}
-
-function continueRotatingSelection() {
-	var items = getSelected()
-  items.map(continueRotating);
-}
-
-function resetRotationSelection() {
-	var items = getSelected();
-	items.map(resetRotation);
 }
 
 function getColor(i, num_colors, noise=.4, css=true) {
@@ -729,11 +806,12 @@ $(window).ready(function() {
 	r.fillColor = getColor(0, 7)
 	// r.selected = true
 	r.type = 'rectangle'
-
+	setupItem(r)
 	c = new Path.Circle([300,100], 40)
 	c.fillColor = getColor(1, 7)
 	// c.selected = true
 	c.type = 'circle'
+	setupItem(c)
 	select(c)
 	select(r)
 	groupSelection()
@@ -745,11 +823,13 @@ $(window).ready(function() {
 	r.fillColor = getColor(3, 7)
 	// r.selected = true
 	r.type = 'rectangle'
+	setupItem(r)
 
 	c = new Path.Circle([500,300], 40)
 	c.fillColor = getColor(4, 7)
 	// c.selected = true
 	c.type = 'circle'
+	setupItem(c)
 	// select(c)
 	select(r)
 
@@ -793,11 +873,12 @@ $(window).ready(function() {
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
 		if($(this).data('state') == 'play') {
-			continueRotatingSelection()
+			startAnimation(getSelected(), 'rotate');
 			$(this).find('span').html('pause <code>space</code>')
 			$(this).data('state', 'pause')
+
 		} else {
-			stopRotatingSelection()
+			stopAnimation(getSelected(), 'rotate');
 			$(this).find('span').html('play <code>space</code>')
 			$(this).data('state', 'play')
 		}
@@ -810,13 +891,13 @@ $(window).ready(function() {
 	})
 
 	$('a.tool[data-tool=bounce]').on('click', function() {
-		// bounceTool.activate()
+		bounceTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
 	}).click()
 
 	$('a.tool[data-tool=reset]').on('click', function() {
-		resetRotationSelection()
+		resetAnimation(getSelected(), 'rotate');
 	})
 
 	// Add all swatches
@@ -844,42 +925,102 @@ $(window).ready(function() {
 
 
 });
-// bounceTool = new Tool();
-// var bounceSpeed = 2
+bounceTool = new Tool();
+var rotationSpeed = 2
 
-// var currentItem, startHandle, endHandle;
-// bounceTool.onMouseDown = function(event) {
-// 	currentItem = getSelected()[0]
-// 	if(currentItem == undefined) {
-// 		hitResult = project.hitTest(event.point, {
-// 			fill: true,
-// 			tolerance: 5
-// 		})
+var currentItem;
+bounceTool.onMouseDown = function(event) {
+	currentItem = getSelected()[0]
+	if(currentItem == undefined) {
+		hitResult = project.hitTest(event.point, {
+			fill: true,
+			tolerance: 5
+		})
 		
-// 		if(!hitResult) return false;
-// 		currentItem = hitResult.item			
-// 	}
-// 	selectOnly(currentItem);
+		if(!hitResult) return false;
+		currentItem = hitResult.item			
+	}
+	selectOnly(currentItem);
 
-// 	drawRotationRadius(currentItem, event.point)
-// }
+	// Set up animation
+	resetAnimation(currentItem)
 
-// bounceTool.onMouseDrag = function(event) {
-// 	if(!currentItem) return;
-// 	drawRotationRadius(currentItem, event.point)
-// }
+	initAnimation(currentItem, 'bounce', {
+		startPoint: currentItem.position,
+		endPoint: new Point(event.point),
+		speed: rotationSpeed,
+		position: 0
+	})
 
-// bounceTool.onMouseUp = function(event) {
-// 	if(!currentItem) return;
+	drawAnimationHandles(currentItem)
+}
+
+bounceTool.onMouseDrag = function(event) {
+	if(!currentItem) return;
 	
-	
-// 	var endPoint = new Point(event.point);
-// 	var startPoint = new Point(currentItem.position);
+	updateAnimationProperties(currentItem, {
+		startPoint: currentItem.position,
+		endPoint: new Point(event.point)
+	})
 
-// 	// corners = currentItem.boundingBox.children[0].segments;
-// 	// startPoint = corners[0].point.add(corners[2].point).divide(2)
-// 	bounce(currentItem, startPoint, endPoint)
-// };
+	drawAnimationHandles(currentItem)
+}
+
+bounceTool.onMouseUp = function(event) {
+	if(!currentItem) return;
+
+	// Start rotating
+	startAnimation(currentItem, 'bounce')
+}
+
+
+/**
+ * Rotation animation
+ *
+ * This object defines the rotation animation.
+ * @type {Object}
+ */
+animations.bounce = {}
+var p;
+// Animation iself: frame updates
+animations.bounce.onFrame = function(event, item, props) {
+	props.position += .01
+	var trajectory = props.startPoint.subtract(props.endPoint)
+	var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
+	var newPoint = trajectory.multiply(relPos).add(props.endPoint);
+	var delta = newPoint.subtract(item.position);
+	
+	// Move it!
+	moveItems([item], delta)
+}
+
+// Reset
+animations.bounce.onReset = function(item, props) {
+	
+}
+
+// Called when the item is moved
+animations.bounce.onMove = function(delta, item, props) {
+	// to do 
+}
+
+// Draws the handles
+animations.bounce.drawHandles = function(item, props) {
+	var line, dot1, dot2, handles;
+	
+	line = new Path.Line(props.startPoint, props.endPoint)
+	line.strokeColor = mainColor;
+	line.strokeWidth = 1;
+	
+	dot1 = new Path.Circle(props.startPoint, 3)
+	dot1.fillColor = mainColor;
+
+	dot2 = dot1.clone();
+	dot2.position = props.endPoint;
+
+	handles = new Group([line, dot1, dot2]);
+	return handles;
+};
 /**
  * Circle tool
  *
@@ -915,6 +1056,7 @@ circleTool.onMouseDrag = function(event) {
 
 circleTool.onMouseUp = function(event) {
 	circle.type = 'circle'
+	setupItem(circle);
 };/**
  * Rectangle tool
  * 
@@ -940,6 +1082,7 @@ rectTool.onMouseDrag = function(event) {
 
 rectTool.onMouseUp = function() {
 	rectangle.type = 'rectangle'
+	setupItem(rectangle);
 };
 rotationTool = new Tool();
 var rotationSpeed = 2
@@ -958,25 +1101,92 @@ rotationTool.onMouseDown = function(event) {
 	}
 	selectOnly(currentItem);
 
-	crosshair = getCrosshair()
-	crosshair.position = event.point
+	// Set up animation
+	resetAnimation(currentItem)
 
-	drawRotationRadius(currentItem, crosshair.position)
-	stopRotating(currentItem)
+	initAnimation(currentItem, 'rotate', {
+		center: new Point(event.point),
+		speed: rotationSpeed,
+		degree: 0
+	})
+
+	drawAnimationHandles(currentItem)
 }
 
 rotationTool.onMouseDrag = function(event) {
 	if(!currentItem) return;
-	crosshair.position = crosshair.position.add(event.delta);
-	drawRotationRadius(currentItem, crosshair.position)
+	
+	updateAnimationProperties(currentItem, {
+		center: new Point(event.point),
+	})
+
+	drawAnimationHandles(currentItem)
 }
 
-rotationTool.onMouseUp = function() {
+rotationTool.onMouseUp = function(event) {
 	if(!currentItem) return;
+
 	// Start rotating
-	var center = new Point(crosshair.position)
-	rotate(currentItem, center)
-	crosshair.remove()
+	startAnimation(currentItem, 'rotate')
+}
+
+
+
+/**
+ * Rotation animation
+ *
+ * This object defines the rotation animation.
+ * @type {Object}
+ */
+animations.rotate = {}
+
+// Animation iself: frame updates
+animations.rotate.onFrame = function(event, item, props) {
+	item.rotate(props.speed, props.center);
+	item.bbox.rotate(props.speed, props.center);
+	props.degree = ((props.degree || 0) + props.speed) % 360
+}
+
+// Reset
+animations.rotate.onReset = function(item, props) {
+	var deg = - props.degree
+	item.rotate(deg, props.center)
+	item.bbox.rotate(deg, props.center);
+	props.degree = 0;
+
+	// The path might not be exactly rectangular anymore due to the 
+	// rotation. Rounding the coordinates solves the problem.
+	if(isRectangular(item)) {
+		item.segments.map(function(segment) {
+			segment.point.x = Math.round(segment.point.x)
+			segment.point.y = Math.round(segment.point.y)
+		})
+	}
+}
+
+// Called when the item is moved
+animations.rotate.onMove = function(delta, item, props) {
+	props.center = props.center.add(delta)
+}
+
+// Draws the handles
+animations.rotate.drawHandles = function(item, props) {
+	var border, tl, br, middle, line, dot, handles;
+
+	// Determine the middle of the bounding box: average of two opposite corners
+	corners = item.bbox.children[0].segments;
+	middle = corners[0].point.add(corners[2].point).divide(2)
+	
+	line = new Path.Line(middle, props.center)
+	line.strokeColor = mainColor;
+	line.strokeWidth = 1;
+	
+	dot = new Path.Circle(props.center, 3)
+	dot.fillColor = mainColor;
+	dot.position = props.center;
+
+	handles = new Group([line, dot]);
+	return handles;
 };
 /**
  * Selection tool
@@ -1005,8 +1215,13 @@ selectTool.onMouseDown = function(event) {
 	if(hitResult) {
 		var item = hitResult.item
 
+		// Animation handle: skip
+		if(isAnimationHandle(item)){ 
+			return 
+		}
+		
 		// We hit a handle --> edit selection
-		if(isHandle(item)) {
+		else if(isHandle(item)) {
 			mode = 'editing'
 			handle = item;
 			currentItems = [item.parent.item];
@@ -1041,7 +1256,6 @@ selectTool.onMouseDown = function(event) {
 
 	// Update the selection
 	selectOnly(currentItems);
-
 }
 
 selectTool.onMouseDrag = function(event) {

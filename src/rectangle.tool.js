@@ -23,4 +23,5 @@ rectTool.onMouseDrag = function(event) {
 
 rectTool.onMouseUp = function() {
 	rectangle.type = 'rectangle'
+	setupItem(rectangle);
 }

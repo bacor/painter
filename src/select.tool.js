@@ -26,8 +26,13 @@ selectTool.onMouseDown = function(event) {
 	if(hitResult) {
 		var item = hitResult.item
 
+		// Animation handle: skip
+		if(isAnimationHandle(item)){ 
+			return 
+		}
+		
 		// We hit a handle --> edit selection
-		if(isHandle(item)) {
+		else if(isHandle(item)) {
 			mode = 'editing'
 			handle = item;
 			currentItems = [item.parent.item];
@@ -62,7 +67,6 @@ selectTool.onMouseDown = function(event) {
 
 	// Update the selection
 	selectOnly(currentItems);
-
 }
 
 selectTool.onMouseDrag = function(event) {

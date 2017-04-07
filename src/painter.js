@@ -10,7 +10,7 @@ function groupSelection() {
 	var items = getSelected();
 	var group = new Group(items);
 	group.type = 'group'
-	// group.fillColor = group.children[0].fillColor
+	setupItem(group);
 	selectOnly(group)
 }
 
@@ -59,21 +59,6 @@ function cloneSelection(move=[0,0]) {
 
 	selectOnly(copiedItems);
 	return copiedItems;
-}
-
-function stopRotatingSelection() {
-	var items = getSelected()
-	items.map(stopRotating);
-}
-
-function continueRotatingSelection() {
-	var items = getSelected()
-  items.map(continueRotating);
-}
-
-function resetRotationSelection() {
-	var items = getSelected();
-	items.map(resetRotation);
 }
 
 function getColor(i, num_colors, noise=.4, css=true) {
@@ -167,11 +152,12 @@ $(window).ready(function() {
 	r.fillColor = getColor(0, 7)
 	// r.selected = true
 	r.type = 'rectangle'
-
+	setupItem(r)
 	c = new Path.Circle([300,100], 40)
 	c.fillColor = getColor(1, 7)
 	// c.selected = true
 	c.type = 'circle'
+	setupItem(c)
 	select(c)
 	select(r)
 	groupSelection()
@@ -183,11 +169,13 @@ $(window).ready(function() {
 	r.fillColor = getColor(3, 7)
 	// r.selected = true
 	r.type = 'rectangle'
+	setupItem(r)
 
 	c = new Path.Circle([500,300], 40)
 	c.fillColor = getColor(4, 7)
 	// c.selected = true
 	c.type = 'circle'
+	setupItem(c)
 	// select(c)
 	select(r)
 
@@ -231,11 +219,12 @@ $(window).ready(function() {
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
 		if($(this).data('state') == 'play') {
-			continueRotatingSelection()
+			startAnimation(getSelected(), 'rotate');
 			$(this).find('span').html('pause <code>space</code>')
 			$(this).data('state', 'pause')
+
 		} else {
-			stopRotatingSelection()
+			stopAnimation(getSelected(), 'rotate');
 			$(this).find('span').html('play <code>space</code>')
 			$(this).data('state', 'play')
 		}
@@ -248,13 +237,13 @@ $(window).ready(function() {
 	})
 
 	$('a.tool[data-tool=bounce]').on('click', function() {
-		// bounceTool.activate()
+		bounceTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
 	}).click()
 
 	$('a.tool[data-tool=reset]').on('click', function() {
-		resetRotationSelection()
+		resetAnimation(getSelected(), 'rotate');
 	})
 
 	// Add all swatches

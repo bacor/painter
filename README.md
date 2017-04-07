@@ -19,7 +19,7 @@ A quick list of software used
 
 # Notes
 
-There are only three kind of items: circles, rectangles and groups. Circles and rectangles are instances of `Path` with type `circle` and `rectangle` respectively; groups are just normal paper groups. Every item has a corresponding bounding box, accessed through the `item.bbox` property (to do), and conversely item is stored in `bbox.item`. The bounding box consists of a border (type `border`) and some handles (type `handle`). The bounding box has a fixed position relative to the object itself. So if the object moves, the bounding box moves with it. 
+There are only three kind of items: circles, rectangles and groups. Circles and rectangles are instances of `Path` with type `circle` and `rectangle` respectively; groups are just normal paper groups. Every item has a corresponding bounding box, accessed through the `item.bbox` property, and conversely item is stored in `bbox.item`. The bounding box consists of a border (type `border`) and some handles (type `handle`). The bounding box has a fixed position relative to the object itself. So if the object moves, the bounding box moves with it. 
 
 Every item can have (at most) one animation, stored in a `item.animation` object:
 
@@ -32,4 +32,18 @@ item.animation = {
 }
 ```
 
-Animations are all identified by a name (e.g. `"rotate"` or `"bounce"`)
+Animations are all identified by a name (e.g. `"rotate"` or `"bounce"`) and registered in a global object `animations`. An animation object is of the following form:
+
+```
+animations.rotate = {
+    onInit: function(item, properties) {...},
+    onStart: function(item, properties) {...},
+    onStop: function(item, properties) {...},
+    onFrame: function(event, item, properties) {...},
+    onReset: function(item, properties) {...}
+}
+```
+
+These functions are called by several global functions: `initAnimation`, `startAnimation`, `stopAnimation` and `resetAnimation`.
+
+

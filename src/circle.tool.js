@@ -34,4 +34,5 @@ circleTool.onMouseDrag = function(event) {
 
 circleTool.onMouseUp = function(event) {
 	circle.type = 'circle'
+	setupItem(circle);
 }
