@@ -169,9 +169,9 @@ function getBounds(item){
 	}
 
 	// Apply possible group transformations
-	var _tmp = new Path.Rectangle(bounds);
-	bounds = _tmp.transform(item.matrix).bounds
-	_tmp.remove()
+	// var _tmp = new Path.Rectangle(bounds);
+	// bounds = _tmp.transform(item.matrix).bounds
+	// _tmp.remove()
 	return bounds
 }
 
@@ -537,7 +537,7 @@ function moveItem(item, delta) {
 		var type = item.animation.type; 
 		var properties = item.animation.properties;
 		var matrix = new Matrix().translate(delta);
-		animations[type].onTransform(item, matrix, properties);
+		animations[type].onTransform(item, properties, matrix);
 	}
 }
 

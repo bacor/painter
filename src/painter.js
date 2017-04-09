@@ -11,8 +11,8 @@ function group(items) {
 	group.type = 'group'
 	group.transformContent = false;
 	var bounds = getBounds(group)
-	group.pivot = new Point(bounds.center);
 
+	group.pivot = new Point(bounds.center);
 	setupItem(group);
 	selectOnly(group)
 	startAnimation(items, false, true)
@@ -28,27 +28,26 @@ function ungroup(group) {
 	if(!isGroup(group)) return;
 
 	children = group.removeChildren().filter(isItem);
-	group.parent.insertChildren(group.index,  children);
+	group.parent.insertChildren(group.index, children);
 
-	// Transform children just like the group
+	// Transform animated children just like the group
 	for(var i=0; i<children.length; i++){
 		var item = children[i];
+		if(!hasAnimation(item)) continue;
+
 		item.transform(group.matrix);
 		if(item.bbox) item.bbox.transform(group.matrix);
 
-		if(hasAnimation(item)) {
-			var type = item.animation.type,
-					properties = item.animation.properties;
-			var onTransform = animations[type].onTransform || function() {};
-			onTransform(item, group.matrix, properties);
-		}
+		var type = item.animation.type,
+				properties = item.animation.properties;
+		var onTransform = animations[type].onTransform || function() {};
+		onTransform(item, properties, group.matrix);
 	}
 
 	// Remove and reset
 	deselect(group);
 	group.remove();
 	select(children)
-	redrawBoundingBox(children)
 }
 
 function deleteSelection() {
@@ -130,6 +129,10 @@ $(window).ready(function() {
 
 	paper.setup('canvas');
 
+	// Hmmmm....
+	bounceTool = animations.bounce.tool
+	rotationTool = animations.rotate.tool
+	
 	function onKeyDown(event) {
 		if(event.key == 'backspace' || event.key == 'd') {
 			deleteSelection()

@@ -169,9 +169,9 @@ function getBounds(item){
 	}
 
 	// Apply possible group transformations
-	var _tmp = new Path.Rectangle(bounds);
-	bounds = _tmp.transform(item.matrix).bounds
-	_tmp.remove()
+	// var _tmp = new Path.Rectangle(bounds);
+	// bounds = _tmp.transform(item.matrix).bounds
+	// _tmp.remove()
 	return bounds
 }
 
@@ -537,7 +537,7 @@ function moveItem(item, delta) {
 		var type = item.animation.type; 
 		var properties = item.animation.properties;
 		var matrix = new Matrix().translate(delta);
-		animations[type].onTransform(item, matrix, properties);
+		animations[type].onTransform(item, properties, matrix);
 	}
 }
 
@@ -709,8 +709,30 @@ function updateAnimation(item, properties, event) {
 	return item.animation.properties
 }
 
-
-
+/**
+ * Register an animation
+ *
+ * An animation moves an item periodically based on several parameters which
+ * are set graphically by a set of handles. The rotation animation for example
+ * has a single parameter: the center point around which the item rotates. 
+ * The drawing app iteracts with the animation through various functions. The 
+ * most important ones are
+ * - `onUpdate(item, properties, event)` should update the properties object 
+ * 		based on a mouse event. This function is called whenever the animation 
+ * 		tool is active and the mouse moves. The properties determined here are
+ * 		passed to all functions below.
+ * - `onFrame(item, properties, events)` updates the object based on the properties,
+ * 		event etc. This is the core of the animation
+ * - `drawHandles(item, properties)` returns a `Group` with the handles
+ * - `onTransform(item, properties, matrix)` handles a transform of the item.
+ * 		The properties probably contain some point in a relative coordinate system.
+ * 		This function should apply the matrix to that point.
+ * - `onReset(item, properties)` Should undo the animation and reset the item.
+ * @param  {String} type              Name of the animation
+ * @param  {Object} animation         Animation object
+ * @param  {Object} defaultProperties Default properties
+ * @return {None}                   
+ */
 function registerAnimation(type, animation, defaultProperties) {
 
 	// Set up the animation tool
@@ -753,7 +775,6 @@ function registerAnimation(type, animation, defaultProperties) {
 
 	// Store!
 	animations[type] = animation;
-
 };/**
  * Painter.js
  */
@@ -767,8 +788,8 @@ function group(items) {
 	group.type = 'group'
 	group.transformContent = false;
 	var bounds = getBounds(group)
-	group.pivot = new Point(bounds.center);
 
+	group.pivot = new Point(bounds.center);
 	setupItem(group);
 	selectOnly(group)
 	startAnimation(items, false, true)
@@ -784,27 +805,26 @@ function ungroup(group) {
 	if(!isGroup(group)) return;
 
 	children = group.removeChildren().filter(isItem);
-	group.parent.insertChildren(group.index,  children);
+	group.parent.insertChildren(group.index, children);
 
-	// Transform children just like the group
+	// Transform animated children just like the group
 	for(var i=0; i<children.length; i++){
 		var item = children[i];
+		if(!hasAnimation(item)) continue;
+
 		item.transform(group.matrix);
 		if(item.bbox) item.bbox.transform(group.matrix);
 
-		if(hasAnimation(item)) {
-			var type = item.animation.type,
-					properties = item.animation.properties;
-			var onTransform = animations[type].onTransform || function() {};
-			onTransform(item, group.matrix, properties);
-		}
+		var type = item.animation.type,
+				properties = item.animation.properties;
+		var onTransform = animations[type].onTransform || function() {};
+		onTransform(item, properties, group.matrix);
 	}
 
 	// Remove and reset
 	deselect(group);
 	group.remove();
 	select(children)
-	redrawBoundingBox(children)
 }
 
 function deleteSelection() {
@@ -886,6 +906,10 @@ $(window).ready(function() {
 
 	paper.setup('canvas');
 
+	// Hmmmm....
+	bounceTool = animations.bounce.tool
+	rotationTool = animations.rotate.tool
+	
 	function onKeyDown(event) {
 		if(event.key == 'backspace' || event.key == 'd') {
 			deleteSelection()
@@ -1065,113 +1089,75 @@ $(window).ready(function() {
 
 
 
-});
-// bounceTool = new Tool();
-// var rotationSpeed = 2
-
-// var currentItem;
-// bounceTool.onMouseDown = function(event) {
-// 	currentItem = getSelected()[0]
-// 	if(currentItem == undefined) {
-// 		hitResult = project.hitTest(event.point, {
-// 			fill: true,
-// 			tolerance: 5
-// 		})
-		
-// 		if(!hitResult) return false;
-// 		currentItem = hitResult.item			
-// 	}
-// 	selectOnly(currentItem);
-
-// 	// Set up animation
-// 	initAnimation(currentItem, 'bounce', {
-// 		startPoint: currentItem.position,
-// 		endPoint: new Point(event.point),
-// 		speed: rotationSpeed,
-// 		position: 0
-// 	})
-// }
-
-// bounceTool.onMouseDrag = function(event) {
-// 	if(!currentItem) return;
-	
-// 	// Update start and endpoint
-// 	updateAnimationProperties(currentItem, {
-// 		startPoint: getCenter(currentItem),
-// 		endPoint: new Point(event.point)
-// 	})
-// }
-
-// bounceTool.onMouseUp = function(event) {
-// 	if(!currentItem) return;
-
-// 	// Start rotating
-// 	startAnimation(currentItem, 'bounce')
-// }
-
-
-/**
- * Rotation animation
- *
- * This object defines the rotation animation.
- * @type {Object}
+});/**
+ * Register the bounce animation
+ * @return {null}
  */
-var bounce = {}
+(function() {
 
-// Animation iself: frame updates
-bounce.onFrame = function(item, props, event) {
-	props.position += .01
-	var trajectory = props.startPoint.subtract(props.endPoint)
-	var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
-	var newPoint = trajectory.multiply(relPos).add(props.endPoint);
-	var delta = newPoint.subtract(item.position);
-	
-	// Move it!
-	item.position = item.position.add(delta)
-}
+	/**
+	 * Rotation animation
+	 *
+	 * This object defines the rotation animation.
+	 * @type {Object}
+	 */
+	var bounce = {}
 
-// Reset
-bounce.onReset = function(item, props) {
-	item.position = props.startPoint.add(props.position)
-	props.position = 0;
-}
+	// Animation iself: frame updates
+	bounce.onFrame = function(item, props, event) {
+		props.position += .01
+		var trajectory = props.startPoint.subtract(props.endPoint)
+		var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
+		var newPoint = trajectory.multiply(relPos).add(props.endPoint);
+		var delta = newPoint.subtract(item.position);
+		
+		// Move it!
+		item.position = item.position.add(delta)
+	}
 
-// Draws the handles
-bounce.drawHandles = function(item, props) {
-	var line, dot1, dot2, handles;
-	
-	line = new Path.Line(props.startPoint, props.endPoint)
-	line.strokeColor = mainColor;
-	line.strokeWidth = 1;
-	
-	dot1 = new Path.Circle(props.startPoint, 3)
-	dot1.fillColor = mainColor;
+	// Reset
+	bounce.onReset = function(item, props) {
+		item.position = props.startPoint.add(props.position)
+		props.position = 0;
+	}
 
-	dot2 = dot1.clone();
-	dot2.position = props.endPoint;
+	// Draws the handles
+	bounce.drawHandles = function(item, props) {
+		var line, dot1, dot2, handles;
+		
+		line = new Path.Line(props.startPoint, props.endPoint)
+		line.strokeColor = mainColor;
+		line.strokeWidth = 1;
+		
+		dot1 = new Path.Circle(props.startPoint, 3)
+		dot1.fillColor = mainColor;
 
-	handles = new Group([line, dot1, dot2]);
-	return handles;
-}
+		dot2 = dot1.clone();
+		dot2.position = props.endPoint;
 
-bounce.onTransform = function(item, matrix, props) {
-	props.startPoint = props.startPoint.transform(matrix)
-	props.endPoint = props.endPoint.transform(matrix)
-}
+		handles = new Group([line, dot1, dot2]);
+		return handles;
+	}
 
-bounce.onClone = function(copy, props) {
-	props.startPoint = getCenter(copy);
-	return props;
-}
+	bounce.onTransform = function(item, props, matrix) {
+		props.startPoint = props.startPoint.transform(matrix)
+		props.endPoint = props.endPoint.transform(matrix)
+	}
 
-bounce.onUpdate = function(item, props, event) {
-	props.startPoint = getCenter(item);
-	props.endPoint = new Point(event.point);
-}
+	bounce.onClone = function(copy, props) {
+		props.startPoint = getCenter(copy);
+		return props;
+	}
 
-registerAnimation('bounce', bounce, { speed: 2, position: 0 })
+	bounce.onUpdate = function(item, props, event) {
+		props.startPoint = getCenter(item);
+		props.endPoint = new Point(event.point);
+	}
 
-bounceTool = animations.bounce.tool;
+	// Register the animation
+	registerAnimation('bounce', bounce, { speed: 2, position: 0 })
+
+})();
 /**
  * Circle tool
  *
@@ -1234,117 +1220,73 @@ rectTool.onMouseDrag = function(event) {
 rectTool.onMouseUp = function() {
 	rectangle.type = 'rectangle'
 	setupItem(rectangle);
-};
-/**
- * Rotation tool and animation
- * @type {Tool}
- */
-
-// rotationTool = new Tool();
-// var rotationSpeed = 2
-
-// var currentItem, crosshair;
-// rotationTool.onMouseDown = function(event) {
-// 	currentItem = getSelected()[0]
-// 	if(currentItem == undefined) {
-// 		hitResult = project.hitTest(event.point, {
-// 			fill: true,
-// 			tolerance: 5
-// 		})
-		
-// 		if(!hitResult) return false;
-// 		currentItem = hitResult.item			
-// 	}
-// 	selectOnly(currentItem);
-
-// 	// Set up animation
-// 	initAnimation(currentItem, 'rotate', {
-// 		center: new Point(event.point),
-// 		speed: rotationSpeed,
-// 		degree: 0
-// 	})
-// }
-
-// rotationTool.onMouseDrag = function(event) {
-// 	if(!currentItem) return;
-	
-// 	// Update the center
-// 	updateAnimationProperties(currentItem, {
-// 		center: new Point(event.point),
-// 	})
-// }
-
-// rotationTool.onMouseUp = function(event) {
-// 	if(!currentItem) return;
-
-// 	// Start rotating
-// 	startAnimation(currentItem, 'rotate')
-// }
-
-/**
- * Rotation animation
+};/**
+ * Register the rotate animation 
  *
- * This object defines the rotation animation.
- * @type {Object}
+ * @return {null}
  */
-rotate = {}
+(function() {
+	
+	// The animatino object
+	rotate = {}
 
-// Animation iself: frame updates
-rotate.onFrame = function(item, props, event) {
-	item.rotate(props.speed, props.center);
-	props.degree = ((props.degree || 0) + props.speed) % 360
-}
-
-// Reset
-rotate.onReset = function(item, props) {
-
-	// Rotate the item back to its original position
-	var deg = - props.degree
-	item.rotate(deg, props.center)
-	props.degree = 0;
-
-	// The path might not be exactly rectangular anymore due to the 
-	// rotation. Rounding the coordinates solves the problem.
-	if(isRectangular(item)) {
-		item.segments.map(function(segment) {
-			segment.point.x = Math.round(segment.point.x)
-			segment.point.y = Math.round(segment.point.y)
-		})
+	// Animation iself: frame updates
+	rotate.onFrame = function(item, props, event) {
+		item.rotate(props.speed, props.center);
+		props.degree = ((props.degree || 0) + props.speed) % 360
 	}
-}
 
-// Draws the handles
-rotate.drawHandles = function(item, props) {
-	var border, tl, br, middle, line, dot, handles;
+	// Reset
+	rotate.onReset = function(item, props) {
 
-	// Determine the middle of the bounding box: average of two opposite corners
-	corners = item.bbox.children[0].segments;
-	middle = corners[0].point.add(corners[2].point).divide(2)
-	
-	line = new Path.Line(middle, props.center)
-	line.strokeColor = mainColor;
-	line.strokeWidth = 1;
-	
-	dot = new Path.Circle(props.center, 3)
-	dot.fillColor = mainColor;
-	dot.position = props.center;
+		// Rotate the item back to its original position
+		var deg = - props.degree
+		item.rotate(deg, props.center)
+		props.degree = 0;
 
-	handles = new Group([line, dot]);
-	return handles;
-}
+		// The path might not be exactly rectangular anymore due to the 
+		// rotation. Rounding the coordinates solves the problem.
+		if(isRectangular(item)) {
+			item.segments.map(function(segment) {
+				segment.point.x = Math.round(segment.point.x)
+				segment.point.y = Math.round(segment.point.y)
+			})
+		}
+	}
 
-// Transform the center point
-rotate.onTransform = function(item, matrix, props) {
-	props.center = props.center.transform(matrix)
-}
+	// Draws the handles
+	rotate.drawHandles = function(item, props) {
+		var border, tl, br, middle, line, dot, handles;
 
-rotate.onUpdate = function(item, props, event) {
-	props.center = new Point(event.point);
-}
+		// Determine the middle of the bounding box: average of two opposite corners
+		corners = item.bbox.children[0].segments;
+		middle = corners[0].point.add(corners[2].point).divide(2)
+		
+		line = new Path.Line(middle, props.center)
+		line.strokeColor = mainColor;
+		line.strokeWidth = 1;
+		
+		dot = new Path.Circle(props.center, 3)
+		dot.fillColor = mainColor;
+		dot.position = props.center;
 
-registerAnimation('rotate', rotate, { speed: 2 })
+		handles = new Group([line, dot]);
+		return handles;
+	}
 
-rotationTool = animations.rotate.tool;
+	// Transform the center point
+	rotate.onTransform = function(item, props, matrix) {
+		props.center = props.center.transform(matrix)
+	}
+
+	rotate.onUpdate = function(item, props, event) {
+		props.center = new Point(event.point);
+	}
+
+	// Register!
+	registerAnimation('rotate', rotate, { speed: 2 })
+
+})();
 /**
  * Selection tool
  *

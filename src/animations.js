@@ -164,8 +164,30 @@ function updateAnimation(item, properties, event) {
 	return item.animation.properties
 }
 
-
-
+/**
+ * Register an animation
+ *
+ * An animation moves an item periodically based on several parameters which
+ * are set graphically by a set of handles. The rotation animation for example
+ * has a single parameter: the center point around which the item rotates. 
+ * The drawing app iteracts with the animation through various functions. The 
+ * most important ones are
+ * - `onUpdate(item, properties, event)` should update the properties object 
+ * 		based on a mouse event. This function is called whenever the animation 
+ * 		tool is active and the mouse moves. The properties determined here are
+ * 		passed to all functions below.
+ * - `onFrame(item, properties, events)` updates the object based on the properties,
+ * 		event etc. This is the core of the animation
+ * - `drawHandles(item, properties)` returns a `Group` with the handles
+ * - `onTransform(item, properties, matrix)` handles a transform of the item.
+ * 		The properties probably contain some point in a relative coordinate system.
+ * 		This function should apply the matrix to that point.
+ * - `onReset(item, properties)` Should undo the animation and reset the item.
+ * @param  {String} type              Name of the animation
+ * @param  {Object} animation         Animation object
+ * @param  {Object} defaultProperties Default properties
+ * @return {None}                   
+ */
 function registerAnimation(type, animation, defaultProperties) {
 
 	// Set up the animation tool
@@ -208,5 +230,4 @@ function registerAnimation(type, animation, defaultProperties) {
 
 	// Store!
 	animations[type] = animation;
-
 }
