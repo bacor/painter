@@ -533,12 +533,8 @@ function moveItem(item, delta) {
 	
 	// Move the animation. We just apply a specific type of transformation:
 	// a translation. The rest should be handled by the animation.
-	if(hasAnimation(item)) {
-		var type = item.animation.type; 
-		var properties = item.animation.properties;
-		var matrix = new Matrix().translate(delta);
-		animations[type].onTransform(item, properties, matrix);
-	}
+	var matrix = new Matrix().translate(delta);
+	transformAnimation(item, matrix);
 }
 
 function getCenter(item) {

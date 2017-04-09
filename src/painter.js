@@ -30,7 +30,7 @@ function ungroup(group) {
 	children = group.removeChildren().filter(isItem);
 	group.parent.insertChildren(group.index, children);
 
-	// Transform animated children just like the group
+	// Transform children just like the group
 	for(var i=0; i<children.length; i++){
 		var item = children[i];
 		
@@ -38,13 +38,9 @@ function ungroup(group) {
 			item.transform(group.matrix);
 			if(item.bbox) item.bbox.transform(group.matrix);
 		}
-
-		if(hasAnimation(item)) {
-			var type = item.animation.type,
-					properties = item.animation.properties;
-			var onTransform = animations[type].onTransform || function() {};
-			onTransform(item, properties, group.matrix);
-		}
+		
+		// Only called if hasAnimation(item)
+		transformAnimation(item, group.matrix);
 	}
 
 	// Remove and reset

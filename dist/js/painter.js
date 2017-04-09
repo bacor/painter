@@ -533,17 +533,16 @@ function moveItem(item, delta) {
 	
 	// Move the animation. We just apply a specific type of transformation:
 	// a translation. The rest should be handled by the animation.
-	if(hasAnimation(item)) {
-		var type = item.animation.type; 
-		var properties = item.animation.properties;
-		var matrix = new Matrix().translate(delta);
-		animations[type].onTransform(item, properties, matrix);
-	}
+	var matrix = new Matrix().translate(delta);
+	transformAnimation(item, matrix);
 }
 
 function getCenter(item) {
 	return item.bbox.children['shadow'].bounds.center;
 };
+var initAnimation, startAnimation, stopAnimation, resetAnimation;
+
+
 /**
  * All registered animations
  * @type {Object}
@@ -693,6 +692,23 @@ function removeAnimationHandles(item) {
 }
 
 /**
+ * Applies a transformation to the animation
+ * @param  {item} item   
+ * @param  {Matrix} matrix the matrix
+ * @return {None}        
+ */
+function transformAnimation(item, matrix) {
+	if(item instanceof Array)
+		return item.map(function(i) { transformAnimation(i, matrix) });
+	if(!isItem(item)) return false;
+	if(!hasAnimation(item)) return false;
+
+	var type = item.animation.type; 
+	var properties = item.animation.properties;
+	animations[type].onTransform(item, properties, matrix);
+}
+
+/**
  * Update the animation properties of an item 
  * @param  {item} item       
  * @param  {Object} properties An object with animation properties
@@ -807,7 +823,7 @@ function ungroup(group) {
 	children = group.removeChildren().filter(isItem);
 	group.parent.insertChildren(group.index, children);
 
-	// Transform animated children just like the group
+	// Transform children just like the group
 	for(var i=0; i<children.length; i++){
 		var item = children[i];
 		
@@ -815,13 +831,9 @@ function ungroup(group) {
 			item.transform(group.matrix);
 			if(item.bbox) item.bbox.transform(group.matrix);
 		}
-
-		if(hasAnimation(item)) {
-			var type = item.animation.type,
-					properties = item.animation.properties;
-			var onTransform = animations[type].onTransform || function() {};
-			onTransform(item, properties, group.matrix);
-		}
+		
+		// Only called if hasAnimation(item)
+		transformAnimation(item, group.matrix);
 	}
 
 	// Remove and reset

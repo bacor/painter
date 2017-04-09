@@ -1,4 +1,7 @@
 
+var initAnimation, startAnimation, stopAnimation, resetAnimation;
+
+
 /**
  * All registered animations
  * @type {Object}
@@ -145,6 +148,23 @@ function drawAnimationHandles(item) {
 function removeAnimationHandles(item) {
 	if(item.animation && item.animation.handles)
 		item.animation.handles.remove();
+}
+
+/**
+ * Applies a transformation to the animation
+ * @param  {item} item   
+ * @param  {Matrix} matrix the matrix
+ * @return {None}        
+ */
+function transformAnimation(item, matrix) {
+	if(item instanceof Array)
+		return item.map(function(i) { transformAnimation(i, matrix) });
+	if(!isItem(item)) return false;
+	if(!hasAnimation(item)) return false;
+
+	var type = item.animation.type; 
+	var properties = item.animation.properties;
+	animations[type].onTransform(item, properties, matrix);
 }
 
 /**
