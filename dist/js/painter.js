@@ -7,9 +7,6 @@
 
 function setupItem(item) {
 	item.animation = undefined;
-
-	// Keep track of actual bounds of items
-	if(!isGroup(item)) item.shadowBounds = item.bounds;
 }
 
 /********************************************************/
@@ -102,9 +99,7 @@ function getBoundingBox(item) {
 	shadow.sendToBack();
 	shadow.type = 'shadow'
 	shadow.name = 'shadow'
-
 	parts.push(shadow)
-	// shadow.remove()
 
 	// Build the bounding box!
 	var bbox = new Group(parts);
@@ -218,16 +213,6 @@ function deselect(item) {
 }
 
 /**
- * Reselect = deselect + select
- * @param  {item} item 		
- * @return {None}      
- */
-function reselect(item){
-	deselect(item)
-	select(item)
-}
-
-/**
  * Deselects all the currently selected items.
  *
  * Again, we don't use the in-built selection mechanism, but rely on our own
@@ -246,11 +231,21 @@ function deselectAll(items) {
 	}
 }
 
+/**
+ * Selects only this item
+ * @param  {item} item The only item to select
+ * @return {None}
+ */
 function selectOnly(item) {
 	deselectAll();
 	select(item);
 }
 
+/**
+ * Return all selected items
+ * @param  {Function} match The match function, defaults to isSelected
+ * @return {Array}       Selected items
+ */
 function getSelected(match=isSelected) {
 	return project.getItems({
 		match: match
@@ -514,41 +509,37 @@ function getOuterGroup(item) {
 
 /********************************************************/
 
+/**
+ * Move an item, its bounding box and animation.
+ *
+ * This function moves all the objects related to an item: its
+ * bounding box and the animation. The animation is moved by calling
+ * the `onTransform` method with a translation matrix. 
+ *
+ * @todo Why not have a general `transformItem` function?
+ * @param  {item} item  	
+ * @param  {Point} delta 
+ * @return {None}      
+ */
 function moveItem(item, delta) {
-	if(item instanceof Array) return item.map(function(i) { moveItem(i, delta) });
+	if(item instanceof Array) 
+		return item.map(function(i) { moveItem(i, delta) });
 
 	// Move the item
 	item.position = item.position.add(delta);
 
 	// Bounding box, only if it exists
-	var bbox = item.bbox;
-	if(bbox) bbox.position = bbox.position.add(delta);
+	if(item.bbox) item.bbox.position = item.bbox.position.add(delta);
 	
-	// if(!isGroup(item)) 
-	moveAnimation(item, delta);
+	// Move the animation. We just apply a specific type of transformation:
+	// a translation. The rest should be handled by the animation.
+	if(hasAnimation(item)) {
+		var type = item.animation.type; 
+		var properties = item.animation.properties;
+		var matrix = new Matrix().translate(delta);
+		animations[type].onTransform(item, matrix, properties);
+	}
 }
-
-/**
- * Moves an animation. To do: isn't this just a transformation?
- * 
- * @param  {[type]} item  [description]
- * @param  {[type]} delta [description]
- * @return {[type]}       [description]
- */
-function moveAnimation(item, delta) {
-	if(item instanceof Array) item.map(function(i){ moveAnimation(i, delta) });
-	if(!hasAnimation(item)) return false;
-
-	var type = item.animation.type; 
-	var properties = item.animation.properties;
-
-	// Transform!
-	var matrix = new Matrix().translate(delta)
-	animations[type].onTransform(item, matrix, properties)
-
-	if(isSelected(item)) drawAnimationHandles(item);
-}
-
 
 function getCenter(item) {
 	return item.bbox.children['shadow'].bounds.center;
@@ -721,14 +712,6 @@ function updateAnimationProperties(item, properties) {
  */
 
 paper.install(window);
-
-// function onFrame() {
-// 	var items = project.getItems()
-// 	console.log(items)
-// 	for(var i=0;i>items.length; i++){
-// 		showBoundingBox(items[i])
-// 	}
-// }
 
 var mainColor = '#78C3D0';
 
@@ -1215,6 +1198,11 @@ rectTool.onMouseUp = function() {
 	rectangle.type = 'rectangle'
 	setupItem(rectangle);
 };
+/**
+ * Rotation tool and animation
+ * @type {Tool}
+ */
+
 rotationTool = new Tool();
 var rotationSpeed = 2
 
@@ -1255,8 +1243,6 @@ rotationTool.onMouseUp = function(event) {
 	// Start rotating
 	startAnimation(currentItem, 'rotate')
 }
-
-
 
 /**
  * Rotation animation
@@ -1310,6 +1296,7 @@ animations.rotate.drawHandles = function(item, props) {
 	return handles;
 }
 
+// Transform the center point
 animations.rotate.onTransform = function(item, matrix, props) {
 	props.center = props.center.transform(matrix)
 };

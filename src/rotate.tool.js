@@ -1,4 +1,9 @@
 
+/**
+ * Rotation tool and animation
+ * @type {Tool}
+ */
+
 rotationTool = new Tool();
 var rotationSpeed = 2
 
@@ -39,8 +44,6 @@ rotationTool.onMouseUp = function(event) {
 	// Start rotating
 	startAnimation(currentItem, 'rotate')
 }
-
-
 
 /**
  * Rotation animation
@@ -94,6 +97,7 @@ animations.rotate.drawHandles = function(item, props) {
 	return handles;
 }
 
+// Transform the center point
 animations.rotate.onTransform = function(item, matrix, props) {
 	props.center = props.center.transform(matrix)
 }

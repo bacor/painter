@@ -4,14 +4,6 @@
 
 paper.install(window);
 
-// function onFrame() {
-// 	var items = project.getItems()
-// 	console.log(items)
-// 	for(var i=0;i>items.length; i++){
-// 		showBoundingBox(items[i])
-// 	}
-// }
-
 var mainColor = '#78C3D0';
 
 function group(items) {
