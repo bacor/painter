@@ -32,8 +32,11 @@ bounceTool.onMouseDown = function(event) {
 bounceTool.onMouseDrag = function(event) {
 	if(!currentItem) return;
 	
+	corners = currentItem.bbox.children[0].segments;
+	middle = corners[0].point.add(corners[2].point).divide(2)
+	
 	updateAnimationProperties(currentItem, {
-		startPoint: currentItem.position,
+		startPoint: middle,
 		endPoint: new Point(event.point)
 	})
 
@@ -65,17 +68,25 @@ animations.bounce.onFrame = function(event, item, props) {
 	var delta = newPoint.subtract(item.position);
 	
 	// Move it!
-	moveItems([item], delta)
+	moveItem(item, delta)
+	
+	// The start & endpoint are also moved in onMove so the item becomes
+	// draggable. But for the animation we should keep the start & endpoint
+	// fixed. So we undo what onMove does:
+	props.startPoint = props.startPoint.subtract(delta)
+	props.endPoint = props.endPoint.subtract(delta)
 }
 
 // Reset
 animations.bounce.onReset = function(item, props) {
-	
+	item.position = props.startPoint.add(props.position)
+	props.position = 0;
 }
 
 // Called when the item is moved
 animations.bounce.onMove = function(delta, item, props) {
-	// to do 
+	props.startPoint = props.startPoint.add(delta)
+	props.endPoint = props.endPoint.add(delta)
 }
 
 // Draws the handles

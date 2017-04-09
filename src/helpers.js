@@ -66,6 +66,7 @@ function getBoundingBox(item) {
 		// The border of the bounding box (expanded slightly)
 		var border = new Path.Rectangle(rect.bounds.expand(12))
 		border.strokeColor = mainColor
+		if(isGroup(item)) border.dashArray = [5,2];
 		parts.push(border)
 
 		// Add the handles in the same order as they occur in rect. In this way, the order
@@ -452,53 +453,32 @@ function getOuterGroup(item) {
 
 /********************************************************/
 
-function moveItems(items, delta) {
-	for(var i=0; i<items.length; i++) {
-		
-		var item = items[i], bbox = item.bbox;
+function moveItem(item, delta) {
+	if(item instanceof Array) return item.map(function(i) { moveItem(i, delta) });
 
-		// If this is a group, move all the children individually,
-		// but keep the group itself fixed.
-		if(isGroup(item)) moveItems(item.children, delta);
-		if(!inGroup(item)) item.position = item.position.add(delta);
+	// Move the item
+	item.position = item.position.add(delta);
 
-		// Bounding box, only if it exists
-		if(bbox) bbox.position = bbox.position.add(delta);
-		
-		// Update the animations
-		if(hasAnimation(item)) {
-			var type = item.animation.type; 
-			var properties = item.animation.properties;
+	// If this is a group, move all animating children as well
+	if(isGroup(item)) moveAnimation(item.children, delta);
 
-			var onMove = animations[type].onMove || function(){};
-			onMove(delta, item, properties);
-
-			if(isSelected(item)) drawAnimationHandles(item);
-		}
-	}
+	// Bounding box, only if it exists
+	var bbox = item.bbox;
+	if(bbox) bbox.position = bbox.position.add(delta);
+	
+	// Update the animations
+	moveAnimation(item, delta)
 }
 
+function moveAnimation(item, delta) {
+	if(item instanceof Array) item.map(function(i){ moveAnimation(i, delta) });
+	if(!hasAnimation(item)) return false;
 
-// function bounce(item, startPoint, endPoint) {
-// 	item.bouncing = true;
-// 	item.startPoint = startPoint;
-// 	item.endPoint = endPoint
-// 	item.bouncePosition = 0;
-// 	// drawRotationRadius(item, focusPoint)
-// 	var dot = new Path.Circle([20,20], 5)
-// 	dot.fillColor = 'orange'
-// 	// console.log(dot)
+	var type = item.animation.type; 
+	var properties = item.animation.properties;
 
-// 	item.onFrame = function(event) {
-// 		var center = this.bbox.center;
-// 		var trajectory = this.startPoint.subtract(this.endPoint)
+	var onMove = animations[type].onMove || function(){};
+	onMove(delta, item, properties);
 
-// 		this.bouncePosition += .01
-// 		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
-// 		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
-
-// 		var delta = newPoint.subtract(this.position);
-		
-// 		moveItems([this], delta)
-// 	}
-// }
+	if(isSelected(item)) drawAnimationHandles(item);
+}

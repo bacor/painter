@@ -66,6 +66,7 @@ function getBoundingBox(item) {
 		// The border of the bounding box (expanded slightly)
 		var border = new Path.Rectangle(rect.bounds.expand(12))
 		border.strokeColor = mainColor
+		if(isGroup(item)) border.dashArray = [5,2];
 		parts.push(border)
 
 		// Add the handles in the same order as they occur in rect. In this way, the order
@@ -452,56 +453,35 @@ function getOuterGroup(item) {
 
 /********************************************************/
 
-function moveItems(items, delta) {
-	for(var i=0; i<items.length; i++) {
-		
-		var item = items[i], bbox = item.bbox;
+function moveItem(item, delta) {
+	if(item instanceof Array) return item.map(function(i) { moveItem(i, delta) });
 
-		// If this is a group, move all the children individually,
-		// but keep the group itself fixed.
-		if(isGroup(item)) moveItems(item.children, delta);
-		if(!inGroup(item)) item.position = item.position.add(delta);
+	// Move the item
+	item.position = item.position.add(delta);
 
-		// Bounding box, only if it exists
-		if(bbox) bbox.position = bbox.position.add(delta);
-		
-		// Update the animations
-		if(hasAnimation(item)) {
-			var type = item.animation.type; 
-			var properties = item.animation.properties;
+	// If this is a group, move all animating children as well
+	if(isGroup(item)) moveAnimation(item.children, delta);
 
-			var onMove = animations[type].onMove || function(){};
-			onMove(delta, item, properties);
-
-			if(isSelected(item)) drawAnimationHandles(item);
-		}
-	}
+	// Bounding box, only if it exists
+	var bbox = item.bbox;
+	if(bbox) bbox.position = bbox.position.add(delta);
+	
+	// Update the animations
+	moveAnimation(item, delta)
 }
 
+function moveAnimation(item, delta) {
+	if(item instanceof Array) item.map(function(i){ moveAnimation(i, delta) });
+	if(!hasAnimation(item)) return false;
 
-// function bounce(item, startPoint, endPoint) {
-// 	item.bouncing = true;
-// 	item.startPoint = startPoint;
-// 	item.endPoint = endPoint
-// 	item.bouncePosition = 0;
-// 	// drawRotationRadius(item, focusPoint)
-// 	var dot = new Path.Circle([20,20], 5)
-// 	dot.fillColor = 'orange'
-// 	// console.log(dot)
+	var type = item.animation.type; 
+	var properties = item.animation.properties;
 
-// 	item.onFrame = function(event) {
-// 		var center = this.bbox.center;
-// 		var trajectory = this.startPoint.subtract(this.endPoint)
+	var onMove = animations[type].onMove || function(){};
+	onMove(delta, item, properties);
 
-// 		this.bouncePosition += .01
-// 		var relPos = (Math.sin((this.bouncePosition + .5) * Math.PI) + 1) / 2;
-// 		var newPoint = trajectory.multiply(relPos).add(this.endPoint);
-
-// 		var delta = newPoint.subtract(this.position);
-		
-// 		moveItems([this], delta)
-// 	}
-// }
+	if(isSelected(item)) drawAnimationHandles(item);
+}
 ;
 /**
  * All registered animations
@@ -538,12 +518,13 @@ function initAnimation(item, type, properties) {
  * @param  {string} type  The type of animation to start
  * @return {Boolean}			`true` on success; `false` if item does not have this  animation
  */
-function startAnimation(item, type) {
+function startAnimation(item, type=false) {
 	if(item instanceof Array) 
 		return item.map(function(i) { startAnimation(i, type) });
 	if(!hasAnimation(item, type)) 
 		return false;
-
+	
+	var type = type || item.animation.type;
 	item.animation.active = true;
 	var onStart = animations[type].onStart || function(){};
 	onStart(item, item.animation.properties);
@@ -564,15 +545,15 @@ function startAnimation(item, type) {
  * calling `startAnimation`. The function fires the `onStop` method of the 
  * current animation type.
  * @param  {item} item 
- * @param  {String} type 	Animation type
  * @return {Boolean}			`true` on success; `false` if item does not have this  animation
  */
-function stopAnimation(item, type) {
+function stopAnimation(item) {
 	if(item instanceof Array)
-		return item.map(function(i) { stopAnimation(i, type) });
-	if(!hasAnimation(item, type)) 
+		return item.map(function(i) { stopAnimation(i) });
+	if(!hasAnimation(item)) 
 		return false;
 
+	var type = item.animation.type;
 	item.animation.active = false;
 	item.onFrame = undefined;
 
@@ -658,37 +639,58 @@ function updateAnimationProperties(item, properties) {
 
 paper.install(window);
 
+// function onFrame() {
+// 	var items = project.getItems()
+// 	console.log(items)
+// 	for(var i=0;i>items.length; i++){
+// 		showBoundingBox(items[i])
+// 	}
+// }
+
 var mainColor = '#78C3D0';
 
 function groupSelection() {
+	
 	var items = getSelected();
+	resetAnimation(items)
 	var group = new Group(items);
 	group.type = 'group'
+
+	// console.log(group.bounds, group.bounds.center)
+	// corners = group.bbox.children[0].segments;
+	// middle = corners[0].point.add(corners[2].point).divide(2)
+	group.pivot = new Point(group.bounds.center);
+
 	setupItem(group);
 	selectOnly(group)
+	startAnimation(items)
 }
 
 function ungroupSelection() {
-		
 	// Get all currently selected groupos
 	var groups = project.getItems({
 		class: Group,
 		match: isSelected
 	})
+	ungroup(groups)
+}
 
-	// Remove the items from the group and insert them at
-	// the same position in the tree.
-	// See https://github.com/paperjs/paper.js/issues/1026
-	for( var i=0; i<groups.length; i++) {
-		var group = groups[i];
+/**
+ * See https://github.com/paperjs/paper.js/issues/1026
+ * @param  {Group} group 
+ * @return {Array}       Children
+ */
+function ungroup(group) {
+	if(group instanceof Array) return group.map(ungroup);
 
-		children = group.removeChildren();
-		select(children)
+	resetAnimation(group)
+	children = group.removeChildren();
+	group.parent.insertChildren(group.index,  children);
+	deselect(group);
+	group.remove();
 
-		group.parent.insertChildren(group.index,  children);
-		deselect(group);
-		group.remove();
-	}
+	// resetAnimation(children)
+	select(children)
 }
 
 function deleteSelection() {
@@ -800,6 +802,7 @@ $(window).ready(function() {
 	circleTool.onKeyDown = onKeyDown;
 	selectTool.onKeyDown = onKeyDown;
 	rotationTool.onKeyDown = onKeyDown;
+	bounceTool.onKeyDown = onKeyDown;
 
 	// Demo
 	r = new Path.Rectangle([20,30,100,140])
@@ -873,12 +876,12 @@ $(window).ready(function() {
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
 		if($(this).data('state') == 'play') {
-			startAnimation(getSelected(), 'rotate');
+			startAnimation(getSelected());
 			$(this).find('span').html('pause <code>space</code>')
 			$(this).data('state', 'pause')
 
 		} else {
-			stopAnimation(getSelected(), 'rotate');
+			stopAnimation(getSelected());
 			$(this).find('span').html('play <code>space</code>')
 			$(this).data('state', 'play')
 		}
@@ -958,8 +961,11 @@ bounceTool.onMouseDown = function(event) {
 bounceTool.onMouseDrag = function(event) {
 	if(!currentItem) return;
 	
+	corners = currentItem.bbox.children[0].segments;
+	middle = corners[0].point.add(corners[2].point).divide(2)
+	
 	updateAnimationProperties(currentItem, {
-		startPoint: currentItem.position,
+		startPoint: middle,
 		endPoint: new Point(event.point)
 	})
 
@@ -991,17 +997,25 @@ animations.bounce.onFrame = function(event, item, props) {
 	var delta = newPoint.subtract(item.position);
 	
 	// Move it!
-	moveItems([item], delta)
+	moveItem(item, delta)
+	
+	// The start & endpoint are also moved in onMove so the item becomes
+	// draggable. But for the animation we should keep the start & endpoint
+	// fixed. So we undo what onMove does:
+	props.startPoint = props.startPoint.subtract(delta)
+	props.endPoint = props.endPoint.subtract(delta)
 }
 
 // Reset
 animations.bounce.onReset = function(item, props) {
-	
+	item.position = props.startPoint.add(props.position)
+	props.position = 0;
 }
 
 // Called when the item is moved
 animations.bounce.onMove = function(delta, item, props) {
-	// to do 
+	props.startPoint = props.startPoint.add(delta)
+	props.endPoint = props.endPoint.add(delta)
 }
 
 // Draws the handles
@@ -1149,6 +1163,8 @@ animations.rotate.onFrame = function(event, item, props) {
 
 // Reset
 animations.rotate.onReset = function(item, props) {
+
+	// Rotate the item back to its original position
 	var deg = - props.degree
 	item.rotate(deg, props.center)
 	item.bbox.rotate(deg, props.center);
@@ -1163,6 +1179,7 @@ animations.rotate.onReset = function(item, props) {
 		})
 	}
 }
+var p;
 
 // Called when the item is moved
 animations.rotate.onMove = function(delta, item, props) {
@@ -1281,7 +1298,7 @@ selectTool.onMouseDrag = function(event) {
 			cloned = true;
 		}
 
-		moveItems(currentItems, event.delta)
+		moveItem(currentItems, event.delta)
 	}
 
 	// In editing mode we update the shape of the items based

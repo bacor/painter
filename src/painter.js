@@ -4,37 +4,58 @@
 
 paper.install(window);
 
+// function onFrame() {
+// 	var items = project.getItems()
+// 	console.log(items)
+// 	for(var i=0;i>items.length; i++){
+// 		showBoundingBox(items[i])
+// 	}
+// }
+
 var mainColor = '#78C3D0';
 
 function groupSelection() {
+	
 	var items = getSelected();
+	resetAnimation(items)
 	var group = new Group(items);
 	group.type = 'group'
+
+	// console.log(group.bounds, group.bounds.center)
+	// corners = group.bbox.children[0].segments;
+	// middle = corners[0].point.add(corners[2].point).divide(2)
+	group.pivot = new Point(group.bounds.center);
+
 	setupItem(group);
 	selectOnly(group)
+	startAnimation(items)
 }
 
 function ungroupSelection() {
-		
 	// Get all currently selected groupos
 	var groups = project.getItems({
 		class: Group,
 		match: isSelected
 	})
+	ungroup(groups)
+}
 
-	// Remove the items from the group and insert them at
-	// the same position in the tree.
-	// See https://github.com/paperjs/paper.js/issues/1026
-	for( var i=0; i<groups.length; i++) {
-		var group = groups[i];
+/**
+ * See https://github.com/paperjs/paper.js/issues/1026
+ * @param  {Group} group 
+ * @return {Array}       Children
+ */
+function ungroup(group) {
+	if(group instanceof Array) return group.map(ungroup);
 
-		children = group.removeChildren();
-		select(children)
+	resetAnimation(group)
+	children = group.removeChildren();
+	group.parent.insertChildren(group.index,  children);
+	deselect(group);
+	group.remove();
 
-		group.parent.insertChildren(group.index,  children);
-		deselect(group);
-		group.remove();
-	}
+	// resetAnimation(children)
+	select(children)
 }
 
 function deleteSelection() {
@@ -146,6 +167,7 @@ $(window).ready(function() {
 	circleTool.onKeyDown = onKeyDown;
 	selectTool.onKeyDown = onKeyDown;
 	rotationTool.onKeyDown = onKeyDown;
+	bounceTool.onKeyDown = onKeyDown;
 
 	// Demo
 	r = new Path.Rectangle([20,30,100,140])
@@ -219,12 +241,12 @@ $(window).ready(function() {
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
 		if($(this).data('state') == 'play') {
-			startAnimation(getSelected(), 'rotate');
+			startAnimation(getSelected());
 			$(this).find('span').html('pause <code>space</code>')
 			$(this).data('state', 'pause')
 
 		} else {
-			stopAnimation(getSelected(), 'rotate');
+			stopAnimation(getSelected());
 			$(this).find('span').html('play <code>space</code>')
 			$(this).data('state', 'play')
 		}

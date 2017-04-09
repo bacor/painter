@@ -34,12 +34,13 @@ function initAnimation(item, type, properties) {
  * @param  {string} type  The type of animation to start
  * @return {Boolean}			`true` on success; `false` if item does not have this  animation
  */
-function startAnimation(item, type) {
+function startAnimation(item, type=false) {
 	if(item instanceof Array) 
 		return item.map(function(i) { startAnimation(i, type) });
 	if(!hasAnimation(item, type)) 
 		return false;
-
+	
+	var type = type || item.animation.type;
 	item.animation.active = true;
 	var onStart = animations[type].onStart || function(){};
 	onStart(item, item.animation.properties);
@@ -60,15 +61,15 @@ function startAnimation(item, type) {
  * calling `startAnimation`. The function fires the `onStop` method of the 
  * current animation type.
  * @param  {item} item 
- * @param  {String} type 	Animation type
  * @return {Boolean}			`true` on success; `false` if item does not have this  animation
  */
-function stopAnimation(item, type) {
+function stopAnimation(item) {
 	if(item instanceof Array)
-		return item.map(function(i) { stopAnimation(i, type) });
-	if(!hasAnimation(item, type)) 
+		return item.map(function(i) { stopAnimation(i) });
+	if(!hasAnimation(item)) 
 		return false;
 
+	var type = item.animation.type;
 	item.animation.active = false;
 	item.onFrame = undefined;
 

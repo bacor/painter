@@ -64,6 +64,8 @@ animations.rotate.onFrame = function(event, item, props) {
 
 // Reset
 animations.rotate.onReset = function(item, props) {
+
+	// Rotate the item back to its original position
 	var deg = - props.degree
 	item.rotate(deg, props.center)
 	item.bbox.rotate(deg, props.center);
@@ -78,6 +80,7 @@ animations.rotate.onReset = function(item, props) {
 		})
 	}
 }
+var p;
 
 // Called when the item is moved
 animations.rotate.onMove = function(delta, item, props) {

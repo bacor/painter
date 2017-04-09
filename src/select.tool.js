@@ -92,7 +92,7 @@ selectTool.onMouseDrag = function(event) {
 			cloned = true;
 		}
 
-		moveItems(currentItems, event.delta)
+		moveItem(currentItems, event.delta)
 	}
 
 	// In editing mode we update the shape of the items based
