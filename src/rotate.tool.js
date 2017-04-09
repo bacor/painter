@@ -4,46 +4,46 @@
  * @type {Tool}
  */
 
-rotationTool = new Tool();
-var rotationSpeed = 2
+// rotationTool = new Tool();
+// var rotationSpeed = 2
 
-var currentItem, crosshair;
-rotationTool.onMouseDown = function(event) {
-	currentItem = getSelected()[0]
-	if(currentItem == undefined) {
-		hitResult = project.hitTest(event.point, {
-			fill: true,
-			tolerance: 5
-		})
+// var currentItem, crosshair;
+// rotationTool.onMouseDown = function(event) {
+// 	currentItem = getSelected()[0]
+// 	if(currentItem == undefined) {
+// 		hitResult = project.hitTest(event.point, {
+// 			fill: true,
+// 			tolerance: 5
+// 		})
 		
-		if(!hitResult) return false;
-		currentItem = hitResult.item			
-	}
-	selectOnly(currentItem);
+// 		if(!hitResult) return false;
+// 		currentItem = hitResult.item			
+// 	}
+// 	selectOnly(currentItem);
 
-	// Set up animation
-	initAnimation(currentItem, 'rotate', {
-		center: new Point(event.point),
-		speed: rotationSpeed,
-		degree: 0
-	})
-}
+// 	// Set up animation
+// 	initAnimation(currentItem, 'rotate', {
+// 		center: new Point(event.point),
+// 		speed: rotationSpeed,
+// 		degree: 0
+// 	})
+// }
 
-rotationTool.onMouseDrag = function(event) {
-	if(!currentItem) return;
+// rotationTool.onMouseDrag = function(event) {
+// 	if(!currentItem) return;
 	
-	// Update the center
-	updateAnimationProperties(currentItem, {
-		center: new Point(event.point),
-	})
-}
+// 	// Update the center
+// 	updateAnimationProperties(currentItem, {
+// 		center: new Point(event.point),
+// 	})
+// }
 
-rotationTool.onMouseUp = function(event) {
-	if(!currentItem) return;
+// rotationTool.onMouseUp = function(event) {
+// 	if(!currentItem) return;
 
-	// Start rotating
-	startAnimation(currentItem, 'rotate')
-}
+// 	// Start rotating
+// 	startAnimation(currentItem, 'rotate')
+// }
 
 /**
  * Rotation animation
@@ -51,16 +51,16 @@ rotationTool.onMouseUp = function(event) {
  * This object defines the rotation animation.
  * @type {Object}
  */
-animations.rotate = {}
+rotate = {}
 
 // Animation iself: frame updates
-animations.rotate.onFrame = function(event, item, props) {
+rotate.onFrame = function(item, props, event) {
 	item.rotate(props.speed, props.center);
 	props.degree = ((props.degree || 0) + props.speed) % 360
 }
 
 // Reset
-animations.rotate.onReset = function(item, props) {
+rotate.onReset = function(item, props) {
 
 	// Rotate the item back to its original position
 	var deg = - props.degree
@@ -78,7 +78,7 @@ animations.rotate.onReset = function(item, props) {
 }
 
 // Draws the handles
-animations.rotate.drawHandles = function(item, props) {
+rotate.drawHandles = function(item, props) {
 	var border, tl, br, middle, line, dot, handles;
 
 	// Determine the middle of the bounding box: average of two opposite corners
@@ -98,6 +98,14 @@ animations.rotate.drawHandles = function(item, props) {
 }
 
 // Transform the center point
-animations.rotate.onTransform = function(item, matrix, props) {
+rotate.onTransform = function(item, matrix, props) {
 	props.center = props.center.transform(matrix)
 }
+
+rotate.onUpdate = function(item, props, event) {
+	props.center = new Point(event.point);
+}
+
+registerAnimation('rotate', rotate, { speed: 2 })
+
+rotationTool = animations.rotate.tool

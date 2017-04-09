@@ -560,15 +560,13 @@ var animations = {}
  * @return {item}        		   The item
  */
 function initAnimation(item, type, properties) {
+	// Remove old animations
 	resetAnimation(item)
-
-	if(hasAnimation(item)) {
-		item.animation.handles.remove();
-	}
+	if(hasAnimation(item)) item.animation.handles.remove();
 	
 	item.animation = {
 		type: type,
-		properties: properties
+		properties: jQuery.extend(true, {}, properties)
 	};
 
 	var onInit = animations[type].onInit || function(){};
@@ -599,7 +597,7 @@ function startAnimation(item, type=false, recurse=true) {
 	onStart(item, item.animation.properties);
 
 	item.onFrame = function(event) {
-		animations[type].onFrame(event, this, this.animation.properties)
+		animations[type].onFrame(this, this.animation.properties, event)
 		if(isSelected(this)) {
 			drawAnimationHandles(this, type, this.animation.properties);
 		}
@@ -656,8 +654,6 @@ function resetAnimation(item, recurse=false) {
 
 	// Update bounding box etc.
 	redrawBoundingBox(item);
-	// drawAnimationHandles(item);
-	// selectOnly(item);
 	return true;
 }
 
@@ -702,12 +698,63 @@ function removeAnimationHandles(item) {
  * @param  {Object} properties An object with animation properties
  * @return {Object}            The updated properties
  */
-function updateAnimationProperties(item, properties) {
+function updateAnimation(item, properties, event) {
+	if(!properties) {
+		var type = item.animation.type
+		var onUpdate = animations[type].onUpdate || function() {};
+		var properties = onUpdate(item, item.animation.properties, event);
+	}
 	item.animation.properties = $.extend(item.animation.properties, properties);
 	drawAnimationHandles(item)
 	return item.animation.properties
 }
-;/**
+
+
+
+function registerAnimation(type, animation, defaultProperties) {
+
+	// Set up the animation tool
+	if(!animation.tool) animation.tool = new Tool();
+
+	// The current item on which the tool works.
+	var currentItem;
+
+	// On Mouse Down
+	animation.tool.onMouseDown = animation.tool.onMouseDown || function(event) {
+		currentItem = getSelected()[0]
+		if(currentItem == undefined) {
+			hitResult = project.hitTest(event.point, {
+				fill: true, tolerance: 5
+			})
+			
+			if(!hitResult) return false;
+			currentItem = hitResult.item			
+		}
+		selectOnly(currentItem);
+
+		// Set up animation
+		initAnimation(currentItem, type, defaultProperties)
+
+		// Update the properties.
+		updateAnimation(currentItem, undefined, event);
+	}
+
+	// Mouse drag event
+	animation.tool.onMouseDrag = animation.tool.onMouseDrag || function(event) {
+		if(!currentItem) return;
+		updateAnimation(currentItem, undefined, event);
+	}
+
+	// Mouse up event
+	animation.tool.onMouseUp = animation.tool.mouseUp || function(event) {
+		if(!currentItem) return;
+		startAnimation(currentItem);
+	}
+
+	// Store!
+	animations[type] = animation;
+
+};/**
  * Painter.js
  */
 
@@ -716,9 +763,6 @@ paper.install(window);
 var mainColor = '#78C3D0';
 
 function group(items) {
-	
-	resetAnimation(items, true)
-
 	var group = new Group(items);
 	group.type = 'group'
 	group.transformContent = false;
@@ -728,16 +772,6 @@ function group(items) {
 	setupItem(group);
 	selectOnly(group)
 	startAnimation(items, false, true)
-}
-
-function groupSelection() {
-	var items = getSelected();
-	return group(items);
-}
-
-function ungroupSelection() {
-	var groups = getSelected()
-	ungroup(groups)
 }
 
 /**
@@ -866,11 +900,11 @@ $(window).ready(function() {
 		}
 
 		else if(event.key =='g') {
-			groupSelection()
+			group(getSelected())
 		}
 
 		else if(event.key =='u') {
-			ungroupSelection()
+			ungroup(getSelected())
 		}
 
 		else if(event.key == 'r') {
@@ -921,7 +955,7 @@ $(window).ready(function() {
 	setupItem(c)
 	select(c)
 	select(r)
-	groupSelection()
+	group(getSelected())
 	deselectAll()
 
 
@@ -963,11 +997,11 @@ $(window).ready(function() {
 	}).click()
 
 	$('a.tool[data-tool=group]').on('click', function() {
-		groupSelection()
+		group(getSelected())
 	})
 
 	$('a.tool[data-tool=ungroup]').on('click', function() {
-		ungroupSelection()
+		ungroup(getSelected())
 	})
 
 	$('a.tool[data-tool=delete]').on('click', function() {
@@ -1032,48 +1066,48 @@ $(window).ready(function() {
 
 
 });
-bounceTool = new Tool();
-var rotationSpeed = 2
+// bounceTool = new Tool();
+// var rotationSpeed = 2
 
-var currentItem;
-bounceTool.onMouseDown = function(event) {
-	currentItem = getSelected()[0]
-	if(currentItem == undefined) {
-		hitResult = project.hitTest(event.point, {
-			fill: true,
-			tolerance: 5
-		})
+// var currentItem;
+// bounceTool.onMouseDown = function(event) {
+// 	currentItem = getSelected()[0]
+// 	if(currentItem == undefined) {
+// 		hitResult = project.hitTest(event.point, {
+// 			fill: true,
+// 			tolerance: 5
+// 		})
 		
-		if(!hitResult) return false;
-		currentItem = hitResult.item			
-	}
-	selectOnly(currentItem);
+// 		if(!hitResult) return false;
+// 		currentItem = hitResult.item			
+// 	}
+// 	selectOnly(currentItem);
 
-	// Set up animation
-	initAnimation(currentItem, 'bounce', {
-		startPoint: currentItem.position,
-		endPoint: new Point(event.point),
-		speed: rotationSpeed,
-		position: 0
-	})
-}
+// 	// Set up animation
+// 	initAnimation(currentItem, 'bounce', {
+// 		startPoint: currentItem.position,
+// 		endPoint: new Point(event.point),
+// 		speed: rotationSpeed,
+// 		position: 0
+// 	})
+// }
 
-bounceTool.onMouseDrag = function(event) {
-	if(!currentItem) return;
+// bounceTool.onMouseDrag = function(event) {
+// 	if(!currentItem) return;
 	
-	// Update start and endpoint
-	updateAnimationProperties(currentItem, {
-		startPoint: getCenter(currentItem),
-		endPoint: new Point(event.point)
-	})
-}
+// 	// Update start and endpoint
+// 	updateAnimationProperties(currentItem, {
+// 		startPoint: getCenter(currentItem),
+// 		endPoint: new Point(event.point)
+// 	})
+// }
 
-bounceTool.onMouseUp = function(event) {
-	if(!currentItem) return;
+// bounceTool.onMouseUp = function(event) {
+// 	if(!currentItem) return;
 
-	// Start rotating
-	startAnimation(currentItem, 'bounce')
-}
+// 	// Start rotating
+// 	startAnimation(currentItem, 'bounce')
+// }
 
 
 /**
@@ -1082,10 +1116,10 @@ bounceTool.onMouseUp = function(event) {
  * This object defines the rotation animation.
  * @type {Object}
  */
-animations.bounce = {}
+var bounce = {}
 
 // Animation iself: frame updates
-animations.bounce.onFrame = function(event, item, props) {
+bounce.onFrame = function(item, props, event) {
 	props.position += .01
 	var trajectory = props.startPoint.subtract(props.endPoint)
 	var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
@@ -1097,19 +1131,13 @@ animations.bounce.onFrame = function(event, item, props) {
 }
 
 // Reset
-animations.bounce.onReset = function(item, props) {
+bounce.onReset = function(item, props) {
 	item.position = props.startPoint.add(props.position)
 	props.position = 0;
 }
 
-// Called when the item is moved
-animations.bounce.onMove = function(delta, item, props) {
-	props.startPoint = props.startPoint.add(delta)
-	props.endPoint = props.endPoint.add(delta)
-}
-
 // Draws the handles
-animations.bounce.drawHandles = function(item, props) {
+bounce.drawHandles = function(item, props) {
 	var line, dot1, dot2, handles;
 	
 	line = new Path.Line(props.startPoint, props.endPoint)
@@ -1126,15 +1154,24 @@ animations.bounce.drawHandles = function(item, props) {
 	return handles;
 }
 
-animations.bounce.onTransform = function(item, matrix, props) {
+bounce.onTransform = function(item, matrix, props) {
 	props.startPoint = props.startPoint.transform(matrix)
 	props.endPoint = props.endPoint.transform(matrix)
 }
 
-animations.bounce.onClone = function(copy, props) {
+bounce.onClone = function(copy, props) {
 	props.startPoint = getCenter(copy);
 	return props;
-};
+}
+
+bounce.onUpdate = function(item, props, event) {
+	props.startPoint = getCenter(item);
+	props.endPoint = new Point(event.point);
+}
+
+registerAnimation('bounce', bounce, { speed: 2, position: 0 })
+
+bounceTool = animations.bounce.tool;
 /**
  * Circle tool
  *
@@ -1203,46 +1240,46 @@ rectTool.onMouseUp = function() {
  * @type {Tool}
  */
 
-rotationTool = new Tool();
-var rotationSpeed = 2
+// rotationTool = new Tool();
+// var rotationSpeed = 2
 
-var currentItem, crosshair;
-rotationTool.onMouseDown = function(event) {
-	currentItem = getSelected()[0]
-	if(currentItem == undefined) {
-		hitResult = project.hitTest(event.point, {
-			fill: true,
-			tolerance: 5
-		})
+// var currentItem, crosshair;
+// rotationTool.onMouseDown = function(event) {
+// 	currentItem = getSelected()[0]
+// 	if(currentItem == undefined) {
+// 		hitResult = project.hitTest(event.point, {
+// 			fill: true,
+// 			tolerance: 5
+// 		})
 		
-		if(!hitResult) return false;
-		currentItem = hitResult.item			
-	}
-	selectOnly(currentItem);
+// 		if(!hitResult) return false;
+// 		currentItem = hitResult.item			
+// 	}
+// 	selectOnly(currentItem);
 
-	// Set up animation
-	initAnimation(currentItem, 'rotate', {
-		center: new Point(event.point),
-		speed: rotationSpeed,
-		degree: 0
-	})
-}
+// 	// Set up animation
+// 	initAnimation(currentItem, 'rotate', {
+// 		center: new Point(event.point),
+// 		speed: rotationSpeed,
+// 		degree: 0
+// 	})
+// }
 
-rotationTool.onMouseDrag = function(event) {
-	if(!currentItem) return;
+// rotationTool.onMouseDrag = function(event) {
+// 	if(!currentItem) return;
 	
-	// Update the center
-	updateAnimationProperties(currentItem, {
-		center: new Point(event.point),
-	})
-}
+// 	// Update the center
+// 	updateAnimationProperties(currentItem, {
+// 		center: new Point(event.point),
+// 	})
+// }
 
-rotationTool.onMouseUp = function(event) {
-	if(!currentItem) return;
+// rotationTool.onMouseUp = function(event) {
+// 	if(!currentItem) return;
 
-	// Start rotating
-	startAnimation(currentItem, 'rotate')
-}
+// 	// Start rotating
+// 	startAnimation(currentItem, 'rotate')
+// }
 
 /**
  * Rotation animation
@@ -1250,16 +1287,16 @@ rotationTool.onMouseUp = function(event) {
  * This object defines the rotation animation.
  * @type {Object}
  */
-animations.rotate = {}
+rotate = {}
 
 // Animation iself: frame updates
-animations.rotate.onFrame = function(event, item, props) {
+rotate.onFrame = function(item, props, event) {
 	item.rotate(props.speed, props.center);
 	props.degree = ((props.degree || 0) + props.speed) % 360
 }
 
 // Reset
-animations.rotate.onReset = function(item, props) {
+rotate.onReset = function(item, props) {
 
 	// Rotate the item back to its original position
 	var deg = - props.degree
@@ -1277,7 +1314,7 @@ animations.rotate.onReset = function(item, props) {
 }
 
 // Draws the handles
-animations.rotate.drawHandles = function(item, props) {
+rotate.drawHandles = function(item, props) {
 	var border, tl, br, middle, line, dot, handles;
 
 	// Determine the middle of the bounding box: average of two opposite corners
@@ -1297,9 +1334,17 @@ animations.rotate.drawHandles = function(item, props) {
 }
 
 // Transform the center point
-animations.rotate.onTransform = function(item, matrix, props) {
+rotate.onTransform = function(item, matrix, props) {
 	props.center = props.center.transform(matrix)
-};
+}
+
+rotate.onUpdate = function(item, props, event) {
+	props.center = new Point(event.point);
+}
+
+registerAnimation('rotate', rotate, { speed: 2 })
+
+rotationTool = animations.rotate.tool;
 /**
  * Selection tool
  *

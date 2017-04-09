@@ -15,15 +15,13 @@ var animations = {}
  * @return {item}        		   The item
  */
 function initAnimation(item, type, properties) {
+	// Remove old animations
 	resetAnimation(item)
-
-	if(hasAnimation(item)) {
-		item.animation.handles.remove();
-	}
+	if(hasAnimation(item)) item.animation.handles.remove();
 	
 	item.animation = {
 		type: type,
-		properties: properties
+		properties: jQuery.extend(true, {}, properties)
 	};
 
 	var onInit = animations[type].onInit || function(){};
@@ -54,7 +52,7 @@ function startAnimation(item, type=false, recurse=true) {
 	onStart(item, item.animation.properties);
 
 	item.onFrame = function(event) {
-		animations[type].onFrame(event, this, this.animation.properties)
+		animations[type].onFrame(this, this.animation.properties, event)
 		if(isSelected(this)) {
 			drawAnimationHandles(this, type, this.animation.properties);
 		}
@@ -111,8 +109,6 @@ function resetAnimation(item, recurse=false) {
 
 	// Update bounding box etc.
 	redrawBoundingBox(item);
-	// drawAnimationHandles(item);
-	// selectOnly(item);
 	return true;
 }
 
@@ -157,8 +153,60 @@ function removeAnimationHandles(item) {
  * @param  {Object} properties An object with animation properties
  * @return {Object}            The updated properties
  */
-function updateAnimationProperties(item, properties) {
+function updateAnimation(item, properties, event) {
+	if(!properties) {
+		var type = item.animation.type
+		var onUpdate = animations[type].onUpdate || function() {};
+		var properties = onUpdate(item, item.animation.properties, event);
+	}
 	item.animation.properties = $.extend(item.animation.properties, properties);
 	drawAnimationHandles(item)
 	return item.animation.properties
+}
+
+
+
+function registerAnimation(type, animation, defaultProperties) {
+
+	// Set up the animation tool
+	if(!animation.tool) animation.tool = new Tool();
+
+	// The current item on which the tool works.
+	var currentItem;
+
+	// On Mouse Down
+	animation.tool.onMouseDown = animation.tool.onMouseDown || function(event) {
+		currentItem = getSelected()[0]
+		if(currentItem == undefined) {
+			hitResult = project.hitTest(event.point, {
+				fill: true, tolerance: 5
+			})
+			
+			if(!hitResult) return false;
+			currentItem = hitResult.item			
+		}
+		selectOnly(currentItem);
+
+		// Set up animation
+		initAnimation(currentItem, type, defaultProperties)
+
+		// Update the properties.
+		updateAnimation(currentItem, undefined, event);
+	}
+
+	// Mouse drag event
+	animation.tool.onMouseDrag = animation.tool.onMouseDrag || function(event) {
+		if(!currentItem) return;
+		updateAnimation(currentItem, undefined, event);
+	}
+
+	// Mouse up event
+	animation.tool.onMouseUp = animation.tool.mouseUp || function(event) {
+		if(!currentItem) return;
+		startAnimation(currentItem);
+	}
+
+	// Store!
+	animations[type] = animation;
+
 }

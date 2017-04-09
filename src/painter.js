@@ -7,9 +7,6 @@ paper.install(window);
 var mainColor = '#78C3D0';
 
 function group(items) {
-	
-	resetAnimation(items, true)
-
 	var group = new Group(items);
 	group.type = 'group'
 	group.transformContent = false;
@@ -19,16 +16,6 @@ function group(items) {
 	setupItem(group);
 	selectOnly(group)
 	startAnimation(items, false, true)
-}
-
-function groupSelection() {
-	var items = getSelected();
-	return group(items);
-}
-
-function ungroupSelection() {
-	var groups = getSelected()
-	ungroup(groups)
 }
 
 /**
@@ -157,11 +144,11 @@ $(window).ready(function() {
 		}
 
 		else if(event.key =='g') {
-			groupSelection()
+			group(getSelected())
 		}
 
 		else if(event.key =='u') {
-			ungroupSelection()
+			ungroup(getSelected())
 		}
 
 		else if(event.key == 'r') {
@@ -212,7 +199,7 @@ $(window).ready(function() {
 	setupItem(c)
 	select(c)
 	select(r)
-	groupSelection()
+	group(getSelected())
 	deselectAll()
 
 
@@ -254,11 +241,11 @@ $(window).ready(function() {
 	}).click()
 
 	$('a.tool[data-tool=group]').on('click', function() {
-		groupSelection()
+		group(getSelected())
 	})
 
 	$('a.tool[data-tool=ungroup]').on('click', function() {
-		ungroupSelection()
+		ungroup(getSelected())
 	})
 
 	$('a.tool[data-tool=delete]').on('click', function() {
