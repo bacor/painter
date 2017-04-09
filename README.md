@@ -40,10 +40,29 @@ animations.rotate = {
     onStart: function(item, properties) {...},
     onStop: function(item, properties) {...},
     onFrame: function(event, item, properties) {...},
-    onReset: function(item, properties) {...}
+    onReset: function(item, properties) {...},
+    onMove: function(item, delta) {...}
 }
 ```
 
 These functions are called by several global functions: `initAnimation`, `startAnimation`, `stopAnimation` and `resetAnimation`.
+
+# Grouping
+When grouping items, they should be relocated to a new coordinate system. More concretely, let's say the group has a origin (its position) and two basis vectors. All items in the group should then be positioned in this coordinate system and animated in this system. We could store the origin and basis in every item and position it in its own coordinate system. A grouping operation would change the basis and origin of all items. Ungrouping would set the basis and origin of the items to the origin and basis of the group. 
+
+All of this has in fact already been implemented in Paper.js. We just have to set up some thing properly to ensure that all items in a group are positioned relatively to the groups pivot:
+
+```
+group.pivot = [0,0];
+group.transformContent = false;
+```
+
+It is important to set the pivot, since it default to the center point of the bounding rectangle. As children of the group move around, the bounding box, hence the pivot changes, resulting in unexpected movement. Fixing the pivot resolves this.
+
+
+# Various
+- Use name instead of type?
+- Use data attribute of item to store animations?
+- 
 
 

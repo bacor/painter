@@ -17,25 +17,20 @@ rotationTool.onMouseDown = function(event) {
 	selectOnly(currentItem);
 
 	// Set up animation
-	resetAnimation(currentItem)
-
 	initAnimation(currentItem, 'rotate', {
 		center: new Point(event.point),
 		speed: rotationSpeed,
 		degree: 0
 	})
-
-	drawAnimationHandles(currentItem)
 }
 
 rotationTool.onMouseDrag = function(event) {
 	if(!currentItem) return;
 	
+	// Update the center
 	updateAnimationProperties(currentItem, {
 		center: new Point(event.point),
 	})
-
-	drawAnimationHandles(currentItem)
 }
 
 rotationTool.onMouseUp = function(event) {
@@ -58,7 +53,6 @@ animations.rotate = {}
 // Animation iself: frame updates
 animations.rotate.onFrame = function(event, item, props) {
 	item.rotate(props.speed, props.center);
-	item.bbox.rotate(props.speed, props.center);
 	props.degree = ((props.degree || 0) + props.speed) % 360
 }
 
@@ -68,7 +62,6 @@ animations.rotate.onReset = function(item, props) {
 	// Rotate the item back to its original position
 	var deg = - props.degree
 	item.rotate(deg, props.center)
-	item.bbox.rotate(deg, props.center);
 	props.degree = 0;
 
 	// The path might not be exactly rectangular anymore due to the 
@@ -79,12 +72,6 @@ animations.rotate.onReset = function(item, props) {
 			segment.point.y = Math.round(segment.point.y)
 		})
 	}
-}
-var p;
-
-// Called when the item is moved
-animations.rotate.onMove = function(delta, item, props) {
-	props.center = props.center.add(delta)
 }
 
 // Draws the handles
@@ -105,4 +92,8 @@ animations.rotate.drawHandles = function(item, props) {
 
 	handles = new Group([line, dot]);
 	return handles;
+}
+
+animations.rotate.onTransform = function(item, matrix, props) {
+	props.center = props.center.transform(matrix)
 }

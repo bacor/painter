@@ -15,8 +15,11 @@ var animations = {}
  * @return {item}        		   The item
  */
 function initAnimation(item, type, properties) {
-	if(hasAnimation(item))
+	resetAnimation(item)
+
+	if(hasAnimation(item)) {
 		item.animation.handles.remove();
+	}
 	
 	item.animation = {
 		type: type,
@@ -25,6 +28,9 @@ function initAnimation(item, type, properties) {
 
 	var onInit = animations[type].onInit || function(){};
 	onInit(item, properties);
+	
+	drawAnimationHandles(item)
+
 	return item;
 }
 
@@ -34,12 +40,14 @@ function initAnimation(item, type, properties) {
  * @param  {string} type  The type of animation to start
  * @return {Boolean}			`true` on success; `false` if item does not have this  animation
  */
-function startAnimation(item, type=false) {
+function startAnimation(item, type=false, recurse=true) {
 	if(item instanceof Array) 
-		return item.map(function(i) { startAnimation(i, type) });
+		return item.map(function(i) { startAnimation(i, type, recurse) });
+	if(isGroup(item) && recurse) 
+		startAnimation(item.children, type, false);
 	if(!hasAnimation(item, type)) 
 		return false;
-	
+
 	var type = type || item.animation.type;
 	item.animation.active = true;
 	var onStart = animations[type].onStart || function(){};
@@ -47,7 +55,7 @@ function startAnimation(item, type=false) {
 
 	item.onFrame = function(event) {
 		animations[type].onFrame(event, this, this.animation.properties)
-		if(isSelected(this)){
+		if(isSelected(this)) {
 			drawAnimationHandles(this, type, this.animation.properties);
 		}
 	}
@@ -86,9 +94,11 @@ function stopAnimation(item) {
  * @param  {String} type type of animation
  * @return {Boolean}     `true` on success; `false` if item does not have this  animation
  */
-function resetAnimation(item) {
+function resetAnimation(item, recurse=false) {
 	if(item instanceof Array)
-		return item.map(function(i) { resetAnimation(i) });
+		return item.map(function(i) { resetAnimation(i, recurse) });
+	if(!isItem(item)) return false;
+	if(isGroup(item) && recurse) resetAnimation(item.children, true);
 	if(!hasAnimation(item)) 
 		return false;
 
@@ -101,7 +111,8 @@ function resetAnimation(item) {
 
 	// Update bounding box etc.
 	redrawBoundingBox(item);
-	selectOnly(item);
+	// drawAnimationHandles(item);
+	// selectOnly(item);
 	return true;
 }
 
@@ -123,6 +134,7 @@ function drawAnimationHandles(item) {
 
 	var drawHandles = animations[type].drawHandles || function() {};
 	var handles = drawHandles(item, props);
+	handles.parent = item.bbox;
 	handles.type = 'handle:animation';
 	item.animation.handles = handles;	
 
@@ -147,5 +159,6 @@ function removeAnimationHandles(item) {
  */
 function updateAnimationProperties(item, properties) {
 	item.animation.properties = $.extend(item.animation.properties, properties);
+	drawAnimationHandles(item)
 	return item.animation.properties
 }

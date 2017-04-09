@@ -478,7 +478,7 @@ div.painter {
 
 .swatches {
   display: inline;
-  max-width: 200px; }
+  max-width: 100px; }
   .swatches .swatch {
     display: inline-block;
     height: 1em;

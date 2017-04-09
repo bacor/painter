@@ -14,29 +14,28 @@ paper.install(window);
 
 var mainColor = '#78C3D0';
 
-function groupSelection() {
+function group(items) {
 	
-	var items = getSelected();
-	resetAnimation(items)
+	resetAnimation(items, true)
+
 	var group = new Group(items);
 	group.type = 'group'
-
-	// console.log(group.bounds, group.bounds.center)
-	// corners = group.bbox.children[0].segments;
-	// middle = corners[0].point.add(corners[2].point).divide(2)
-	group.pivot = new Point(group.bounds.center);
+	group.transformContent = false;
+	var bounds = getBounds(group)
+	group.pivot = new Point(bounds.center);
 
 	setupItem(group);
 	selectOnly(group)
-	startAnimation(items)
+	startAnimation(items, false, true)
+}
+
+function groupSelection() {
+	var items = getSelected();
+	return group(items);
 }
 
 function ungroupSelection() {
-	// Get all currently selected groupos
-	var groups = project.getItems({
-		class: Group,
-		match: isSelected
-	})
+	var groups = getSelected()
 	ungroup(groups)
 }
 
@@ -47,15 +46,30 @@ function ungroupSelection() {
  */
 function ungroup(group) {
 	if(group instanceof Array) return group.map(ungroup);
+	if(!isGroup(group)) return;
 
-	resetAnimation(group)
-	children = group.removeChildren();
+	children = group.removeChildren().filter(isItem);
 	group.parent.insertChildren(group.index,  children);
+
+	// Transform children just like the group
+	for(var i=0; i<children.length; i++){
+		var item = children[i];
+		item.transform(group.matrix);
+		if(item.bbox) item.bbox.transform(group.matrix);
+
+		if(hasAnimation(item)) {
+			var type = item.animation.type,
+					properties = item.animation.properties;
+			var onTransform = animations[type].onTransform || function() {};
+			onTransform(item, group.matrix, properties);
+		}
+	}
+
+	// Remove and reset
 	deselect(group);
 	group.remove();
-
-	// resetAnimation(children)
 	select(children)
+	redrawBoundingBox(children)
 }
 
 function deleteSelection() {
@@ -67,19 +81,43 @@ function deleteSelection() {
 }
 
 function cloneSelection(move=[0,0]) {
-	var items = getSelected(), 
-			copiedItems = [];
-
-	// Clone all the currently selected items
-	for(var i=0; i<items.length; i++) {
-		copy = items[i].clone();
-		copy.position = copy.position.add(move);
-		copy.type = items[i].type;
-		copiedItems.push(copy);
-	}
-
+	var items = getSelected();
+	var copiedItems = items.map(function(i) {return clone(i, move)});
 	selectOnly(copiedItems);
 	return copiedItems;
+}
+
+/**
+ * Clones an item
+ *
+ * This doesn't work perfectly yet as not all properties are transferred
+ * In particular, children of a group don't have the proper names.
+ * This could all be solved by moving all custom attributes to the
+ * `Item.data` attribute.
+ * 
+ * @param  {[type]} item [description]
+ * @param  {Array}  move [description]
+ * @param  {[type]} 0]   [description]
+ * @return {[type]}      [description]
+ */
+function clone(item, move=[0,0]) {
+	var copy = item.clone();
+	copy.parent = item.parent;
+	copy.type = item.type;
+	copy.position = copy.position.add(move);
+
+	// Animate the item!
+	if(hasAnimation(item)) {
+		var type = item.animation.type,
+				props = item.animation.properties;
+		var onClone = animations[type].onClone || function() {};
+		var newProps = jQuery.extend(true, {}, props);
+		select(copy);
+		initAnimation(copy, type, newProps);
+		if(isAnimating(item)) startAnimation(copy);
+	}
+
+	return copy;
 }
 
 function getColor(i, num_colors, noise=.4, css=true) {
@@ -221,7 +259,7 @@ $(window).ready(function() {
 		selectTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	})
+	}).click()
 
 	$('a.tool[data-tool=group]').on('click', function() {
 		groupSelection()
@@ -262,7 +300,7 @@ $(window).ready(function() {
 		bounceTool.activate()
 		$('a.tool').removeClass('active')
 		$(this).addClass('active')
-	}).click()
+	})//.click()
 
 	$('a.tool[data-tool=reset]').on('click', function() {
 		resetAnimation(getSelected(), 'rotate');

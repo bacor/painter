@@ -17,30 +17,22 @@ bounceTool.onMouseDown = function(event) {
 	selectOnly(currentItem);
 
 	// Set up animation
-	resetAnimation(currentItem)
-
 	initAnimation(currentItem, 'bounce', {
 		startPoint: currentItem.position,
 		endPoint: new Point(event.point),
 		speed: rotationSpeed,
 		position: 0
 	})
-
-	drawAnimationHandles(currentItem)
 }
 
 bounceTool.onMouseDrag = function(event) {
 	if(!currentItem) return;
 	
-	corners = currentItem.bbox.children[0].segments;
-	middle = corners[0].point.add(corners[2].point).divide(2)
-	
+	// Update start and endpoint
 	updateAnimationProperties(currentItem, {
-		startPoint: middle,
+		startPoint: getCenter(currentItem),
 		endPoint: new Point(event.point)
 	})
-
-	drawAnimationHandles(currentItem)
 }
 
 bounceTool.onMouseUp = function(event) {
@@ -58,7 +50,7 @@ bounceTool.onMouseUp = function(event) {
  * @type {Object}
  */
 animations.bounce = {}
-var p;
+
 // Animation iself: frame updates
 animations.bounce.onFrame = function(event, item, props) {
 	props.position += .01
@@ -68,13 +60,7 @@ animations.bounce.onFrame = function(event, item, props) {
 	var delta = newPoint.subtract(item.position);
 	
 	// Move it!
-	moveItem(item, delta)
-	
-	// The start & endpoint are also moved in onMove so the item becomes
-	// draggable. But for the animation we should keep the start & endpoint
-	// fixed. So we undo what onMove does:
-	props.startPoint = props.startPoint.subtract(delta)
-	props.endPoint = props.endPoint.subtract(delta)
+	item.position = item.position.add(delta)
 }
 
 // Reset
@@ -105,4 +91,14 @@ animations.bounce.drawHandles = function(item, props) {
 
 	handles = new Group([line, dot1, dot2]);
 	return handles;
+}
+
+animations.bounce.onTransform = function(item, matrix, props) {
+	props.startPoint = props.startPoint.transform(matrix)
+	props.endPoint = props.endPoint.transform(matrix)
+}
+
+animations.bounce.onClone = function(copy, props) {
+	props.startPoint = getCenter(copy);
+	return props;
 }

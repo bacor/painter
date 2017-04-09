@@ -26,7 +26,9 @@ selectTool.onMouseDown = function(event) {
 	if(hitResult) {
 		var item = hitResult.item
 
-		// Animation handle: skip
+		// Shadow --> select actual item
+		if(item.type == 'shadow') item = item.parent.item;
+
 		if(isAnimationHandle(item)){ 
 			return 
 		}
@@ -39,7 +41,7 @@ selectTool.onMouseDown = function(event) {
 		}
 
 		// We hit an object --> drag
-		else {
+		else if(item.type) {
 			mode = 'dragging'
 
 			// Select the group if the item we hit is in a group
@@ -55,6 +57,8 @@ selectTool.onMouseDown = function(event) {
 			else if(!isSelected(item)) {
 				currentItems = [item]
 			}
+		} else {
+			return 
 		}
 	} 
 
@@ -158,6 +162,7 @@ selectTool.onMouseDrag = function(event) {
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
 				item.scale(scaleFactor)
+				item.bbox.children['shadow'].scale(scaleFactor)
 
 				// Update the selection box
 				redrawBoundingBox(item);
@@ -196,7 +201,6 @@ selectTool.onMouseUp = function(event) {
 
 		// And select!
 		select(items);
-
 	}
 
 	// Reset the mode
