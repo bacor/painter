@@ -810,15 +810,18 @@ function ungroup(group) {
 	// Transform animated children just like the group
 	for(var i=0; i<children.length; i++){
 		var item = children[i];
-		if(!hasAnimation(item)) continue;
+		
+		if(!hasAnimation(group)) {
+			item.transform(group.matrix);
+			if(item.bbox) item.bbox.transform(group.matrix);
+		}
 
-		item.transform(group.matrix);
-		if(item.bbox) item.bbox.transform(group.matrix);
-
-		var type = item.animation.type,
-				properties = item.animation.properties;
-		var onTransform = animations[type].onTransform || function() {};
-		onTransform(item, properties, group.matrix);
+		if(hasAnimation(item)) {
+			var type = item.animation.type,
+					properties = item.animation.properties;
+			var onTransform = animations[type].onTransform || function() {};
+			onTransform(item, properties, group.matrix);
+		}
 	}
 
 	// Remove and reset
