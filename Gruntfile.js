@@ -27,7 +27,8 @@ module.exports = function(grunt) {
         files: {
           'dist/js/libraries.js': [
             'bower_components/jquery/dist/jquery.min.js', 
-            'bower_components/paper/dist/paper-full.min.js'
+            'bower_components/paper/dist/paper-full.min.js',
+            // 'bower_components/immutable/dist/immutable.min.js'
           ] 
         }
       },
@@ -35,10 +36,13 @@ module.exports = function(grunt) {
       dev: {
         files: {
           'dist/js/painter.js': [
+            'src/painter.js',
+            'src/history.js',
+            'src/*.class.js',
             'src/helpers.js',
             'src/animations.js',
-            'src/painter.js',
-            'src/*.tool.js']
+            'src/*.tool.js',
+            'src/ui.js']
         }
       }
     },

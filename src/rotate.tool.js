@@ -5,7 +5,7 @@
  */
 (function() {
 	
-	// The animatino object
+	// The animation object
 	rotate = {}
 
 	// Animation iself: frame updates

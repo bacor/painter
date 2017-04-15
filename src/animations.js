@@ -21,11 +21,11 @@ function initAnimation(item, type, properties) {
 	// Remove old animations
 	resetAnimation(item)
 	if(hasAnimation(item)) item.animation.handles.remove();
+	if(!item.animation) item.animation = {};
+	if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 	
-	item.animation = {
-		type: type,
-		properties: jQuery.extend(true, {}, properties)
-	};
+	item.animation.type = type;
+	item.animation.properties = jQuery.extend(true, {}, properties);
 
 	var onInit = animations[type].onInit || function(){};
 	onInit(item, properties);
@@ -100,8 +100,7 @@ function resetAnimation(item, recurse=false) {
 		return item.map(function(i) { resetAnimation(i, recurse) });
 	if(!isItem(item)) return false;
 	if(isGroup(item) && recurse) resetAnimation(item.children, true);
-	if(!hasAnimation(item)) 
-		return false;
+	if(!hasAnimation(item)) return false;
 
 	var type = item.animation.type;
 	stopAnimation(item, type);
@@ -231,9 +230,10 @@ function registerAnimation(type, animation, defaultProperties) {
 
 		// Set up animation
 		initAnimation(currentItem, type, defaultProperties)
-
+		
 		// Update the properties.
 		updateAnimation(currentItem, undefined, event);
+
 	}
 
 	// Mouse drag event
@@ -246,6 +246,34 @@ function registerAnimation(type, animation, defaultProperties) {
 	animation.tool.onMouseUp = animation.tool.mouseUp || function(event) {
 		if(!currentItem) return;
 		startAnimation(currentItem);
+
+		var item = currentItem;
+		var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
+		var curAnimation = jQuery.extend(true, {}, item.animation);
+		item.animation._prevAnimation = curAnimation;
+
+ 		var undo = function() {
+ 	 		resetAnimation(item);
+
+			if(Object.keys(prevAnimation).length == 0) {
+				item.animation._prevAnimation = {}
+				item.animation = {}
+			} else {
+	 			item.animation = prevAnimation
+	 			updateAnimation(item, prevAnimation.properties)
+	 			startAnimation(item)
+	 		}
+ 		}
+
+ 		var redo = function() {
+ 			resetAnimation(item)
+ 			item.animation = curAnimation
+ 			updateAnimation(item, curAnimation.properties)
+ 			startAnimation(item)
+ 			select(item)
+ 		}
+
+		P.History.registerState(undo, redo);
 	}
 
 	// Store!

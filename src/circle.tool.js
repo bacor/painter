@@ -35,4 +35,17 @@ circleTool.onMouseDrag = function(event) {
 circleTool.onMouseUp = function(event) {
 	circle.type = 'circle'
 	setupItem(circle);
+
+	// scope
+	var circ = circle;
+	var undo = function() {
+		deselect(circ)
+		circ.remove()
+	}
+
+	var redo = function() {
+		project.activeLayer.addChild(circ);
+	}
+
+	P.History.registerState(undo, redo)
 }

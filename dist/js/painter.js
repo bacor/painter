@@ -1,4 +1,104 @@
+/**
+ * Painter.js
+ */
+
+// Probably want to get rid of this and use 
+// the paper namespace everywhere
+paper.install(window);
+
+/**
+ * Painter, encapsulates everything!
+ * @type {Object}
+ */
+var P = {};
 ;/**
+ * History
+ *
+ * Registers actions and implements undo/redo functionality. Actions 
+ * are registered by providing two functions, `undo` and `redo`, that
+ * take no other arguments (i.e., they are thunks). When registering 
+ * these functions, care has to be taken that the right variables are
+ * copied and scoped appropriately so that later actions do not change
+ * the references in the `un/redo` functions. 
+ *
+ * Actions for animations are a bit tricky, as one has to track the
+ * complete `item.animation` object. All this is solved in animations.js.
+ *
+ * This object is defined in Module style, see
+ * https://addyosmani.com/resources/essentialjsdesignpatterns/book/#revealingmodulepatternjavascript
+ */
+P.History = (function() {
+	
+	var states = [{}],
+			
+			/**
+			 * Index of the current state
+			 * @type {Number}
+			 */
+			index = 0,
+			
+			/**
+			 * The maximum number of states stored.
+			 * @type {Number}
+			 */
+			maxStates = 20;
+
+	/**
+	 * Register a state to the history
+	 * 
+	 * @param  {Function} undo An function that when called undoes the
+	 * action. The function should take no arguments and take care of
+	 * scoping and copying relevant variables itself.
+	 * @param  {Function} redo A redo function that when called redoes
+	 * the action undone by `undo`. Again, it takes no arguments.
+	 * @return {None}
+	 */
+	var registerState = function(undo, redo) {
+		states = states.slice(0, index+1);
+		states.push({redo: redo, undo: undo });
+		index += 1;
+
+		if(states.length > maxStates) {
+			states = states.slice(states.length - maxStates);
+			index = states.length - 1;
+		}
+	}
+
+	/**
+	 * Redo the last action
+	 *
+	 * Moves the index one step forward in the history, if possible.
+	 * @return 
+	 */
+	var redo = function() {
+		if(index >= states.length-1) return false;
+		index += 1;
+		states[index].redo();
+	}
+
+	/**
+	 * Undo the last action
+	 * @return {None} 
+	 */
+	var undo = function() {
+		if(index == 0) return false;
+		states[index].undo();
+		index -= 1;
+	}
+
+	/**
+	 * Reveal to P.History
+	 */
+	return {
+		registerState: registerState,
+		undo: undo,
+		redo: redo,
+		states: states
+	};
+
+})();
+;;
+/**
  * helpers.js
  *
  * This file contains various helpers
@@ -534,6 +634,10 @@ function moveItem(item, delta) {
 	// a translation. The rest should be handled by the animation.
 	var matrix = new Matrix().translate(delta);
 	transformAnimation(item, matrix);
+
+	if(item.animation && item.animation._prevAnimation) {
+		item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
+	}
 }
 
 function getCenter(item) {
@@ -542,16 +646,35 @@ function getCenter(item) {
 
 /********************************************************/
 
-function group(items) {
-	var group = new Group(items);
-	group.type = 'group'
-	group.transformContent = false;
-	var bounds = getBounds(group)
+function group(theItems, _pushState=true) {
 
-	group.pivot = new Point(bounds.center);
-	setupItem(group);
-	selectOnly(group)
-	startAnimation(items, false, true)
+	var theGroup = new Group(theItems);
+	theGroup.type = 'group'
+	theGroup.transformContent = false;
+
+	var bounds = getBounds(theGroup)
+	theGroup.pivot = new Point(bounds.center);
+
+	setupItem(theGroup);
+	selectOnly(theGroup)
+	startAnimation(theItems, false, true)
+
+	if(_pushState) {
+		var undo = function() {
+			ungroup(theGroup, false)
+		}
+
+		var redo = function() {
+			// To do: this breaks up the history chain since we no 
+			// longer refer to the same group...
+			theGroup = group(theItems, false)
+		}
+
+		P.History.registerState(undo, redo)		
+	}
+
+	return theGroup;
+
 }
 
 /**
@@ -559,38 +682,65 @@ function group(items) {
  * @param  {Group} group 
  * @return {Array}       Children
  */
-function ungroup(group) {
-	if(group instanceof Array) return group.map(ungroup);
-	if(!isGroup(group)) return;
+function ungroup(theGroup, _pushState=true) {
+	if(theGroup instanceof Array) return theGroup.map(ungroup);
+	if(!isGroup(theGroup)) return;
 
-	children = group.removeChildren().filter(isItem);
-	group.parent.insertChildren(group.index, children);
+	var theItems = theGroup.removeChildren().filter(isItem);
+	var parent = theGroup.parent ? theGroup.parent : project.activeLayer;
+	parent.insertChildren(theGroup.index, theItems);
 
 	// Transform children just like the group
-	for(var i=0; i<children.length; i++){
-		var item = children[i];
+	for(var i=0; i<theItems.length; i++){
+		var item = theItems[i];
 		
-		if(!hasAnimation(group)) {
-			item.transform(group.matrix);
-			if(item.bbox) item.bbox.transform(group.matrix);
+		if(!hasAnimation(theGroup)) {
+			item.transform(theGroup.matrix);
+			if(item.bbox) item.bbox.transform(theGroup.matrix);
 		}
 		
 		// Only called if hasAnimation(item)
-		transformAnimation(item, group.matrix);
+		transformAnimation(item, theGroup.matrix);
 	}
 
 	// Remove and reset
-	deselect(group);
-	group.remove();
-	select(children)
+	deselect(theGroup);
+	theGroup.remove();
+	select(theItems)
+
+	if(_pushState) {
+		var undo = function() {
+			group(theItems, false);
+		}
+		var redo = function() {
+			theItems = ungroup(theGroup, false)
+		}
+		P.History.registerState(undo, redo)
+	}
+	return theItems
 }
 
 function deleteSelection() {
-	items = getSelected();
+	var items = getSelected();
 	for(var i=0; i<items.length;i++) {
 		deselect(items[i])
 		items[i].remove()
 	}
+
+
+	var undo = function() {
+		items.map(function(i){ project.activeLayer.addChild(i) })
+		select(items)
+	}
+
+	var redo = function() {
+		items.map(function(i){
+			deselect(i)
+			i.remove();
+		});
+	}
+	
+	P.History.registerState(undo, redo)
 }
 
 /********************************************************/
@@ -632,6 +782,16 @@ function cloneSelection(move=[0,0]) {
 	var items = getSelected();
 	var copiedItems = items.map(function(i) {return clone(i, move)});
 	selectOnly(copiedItems);
+
+	var undo = function() {
+		deselect(copiedItems)
+		copiedItems.map(function(i){ i.remove() })
+	}
+	var redo = function() {
+		copiedItems.map(function(i){ i.insertAbove(items[0]) })
+	}
+	P.History.registerState(undo, redo)
+
 	return copiedItems;
 }
 
@@ -685,11 +845,11 @@ function initAnimation(item, type, properties) {
 	// Remove old animations
 	resetAnimation(item)
 	if(hasAnimation(item)) item.animation.handles.remove();
+	if(!item.animation) item.animation = {};
+	if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 	
-	item.animation = {
-		type: type,
-		properties: jQuery.extend(true, {}, properties)
-	};
+	item.animation.type = type;
+	item.animation.properties = jQuery.extend(true, {}, properties);
 
 	var onInit = animations[type].onInit || function(){};
 	onInit(item, properties);
@@ -764,8 +924,7 @@ function resetAnimation(item, recurse=false) {
 		return item.map(function(i) { resetAnimation(i, recurse) });
 	if(!isItem(item)) return false;
 	if(isGroup(item) && recurse) resetAnimation(item.children, true);
-	if(!hasAnimation(item)) 
-		return false;
+	if(!hasAnimation(item)) return false;
 
 	var type = item.animation.type;
 	stopAnimation(item, type);
@@ -895,9 +1054,10 @@ function registerAnimation(type, animation, defaultProperties) {
 
 		// Set up animation
 		initAnimation(currentItem, type, defaultProperties)
-
+		
 		// Update the properties.
 		updateAnimation(currentItem, undefined, event);
+
 	}
 
 	// Mouse drag event
@@ -910,15 +1070,528 @@ function registerAnimation(type, animation, defaultProperties) {
 	animation.tool.onMouseUp = animation.tool.mouseUp || function(event) {
 		if(!currentItem) return;
 		startAnimation(currentItem);
+
+		var item = currentItem;
+		var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
+		var curAnimation = jQuery.extend(true, {}, item.animation);
+		item.animation._prevAnimation = curAnimation;
+
+ 		var undo = function() {
+ 	 		resetAnimation(item);
+
+			if(Object.keys(prevAnimation).length == 0) {
+				item.animation._prevAnimation = {}
+				item.animation = {}
+			} else {
+	 			item.animation = prevAnimation
+	 			updateAnimation(item, prevAnimation.properties)
+	 			startAnimation(item)
+	 		}
+ 		}
+
+ 		var redo = function() {
+ 			resetAnimation(item)
+ 			item.animation = curAnimation
+ 			updateAnimation(item, curAnimation.properties)
+ 			startAnimation(item)
+ 			select(item)
+ 		}
+
+		P.History.registerState(undo, redo);
 	}
 
 	// Store!
 	animations[type] = animation;
 };/**
+ * Register the bounce animation
+ * @return {null}
+ */
+(function() {
+
+	/**
+	 * Rotation animation
+	 *
+	 * This object defines the rotation animation.
+	 * @type {Object}
+	 */
+	var bounce = {}
+
+	// Animation iself: frame updates
+	bounce.onFrame = function(item, props, event) {
+		props.position += .01
+		var trajectory = props.startPoint.subtract(props.endPoint)
+		var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
+		var newPoint = trajectory.multiply(relPos).add(props.endPoint);
+		var delta = newPoint.subtract(item.position);
+		
+		// Move it!
+		item.position = item.position.add(delta)
+	}
+
+	// Reset
+	bounce.onReset = function(item, props) {
+		item.position = props.startPoint.add(props.position)
+		props.position = 0;
+	}
+
+	// Draws the handles
+	bounce.drawHandles = function(item, props) {
+		var line, dot1, dot2, handles;
+		
+		line = new Path.Line(props.startPoint, props.endPoint)
+		line.strokeColor = mainColor;
+		line.strokeWidth = 1;
+		
+		dot1 = new Path.Circle(props.startPoint, 3)
+		dot1.fillColor = mainColor;
+
+		dot2 = dot1.clone();
+		dot2.position = props.endPoint;
+
+		handles = new Group([line, dot1, dot2]);
+		return handles;
+	}
+
+	bounce.onTransform = function(item, props, matrix) {
+		props.startPoint = props.startPoint.transform(matrix)
+		props.endPoint = props.endPoint.transform(matrix)
+	}
+
+	bounce.onClone = function(copy, props) {
+		props.startPoint = getCenter(copy);
+		return props;
+	}
+
+	bounce.onUpdate = function(item, props, event) {
+		props.startPoint = getCenter(item);
+		props.endPoint = new Point(event.point);
+	}
+
+	// Register the animation
+	registerAnimation('bounce', bounce, { speed: 2, position: 0 })
+
+})();
+/**
+ * Circle tool
+ *
+ * Draws circles.
+ */
+
+circleTool = new Tool()
+var circle;
+
+circleTool.onMouseDown = function(event) {
+	deselectAll()
+	circle = new Path.Circle({
+		center: event.point, 
+		radius: 0,
+		fillColor: getActiveSwatch()
+	});
+}
+
+circleTool.onMouseDrag = function(event) {
+	// todo: this is not the illustrator-type behaviour. 
+	// Is that a problem?
+	var color = circle.fillColor;
+	var diff = event.point.subtract(event.downPoint)
+	var radius = diff.length / 2
+	circle.remove();
+	circle = new Path.Circle({
+		center: diff.divide(2).add(event.downPoint),
+		radius: radius,
+		opacity: .9,
+		fillColor: color
+	});
+}
+
+circleTool.onMouseUp = function(event) {
+	circle.type = 'circle'
+	setupItem(circle);
+
+	// scope
+	var circ = circle;
+	var undo = function() {
+		deselect(circ)
+		circ.remove()
+	}
+
+	var redo = function() {
+		project.activeLayer.addChild(circ);
+	}
+
+	P.History.registerState(undo, redo)
+};
+cloneTool = new Tool();
+
+var currentItems;
+cloneTool.onMouseDown = function(event) {
+	currentItems = getSelected();
+	currentItems = cloneSelection();
+	selectOnly(currentItems)
+}
+
+cloneTool.onMouseDrag = function(event) {
+	moveItem(currentItems, event.delta)
+}
+
+cloneTool.onMouseUp = function() {};dragTool = new Tool();
+var currentItems;
+
+
+dragTool.onMouseDown = function(event) {}
+
+dragTool.onMouseDrag = function(event) {
+	moveItem(currentItems, event.delta)
+}
+
+dragTool.onMouseUp = function(event) {
+
+	var undoDelta = new Point(event.downPoint.subtract(event.point))
+	var redoDelta = new Point(event.point.subtract(event.downPoint))
+
+	if(redoDelta.length > 1) {
+		var items = currentItems;
+		
+		var undo = function() {
+			moveItem(items, undoDelta);
+		}
+		
+		var redo = function() {
+			moveItem(items, redoDelta)
+		}
+		
+		P.History.registerState(undo, redo);
+	}
+};manipulateTool = new Tool();
+
+var currentItems, handle;
+
+manipulateTool.onSwitch = function(event) {
+	var item = currentItems[0];
+	handle = item;
+	currentItems = [item.parent.item];
+}
+
+manipulateTool.onMouseDrag = function(event) {
+	if(currentItems.length == 1) {
+			var item = currentItems[0]
+
+			// Rectangle!
+			if( isRectangular(item) ) {
+				var segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
+
+				// Get segment corresponding to the handle, and segments adjacent to that
+				segment = getSegmentByHandle(handle, item);
+				adjacents = getAdjacentSegments(segment);
+				sameX = adjacents.sameX;
+				sameY = adjacents.sameY;
+				
+				// Move segments
+				// To do: this is still a bit buggy... You sometimes get crosses, or the
+				// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
+				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
+				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
+				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
+				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
+				sameX.point   = sameX.point.add([deltaX, 0]);
+				sameY.point   = sameY.point.add([0, deltaY]);
+				segment.point = segment.point.add([deltaX, deltaY]);
+
+				// Update bounding box
+				redrawBoundingBox(item)
+
+				// Color selected handle
+				var newHandleName = getPositionName(segment);
+				var	newHandle = getHandleByName(newHandleName, item.bbox);
+				newHandle.fillColor = mainColor
+			}
+
+			// Circles are just scaled
+			if( isCircular(item) ) {
+				// To do: you can move the handle along with the mouse, 
+				// that'd be nice!
+				var center = item.position,
+						radius = item.bounds.width,
+						newRadius = event.point.subtract(center).length * 2 - 6,
+						scaleFactor = newRadius/radius;
+				item.scale(scaleFactor)
+				redrawBoundingBox(item);
+
+				// Color the selected handle
+				var newHandle = item.bbox.children[1];
+				newHandle.fillColor = mainColor;
+			}
+
+			// Groups behave very much like circles: they are just scaled.
+			// Their radius is different, however.
+			if( isGroup(item) ) {
+				var center = item.position,
+						width = item.bounds.width,
+						height = item.bounds.height,
+						radius = Math.sqrt(width*width + height*height), // Diagonal
+						newRadius = event.point.subtract(center).length * 2 - 6,
+						scaleFactor = newRadius/radius;
+				item.scale(scaleFactor)
+				item.bbox.children['shadow'].scale(scaleFactor)
+
+				// Update the selection box
+				redrawBoundingBox(item);
+
+				// Color selected handle
+				var newHandleName = getPositionName(handle)
+				var	newHandle = getHandleByName(newHandleName, item.bbox);
+				newHandle.fillColor = mainColor
+			}
+		}
+}
+
+manipulateTool.onMouseUp = function(event) {};/**
+ * Rectangle tool
+ * 
+ * Draws rectangles
+ */
+
+
+rectTool = new Tool();
+var rectangle;
+
+rectTool.onMouseDown = function(event) {
+	rectangle = new Path.Rectangle(event.point, new Size(0,0));
+	rectangle.fillColor = getActiveSwatch()
+}
+
+rectTool.onMouseDrag = function(event) {
+	color = rectangle.fillColor
+	rectangle.remove()
+	rectangle = new Path.Rectangle(event.downPoint, event.point);
+	rectangle.fillColor = color
+	rectangle.opacity = .9
+}
+
+rectTool.onMouseUp = function() {
+	rectangle.type = 'rectangle'
+	setupItem(rectangle);
+
+	// Scope!
+	var rect = rectangle;
+
+	var undo = function() {
+		deselect(rect)
+		rect.remove()
+	}
+
+	var redo = function() {
+		project.activeLayer.addChild(rect);
+	}
+
+	P.History.addState(undo, redo)
+};/**
+ * Register the rotate animation 
+ *
+ * @return {null}
+ */
+(function() {
+	
+	// The animation object
+	rotate = {}
+
+	// Animation iself: frame updates
+	rotate.onFrame = function(item, props, event) {
+		item.rotate(props.speed, props.center);
+		props.degree = ((props.degree || 0) + props.speed) % 360
+	}
+
+	// Reset
+	rotate.onReset = function(item, props) {
+
+		// Rotate the item back to its original position
+		var deg = - props.degree
+		item.rotate(deg, props.center)
+		props.degree = 0;
+
+		// The path might not be exactly rectangular anymore due to the 
+		// rotation. Rounding the coordinates solves the problem.
+		if(isRectangular(item)) {
+			item.segments.map(function(segment) {
+				segment.point.x = Math.round(segment.point.x)
+				segment.point.y = Math.round(segment.point.y)
+			})
+		}
+	}
+
+	// Draws the handles
+	rotate.drawHandles = function(item, props) {
+		var border, tl, br, middle, line, dot, handles;
+
+		// Determine the middle of the bounding box: average of two opposite corners
+		corners = item.bbox.children[0].segments;
+		middle = corners[0].point.add(corners[2].point).divide(2)
+		
+		line = new Path.Line(middle, props.center)
+		line.strokeColor = mainColor;
+		line.strokeWidth = 1;
+		
+		dot = new Path.Circle(props.center, 3)
+		dot.fillColor = mainColor;
+		dot.position = props.center;
+
+		handles = new Group([line, dot]);
+		return handles;
+	}
+
+	// Transform the center point
+	rotate.onTransform = function(item, props, matrix) {
+		props.center = props.center.transform(matrix)
+	}
+
+	rotate.onUpdate = function(item, props, event) {
+		props.center = new Point(event.point);
+	}
+
+	// Register!
+	registerAnimation('rotate', rotate, { speed: 2 })
+
+})();
+/**
+ * Selection tool
+ *
+ * The default and most important tool that selects, drags and edits items.
+ * Depending on where the user clicks, the selection tool enters a different
+ * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
+ * largely through the mode the selector is in.
+ */
+
+selectTool = new Tool()
+var currentItems = [];
+
+function switchTool(newTool, event) {
+	selectOnly(currentItems);
+
+	// Update the new tool, this is a bit hacky though.
+	newTool._downPoint = event.downPoint;
+	newTool._point = event.downPoint;
+	newTool._downCount += 1; // Not strictly necessary
+
+	// Reactivate selection tool afterwards!
+	var _onMouseUp = newTool.onMouseUp
+	newTool.onMouseUp = function(event) {
+		_onMouseUp(event)
+		selectTool.activate()
+	}
+	// Update the event
+	event.tool = newTool;
+
+	// Activate!
+	newTool.activate()
+	if(newTool.onSwitch) {
+		newTool.onSwitch(event)
+	} else {
+		newTool.emit('mousedown', event)
+	} 
+}
+
+selectTool.onMouseDown = function(event) {
+	
+	// Test if we hit an item
+	hitResult = project.hitTest(event.point, {
+		fill: true,
+		tolerance: 5
+	})
+
+	// Get currently selected items
+	currentItems = getSelected()
+
+	// We hit something!
+	if(hitResult) {
+		var item = hitResult.item
+
+		// Shadow --> select actual item
+		if(item.type == 'shadow') item = item.parent.item;
+
+		// Anmination handles shouldn't do anything
+		if(isAnimationHandle(item)) return;
+			
+		// We hit a handle --> edit selection
+		if(isHandle(item)) {
+			currentItems = [item];
+			switchTool(manipulateTool, event);
+		}
+
+		// We hit an object --> drag
+		else if(item.type) {
+			mode = 'dragging'
+
+			// Select the group if the item we hit is in a group
+			if(inGroup(item)) item = getOuterGroup(item);
+			
+			// If the shift key is pressed, just add the item to the selection.
+			if(Key.isDown('shift')) {
+				currentItems.push(item);	
+			}
+
+			// If you click outside the selection, deselect the current selection
+			// and select the thing you clicked on.
+			else if(!isSelected(item)) {
+				currentItems = [item]
+			}
+			
+			var newTool = Key.isDown('alt') ? cloneTool : dragTool;
+			switchTool(newTool, event)
+
+		} else return;
+	} 
+
+	// Nothing was hit; start a selection instead
+	else {
+		currentItems = []
+		switchTool(selectionTool, event)
+	}
+};
+selectionTool = new Tool();
+
+var selectRect;
+
+selectionTool.onMouseDown = function(event) {
+	currentItems = [];
+	selectRect = new Path.Rectangle(event.point, new Size(0,0));
+}
+
+selectionTool.onMouseDrag = function(event) {
+	if(selectRect)
+		selectRect.remove();
+	selectRect = new Path.Rectangle(event.downPoint, event.point);
+	selectRect.strokeColor = "#333"
+	selectRect.dashArray = [2,3]
+	selectRect.strokeWidth = 1}
+
+selectionTool.onMouseUp = function(event) {
+	// Remove the selection region
+	if(selectRect) selectRect.remove();
+
+	// Find all items in the selection area
+	rect = new Rectangle(event.downPoint, event.point)
+	var items = project.activeLayer.getItems({ 
+		overlapping: rect,
+	
+		// Don't match elements inside a group (the group will be selected already)
+		match: function(item) { 
+			return !inGroup(item) && !isBoundingBox(item)
+		}
+	});
+
+	// And select!
+	select(items);
+};/**
  * Painter.js
  */
 
 paper.install(window);
+
+/**
+ * Painter, encapsulates everything!
+ * @type {Object}
+ */
+// var P = {};
 
 var mainColor = '#78C3D0';
 
@@ -932,6 +1605,7 @@ $(window).ready(function() {
 	rotationTool = animations.rotate.tool
 	
 	function onKeyDown(event) {
+
 		if(event.key == 'backspace' || event.key == 'd') {
 			deleteSelection()
 		}
@@ -941,7 +1615,16 @@ $(window).ready(function() {
 		}
 
 		else if(event.key == 'z') {
-			$('a.tool[data-tool=reset]').click();
+			if(Key.isDown('control')) {
+				P.History.undo()
+			}
+			else {
+				$('a.tool[data-tool=reset]').click();
+			}
+		}
+
+		else if(event.key =='y' && Key.isDown('control')) {
+			P.History.redo()
 		}
 
 		else if(event.key =='g') {
@@ -1110,409 +1793,4 @@ $(window).ready(function() {
 
 
 
-});/**
- * Register the bounce animation
- * @return {null}
- */
-(function() {
-
-	/**
-	 * Rotation animation
-	 *
-	 * This object defines the rotation animation.
-	 * @type {Object}
-	 */
-	var bounce = {}
-
-	// Animation iself: frame updates
-	bounce.onFrame = function(item, props, event) {
-		props.position += .01
-		var trajectory = props.startPoint.subtract(props.endPoint)
-		var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
-		var newPoint = trajectory.multiply(relPos).add(props.endPoint);
-		var delta = newPoint.subtract(item.position);
-		
-		// Move it!
-		item.position = item.position.add(delta)
-	}
-
-	// Reset
-	bounce.onReset = function(item, props) {
-		item.position = props.startPoint.add(props.position)
-		props.position = 0;
-	}
-
-	// Draws the handles
-	bounce.drawHandles = function(item, props) {
-		var line, dot1, dot2, handles;
-		
-		line = new Path.Line(props.startPoint, props.endPoint)
-		line.strokeColor = mainColor;
-		line.strokeWidth = 1;
-		
-		dot1 = new Path.Circle(props.startPoint, 3)
-		dot1.fillColor = mainColor;
-
-		dot2 = dot1.clone();
-		dot2.position = props.endPoint;
-
-		handles = new Group([line, dot1, dot2]);
-		return handles;
-	}
-
-	bounce.onTransform = function(item, props, matrix) {
-		props.startPoint = props.startPoint.transform(matrix)
-		props.endPoint = props.endPoint.transform(matrix)
-	}
-
-	bounce.onClone = function(copy, props) {
-		props.startPoint = getCenter(copy);
-		return props;
-	}
-
-	bounce.onUpdate = function(item, props, event) {
-		props.startPoint = getCenter(item);
-		props.endPoint = new Point(event.point);
-	}
-
-	// Register the animation
-	registerAnimation('bounce', bounce, { speed: 2, position: 0 })
-
-})();
-/**
- * Circle tool
- *
- * Draws circles.
- */
-
-circleTool = new Tool()
-var circle;
-
-circleTool.onMouseDown = function(event) {
-	deselectAll()
-	circle = new Path.Circle({
-		center: event.point, 
-		radius: 0,
-		fillColor: getActiveSwatch()
-	});
-}
-
-circleTool.onMouseDrag = function(event) {
-	// todo: this is not the illustrator-type behaviour. 
-	// Is that a problem?
-	var color = circle.fillColor;
-	var diff = event.point.subtract(event.downPoint)
-	var radius = diff.length / 2
-	circle.remove();
-	circle = new Path.Circle({
-		center: diff.divide(2).add(event.downPoint),
-		radius: radius,
-		opacity: .9,
-		fillColor: color
-	});
-}
-
-circleTool.onMouseUp = function(event) {
-	circle.type = 'circle'
-	setupItem(circle);
-};/**
- * Rectangle tool
- * 
- * Draws rectangles
- */
-
-
-rectTool = new Tool();
-var rectangle;
-
-rectTool.onMouseDown = function(event) {
-	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	rectangle.fillColor = getActiveSwatch()
-}
-
-rectTool.onMouseDrag = function(event) {
-	color = rectangle.fillColor
-	rectangle.remove()
-	rectangle = new Path.Rectangle(event.downPoint, event.point);
-	rectangle.fillColor = color
-	rectangle.opacity = .9
-}
-
-rectTool.onMouseUp = function() {
-	rectangle.type = 'rectangle'
-	setupItem(rectangle);
-};/**
- * Register the rotate animation 
- *
- * @return {null}
- */
-(function() {
-	
-	// The animatino object
-	rotate = {}
-
-	// Animation iself: frame updates
-	rotate.onFrame = function(item, props, event) {
-		item.rotate(props.speed, props.center);
-		props.degree = ((props.degree || 0) + props.speed) % 360
-	}
-
-	// Reset
-	rotate.onReset = function(item, props) {
-
-		// Rotate the item back to its original position
-		var deg = - props.degree
-		item.rotate(deg, props.center)
-		props.degree = 0;
-
-		// The path might not be exactly rectangular anymore due to the 
-		// rotation. Rounding the coordinates solves the problem.
-		if(isRectangular(item)) {
-			item.segments.map(function(segment) {
-				segment.point.x = Math.round(segment.point.x)
-				segment.point.y = Math.round(segment.point.y)
-			})
-		}
-	}
-
-	// Draws the handles
-	rotate.drawHandles = function(item, props) {
-		var border, tl, br, middle, line, dot, handles;
-
-		// Determine the middle of the bounding box: average of two opposite corners
-		corners = item.bbox.children[0].segments;
-		middle = corners[0].point.add(corners[2].point).divide(2)
-		
-		line = new Path.Line(middle, props.center)
-		line.strokeColor = mainColor;
-		line.strokeWidth = 1;
-		
-		dot = new Path.Circle(props.center, 3)
-		dot.fillColor = mainColor;
-		dot.position = props.center;
-
-		handles = new Group([line, dot]);
-		return handles;
-	}
-
-	// Transform the center point
-	rotate.onTransform = function(item, props, matrix) {
-		props.center = props.center.transform(matrix)
-	}
-
-	rotate.onUpdate = function(item, props, event) {
-		props.center = new Point(event.point);
-	}
-
-	// Register!
-	registerAnimation('rotate', rotate, { speed: 2 })
-
-})();
-/**
- * Selection tool
- *
- * The default and most important tool that selects, drags and edits items.
- * Depending on where the user clicks, the selection tool enters a different
- * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
- * largely through the mode the selector is in.
- */
-
-selectTool = new Tool()
-var selectRect, handle, mode, cloned = false, currentItems = [];
-
-selectTool.onMouseDown = function(event) {
-	
-	// Test if we hit an item
-	hitResult = project.hitTest(event.point, {
-		fill: true,
-		tolerance: 5
-	})
-
-	// Get currently selected items
-	currentItems = getSelected()
-
-	// We hit something!
-	if(hitResult) {
-		var item = hitResult.item
-
-		// Shadow --> select actual item
-		if(item.type == 'shadow') item = item.parent.item;
-
-		if(isAnimationHandle(item)){ 
-			return 
-		}
-		
-		// We hit a handle --> edit selection
-		else if(isHandle(item)) {
-			mode = 'editing'
-			handle = item;
-			currentItems = [item.parent.item];
-		}
-
-		// We hit an object --> drag
-		else if(item.type) {
-			mode = 'dragging'
-
-			// Select the group if the item we hit is in a group
-			if(inGroup(item)) item = getOuterGroup(item);
-			
-			// If the shift key is pressed, just add the item to the selection.
-			if(Key.isDown('shift')) {
-				currentItems.push(item);	
-			}
-
-			// If you click outside the selection, deselect the current selection
-			// and select the thing you clicked on.
-			else if(!isSelected(item)) {
-				currentItems = [item]
-			}
-		} else {
-			return 
-		}
-	} 
-
-	// Nothing was hit; start a selection instead
-	else {
-		mode = 'selecting';
-		currentItems = [];
-		selectRect = new Path.Rectangle(event.point, new Size(0,0));
-	}
-
-	// Update the selection
-	selectOnly(currentItems);
-}
-
-selectTool.onMouseDrag = function(event) {
-	// Draw a rectangular selection region and select all the items
-	// in that region when the mouse is released
-	if(mode == 'selecting') {
-		if(selectRect)
-			selectRect.remove();
-		selectRect = new Path.Rectangle(event.downPoint, event.point);
-		selectRect.strokeColor = "#333"
-		selectRect.dashArray = [2,3]
-		selectRect.strokeWidth = 1
-	}
-
-	// Drag all the currently selected objects, following the movement
-	// of the cursor.
-	else if(mode == 'dragging') {
-
-		if(Key.isDown('alt') && cloned == false) {
-			// Clone & select current items
-			currentItems = cloneSelection();
-			selectOnly(currentItems)
-			cloned = true;
-		}
-
-		moveItem(currentItems, event.delta)
-	}
-
-	// In editing mode we update the shape of the items based
-	// on the current position of the cursor. Rectangles, circles
-	// and groups are updated differently.
-	else if(mode == 'editing') {
-		if(currentItems.length == 1) {
-			var item = currentItems[0]
-
-			// Rectangle!
-			if( isRectangular(item) ) {
-				var segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
-
-				// Get segment corresponding to the handle, and segments adjacent to that
-				segment = getSegmentByHandle(handle, item);
-				adjacents = getAdjacentSegments(segment);
-				sameX = adjacents.sameX;
-				sameY = adjacents.sameY;
-				
-				// Move segments
-				// To do: this is still a bit buggy... You sometimes get crosses, or the
-				// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
-				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
-				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
-				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
-				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
-				sameX.point   = sameX.point.add([deltaX, 0]);
-				sameY.point   = sameY.point.add([0, deltaY]);
-				segment.point = segment.point.add([deltaX, deltaY]);
-
-				// Update bounding box
-				redrawBoundingBox(item)
-
-				// Color selected handle
-				var newHandleName = getPositionName(segment);
-				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor
-			}
-
-			// Circles are just scaled
-			if( isCircular(item) ) {
-				// To do: you can move the handle along with the mouse, 
-				// that'd be nice!
-				var center = item.position,
-						radius = item.bounds.width,
-						newRadius = event.point.subtract(center).length * 2 - 6,
-						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor)
-				redrawBoundingBox(item);
-
-				// Color the selected handle
-				var newHandle = item.bbox.children[1];
-				newHandle.fillColor = mainColor;
-			}
-
-			// Groups behave very much like circles: they are just scaled.
-			// Their radius is different, however.
-			if( isGroup(item) ) {
-				var center = item.position,
-						width = item.bounds.width,
-						height = item.bounds.height,
-						radius = Math.sqrt(width*width + height*height), // Diagonal
-						newRadius = event.point.subtract(center).length * 2 - 6,
-						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor)
-				item.bbox.children['shadow'].scale(scaleFactor)
-
-				// Update the selection box
-				redrawBoundingBox(item);
-
-				// Color selected handle
-				var newHandleName = getPositionName(handle)
-				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor
-			}
-		}
-
-		// Multiple items currently selected --> group!
-		else {
-			// To do: scale
-		}
-	}
-}
-
-selectTool.onMouseUp = function(event) {
-	
-	if(mode == 'selecting') {
-
-		// Remove the selection region
-		if(selectRect) selectRect.remove();
-
-		// Find all items in the selection area
-		rect = new Rectangle(event.downPoint, event.point)
-		var items = project.activeLayer.getItems({ 
-			overlapping: rect,
-		
-			// Don't match elements inside a group (the group will be selected already)
-			match: function(item) { 
-				return !inGroup(item) && !isBoundingBox(item)
-			}
-		});
-
-		// And select!
-		select(items);
-	}
-
-	// Reset the mode
-	mode = '';
-	cloned = false;
-}
+})

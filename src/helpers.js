@@ -1,4 +1,5 @@
-;/**
+;
+/**
  * helpers.js
  *
  * This file contains various helpers
@@ -534,6 +535,10 @@ function moveItem(item, delta) {
 	// a translation. The rest should be handled by the animation.
 	var matrix = new Matrix().translate(delta);
 	transformAnimation(item, matrix);
+
+	if(item.animation && item.animation._prevAnimation) {
+		item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
+	}
 }
 
 function getCenter(item) {
@@ -542,16 +547,35 @@ function getCenter(item) {
 
 /********************************************************/
 
-function group(items) {
-	var group = new Group(items);
-	group.type = 'group'
-	group.transformContent = false;
-	var bounds = getBounds(group)
+function group(theItems, _pushState=true) {
 
-	group.pivot = new Point(bounds.center);
-	setupItem(group);
-	selectOnly(group)
-	startAnimation(items, false, true)
+	var theGroup = new Group(theItems);
+	theGroup.type = 'group'
+	theGroup.transformContent = false;
+
+	var bounds = getBounds(theGroup)
+	theGroup.pivot = new Point(bounds.center);
+
+	setupItem(theGroup);
+	selectOnly(theGroup)
+	startAnimation(theItems, false, true)
+
+	if(_pushState) {
+		var undo = function() {
+			ungroup(theGroup, false)
+		}
+
+		var redo = function() {
+			// To do: this breaks up the history chain since we no 
+			// longer refer to the same group...
+			theGroup = group(theItems, false)
+		}
+
+		P.History.registerState(undo, redo)		
+	}
+
+	return theGroup;
+
 }
 
 /**
@@ -559,38 +583,65 @@ function group(items) {
  * @param  {Group} group 
  * @return {Array}       Children
  */
-function ungroup(group) {
-	if(group instanceof Array) return group.map(ungroup);
-	if(!isGroup(group)) return;
+function ungroup(theGroup, _pushState=true) {
+	if(theGroup instanceof Array) return theGroup.map(ungroup);
+	if(!isGroup(theGroup)) return;
 
-	children = group.removeChildren().filter(isItem);
-	group.parent.insertChildren(group.index, children);
+	var theItems = theGroup.removeChildren().filter(isItem);
+	var parent = theGroup.parent ? theGroup.parent : project.activeLayer;
+	parent.insertChildren(theGroup.index, theItems);
 
 	// Transform children just like the group
-	for(var i=0; i<children.length; i++){
-		var item = children[i];
+	for(var i=0; i<theItems.length; i++){
+		var item = theItems[i];
 		
-		if(!hasAnimation(group)) {
-			item.transform(group.matrix);
-			if(item.bbox) item.bbox.transform(group.matrix);
+		if(!hasAnimation(theGroup)) {
+			item.transform(theGroup.matrix);
+			if(item.bbox) item.bbox.transform(theGroup.matrix);
 		}
 		
 		// Only called if hasAnimation(item)
-		transformAnimation(item, group.matrix);
+		transformAnimation(item, theGroup.matrix);
 	}
 
 	// Remove and reset
-	deselect(group);
-	group.remove();
-	select(children)
+	deselect(theGroup);
+	theGroup.remove();
+	select(theItems)
+
+	if(_pushState) {
+		var undo = function() {
+			group(theItems, false);
+		}
+		var redo = function() {
+			theItems = ungroup(theGroup, false)
+		}
+		P.History.registerState(undo, redo)
+	}
+	return theItems
 }
 
 function deleteSelection() {
-	items = getSelected();
+	var items = getSelected();
 	for(var i=0; i<items.length;i++) {
 		deselect(items[i])
 		items[i].remove()
 	}
+
+
+	var undo = function() {
+		items.map(function(i){ project.activeLayer.addChild(i) })
+		select(items)
+	}
+
+	var redo = function() {
+		items.map(function(i){
+			deselect(i)
+			i.remove();
+		});
+	}
+	
+	P.History.registerState(undo, redo)
 }
 
 /********************************************************/
@@ -632,6 +683,16 @@ function cloneSelection(move=[0,0]) {
 	var items = getSelected();
 	var copiedItems = items.map(function(i) {return clone(i, move)});
 	selectOnly(copiedItems);
+
+	var undo = function() {
+		deselect(copiedItems)
+		copiedItems.map(function(i){ i.remove() })
+	}
+	var redo = function() {
+		copiedItems.map(function(i){ i.insertAbove(items[0]) })
+	}
+	P.History.registerState(undo, redo)
+
 	return copiedItems;
 }
 
