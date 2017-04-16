@@ -27,7 +27,7 @@ selectionTool.onMouseUp = function(event) {
 	
 		// Don't match elements inside a group (the group will be selected already)
 		match: function(item) { 
-			return !inGroup(item) && !isBoundingBox(item)
+			return !isBoundingBox(item)
 		}
 	});
 
