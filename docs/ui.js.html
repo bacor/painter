@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: ui.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: ui.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Painter.js
+ */
+
+paper.install(window);
+
+/**
+ * Painter, encapsulates everything!
+ * @type {Object}
+ */
+// var P = {};
+
+var mainColor = '#78C3D0';
+
+
+$(window).ready(function() {
+
+	paper.setup('canvas');
+
+	// Hmmmm....
+	bounceTool = animations.bounce.tool
+	rotationTool = animations.rotate.tool
+	
+	function onKeyDown(event) {
+
+		if(event.key == 'backspace' || event.key == 'd') {
+			deleteSelection()
+		}
+
+		else if(event.key == 'space') {
+			$('a.tool[data-tool=playpause]').click();
+		}
+
+		else if(event.key == 'z') {
+			if(Key.isDown('control')) {
+				P.History.undo()
+			}
+			else {
+				$('a.tool[data-tool=reset]').click();
+			}
+		}
+
+		else if(event.key =='y' &amp;&amp; Key.isDown('control')) {
+			P.History.redo()
+		}
+
+		else if(event.key =='g') {
+			group(getSelected())
+		}
+
+		else if(event.key =='u') {
+			ungroup(getSelected())
+		}
+
+		else if(event.key == 'r') {
+			$('a.tool[data-tool=rotate]').click();
+		}
+
+		else if(event.key == 'v') {
+			$('a.tool[data-tool=select]').click();
+		}
+
+		else if(event.key == 'c') {
+			$('a.tool[data-tool=circle]').click();
+		}
+
+		else if(event.key == 's') {
+			$('a.tool[data-tool=rectangle]').click();
+		}
+
+		else if(event.key == 'b') {
+			$('a.tool[data-tool=bounce]').click();	
+		}
+
+		else if(!isNaN(parseInt(event.key))) {
+			var key = parseInt(event.key);
+			$('.swatch').each(function(i, el){
+				var index = $(el).data('colorIndex')
+				if(index+1 == key) $(el).click();
+			})
+		}
+	}
+
+	rectTool.onKeyDown = onKeyDown;
+	circleTool.onKeyDown = onKeyDown;
+	selectTool.onKeyDown = onKeyDown;
+	rotationTool.onKeyDown = onKeyDown;
+	bounceTool.onKeyDown = onKeyDown;
+
+	// Demo
+	r = new Path.Rectangle([20,30,100,140])
+	r.fillColor = getColor(0, 7)
+	// r.selected = true
+	r.type = 'rectangle'
+	setupItem(r)
+	c = new Path.Circle([300,100], 40)
+	c.fillColor = getColor(1, 7)
+	// c.selected = true
+	c.type = 'circle'
+	setupItem(c)
+	select(c)
+	select(r)
+	group(getSelected())
+	deselectAll()
+
+
+		// Demo
+	r = new Path.Rectangle([200,200,100,140])
+	r.fillColor = getColor(3, 7)
+	// r.selected = true
+	r.type = 'rectangle'
+	setupItem(r)
+
+	c = new Path.Circle([500,300], 40)
+	c.fillColor = getColor(4, 7)
+	// c.selected = true
+	c.type = 'circle'
+	setupItem(c)
+	// select(c)
+	select(r)
+
+	// rotate(c, new Point([100,100]))
+	// rotate()
+
+
+	$('a.tool[data-tool=rectangle]').on('click', function() {
+		rectTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	})
+
+	$('a.tool[data-tool=circle]').on('click', function() {
+		circleTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	})
+
+	$('a.tool[data-tool=select]').on('click', function() {
+		selectTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	}).click()
+
+	$('a.tool[data-tool=group]').on('click', function() {
+		group(getSelected())
+	})
+
+	$('a.tool[data-tool=ungroup]').on('click', function() {
+		ungroup(getSelected())
+	})
+
+	$('a.tool[data-tool=delete]').on('click', function() {
+		deleteSelection()
+	})
+
+	$('a.tool[data-tool=clone]').on('click', function() {
+		cloneSelection([20,20])
+	})
+
+	$('a.tool[data-tool=playpause]').on('click', function() {
+		if($(this).data('state') == 'play') {
+			startAnimation(getSelected());
+			$(this).find('span').html('pause &lt;code>space&lt;/code>')
+			$(this).data('state', 'pause')
+
+		} else {
+			stopAnimation(getSelected());
+			$(this).find('span').html('play &lt;code>space&lt;/code>')
+			$(this).data('state', 'play')
+		}
+	})
+
+	$('a.tool[data-tool=rotate]').on('click', function() {
+		rotationTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	})
+
+	$('a.tool[data-tool=bounce]').on('click', function() {
+		bounceTool.activate()
+		$('a.tool').removeClass('active')
+		$(this).addClass('active')
+	})//.click()
+
+	$('a.tool[data-tool=reset]').on('click', function() {
+		resetAnimation(getSelected(), 'rotate');
+	})
+
+	// Add all swatches
+	var $swatches = $('.swatches'),
+			numSwatches = parseInt($swatches.data('num-swatches'));
+	for(var i=0; i&lt;numSwatches; i++) {
+
+		// Get color without noise
+		var color = getColor(i, numSwatches, 0);
+
+		// Add swatch handle
+		var $swatch = $('&lt;a class="swatch">' + (i+1) + '&lt;/a>')
+					.css('backgroundColor', color)
+					.data('colorIndex', i)
+					.data('numSwatches', numSwatches)
+					.appendTo($swatches)
+					.on('click', function() {
+						$('.swatch').removeClass('active');
+						$(this).addClass('active');
+						changeColorSelection();
+					})
+		if(i == 0) $swatch.addClass('active');
+	}
+
+
+
+})</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#animations">animations</a></li><li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#clone">clone</a></li><li><a href="global.html#deselect">deselect</a></li><li><a href="global.html#deselectAll">deselectAll</a></li><li><a href="global.html#drawAnimationHandles">drawAnimationHandles</a></li><li><a href="global.html#getAdjacentSegments">getAdjacentSegments</a></li><li><a href="global.html#getBoundingBox">getBoundingBox</a></li><li><a href="global.html#getBounds">getBounds</a></li><li><a href="global.html#getHandle">getHandle</a></li><li><a href="global.html#getHandleByName">getHandleByName</a></li><li><a href="global.html#getOuterGroup">getOuterGroup</a></li><li><a href="global.html#getPositionIndex">getPositionIndex</a></li><li><a href="global.html#getPositionName">getPositionName</a></li><li><a href="global.html#getSegmentByHandle">getSegmentByHandle</a></li><li><a href="global.html#getSegmentByIndex">getSegmentByIndex</a></li><li><a href="global.html#getSegmentByName">getSegmentByName</a></li><li><a href="global.html#getSelected">getSelected</a></li><li><a href="global.html#hitGroup">hitGroup</a></li><li><a href="global.html#inGroup">inGroup</a></li><li><a href="global.html#initAnimation">initAnimation</a></li><li><a href="global.html#isBoundingBox">isBoundingBox</a></li><li><a href="global.html#isCircular">isCircular</a></li><li><a href="global.html#isGroup">isGroup</a></li><li><a href="global.html#isHandle">isHandle</a></li><li><a href="global.html#isRectangular">isRectangular</a></li><li><a href="global.html#isRotating">isRotating</a></li><li><a href="global.html#isSegment">isSegment</a></li><li><a href="global.html#isSelected">isSelected</a></li><li><a href="global.html#mainColor">mainColor</a></li><li><a href="global.html#moveItem">moveItem</a></li><li><a href="global.html#P">P</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#registerAnimation">registerAnimation</a></li><li><a href="global.html#removeAnimationHandles">removeAnimationHandles</a></li><li><a href="global.html#resetAnimation">resetAnimation</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#selectOnly">selectOnly</a></li><li><a href="global.html#selectTool">selectTool</a></li><li><a href="global.html#setupItem">setupItem</a></li><li><a href="global.html#startAnimation">startAnimation</a></li><li><a href="global.html#stopAnimation">stopAnimation</a></li><li><a href="global.html#transformAnimation">transformAnimation</a></li><li><a href="global.html#ungroup">ungroup</a></li><li><a href="global.html#updateAnimation">updateAnimation</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun Apr 16 2017 10:20:43 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
