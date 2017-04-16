@@ -18,8 +18,6 @@ circleTool.onMouseDown = function(event) {
 }
 
 circleTool.onMouseDrag = function(event) {
-	// todo: this is not the illustrator-type behaviour. 
-	// Is that a problem?
 	var color = circle.fillColor;
 	var diff = event.point.subtract(event.downPoint)
 	var radius = diff.length / 2

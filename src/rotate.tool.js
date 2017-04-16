@@ -15,7 +15,7 @@
 	}
 
 	// Reset
-	rotate.onReset = function(item, props) {
+	rotate.onStop = function(item, props) {
 
 		// Rotate the item back to its original position
 		var deg = - props.degree
@@ -33,7 +33,7 @@
 	}
 
 	// Draws the handles
-	rotate.drawHandles = function(item, props) {
+	rotate.onDrawHandles = function(item, props) {
 		var border, tl, br, middle, line, dot, handles;
 
 		// Determine the middle of the bounding box: average of two opposite corners
@@ -62,6 +62,6 @@
 	}
 
 	// Register!
-	registerAnimation('rotate', rotate, { speed: 2 })
+	P.registerAnimation('rotate', rotate, { speed: 2 })
 
 })()

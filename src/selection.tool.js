@@ -24,12 +24,15 @@ selectionTool.onMouseUp = function(event) {
 	rect = new Rectangle(event.downPoint, event.point)
 	var items = project.activeLayer.getItems({ 
 		overlapping: rect,
-	
-		// Don't match elements inside a group (the group will be selected already)
 		match: function(item) { 
-			return !isBoundingBox(item)
+			return item.isArtefact()
 		}
 	});
+	console.log(items)
+
+	// If we put this in the match, it doesn't work?
+	items = items.filter(function(item) { return !inGroup(item) })
+	console.log(items)
 
 	// And select!
 	select(items);

@@ -33,9 +33,16 @@
  * This file contains various helpers
  */
 
+function setupRectangle(item) {
+	// console.log(item, Object.getPrototypeOf(item))
+
+	// item._proto__.
+}
 
 function setupItem(item) {
+	// console.log('asdfadf')
 	item.animation = undefined;
+	item._artefact = true;
 }
 
 /********************************************************/
@@ -139,33 +146,6 @@ function getBoundingBox(item) {
 	return bbox;
 }
 
-function showBoundingBox(item) {
-	if(item instanceof Array) return item.map(showBoundingBox);
-
-	if(item.bbox) {
-		item.bbox.visible = true
-	}
-	else {
-		bbox = getBoundingBox(item);
-		bbox.item = item;
-		item.bbox = bbox;
-		item.insertBelow(bbox)
-	}
-}
-
-function hideBoundingBox(item) {
-	if(item instanceof Array) return item.map(hideBoundingBox);
-	if(item.bbox) item.bbox.visible = false;
-}
-
-function redrawBoundingBox(item) {
-	if(item instanceof Array) return item.map(redrawBoundingBox);
-	if(item.bbox) item.bbox.remove();
-	item.bbox = undefined;
-
-	return showBoundingBox(item);
-}
-
 function getShadowBounds(item){
 	if(!item.bbox) return false;
 	return item.bbox.children['shadow'].bounds
@@ -191,7 +171,7 @@ function getBounds(item){
 	var bounds;
 	for(var i=0; i&lt;item.children.length;i++){
 		var child = item.children[i]
-		if(isItem(child)) {
+		if(child.isArtefact()) {
 			childBounds = getBounds(child)
 			bounds = bounds ? bounds.unite(childBounds) : childBounds;
 		}
@@ -217,13 +197,7 @@ function getBounds(item){
  */
 function select(item) {
 	if(item instanceof Array) return item.map(select);
-	if(!item || isSelected(item)) return;
-	showBoundingBox(item)
-
-	if(hasAnimation(item))
-		drawAnimationHandles(item);
-
-	// if(isGroup(item)) item.children.map(showBoundingBox);
+	item.select();
 }
 
 /**
@@ -235,10 +209,8 @@ function select(item) {
  * @return {None}
  */
 function deselect(item) {
-	hideBoundingBox(item);
-	item.strokeColor = undefined;
-	item.dashArray = undefined;
-	removeAnimationHandles(item);
+	if(item instanceof Array) return item.map(deselect);
+	item.deselect()
 }
 
 /**
@@ -251,9 +223,7 @@ function deselect(item) {
  * @return {None}
  */
 function deselectAll(items) {
-	var items = project.getItems({
-		match: isSelected
-	})
+	var items = getSelected();
 
 	for(var i=0; i&lt;items.length;i++) {
 		deselect(items[i])
@@ -275,31 +245,13 @@ function selectOnly(item) {
  * @param  {Function} match The match function, defaults to isSelected
  * @return {Array}       Selected items
  */
-function getSelected(match=isSelected) {
+function getSelected() {
 	return project.getItems({
-		match: match
+		match: function(i) { return i.isSelected() }
 	})
 }
 
 /********************************************************/
-
-/**
- * Test if an item is selected
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isSelected(item) {
-	return item.bbox != undefined &amp;&amp; item.bbox.visible == true
-}
-
-/**
- * Test if an item is a bounding box
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isBoundingBox(item) {
-	return item.type == 'boundingBox'
-}
 
 /**
  * Test if an item is rectangular. 
@@ -380,35 +332,22 @@ function inGroup(item) {
  * @param  {HitResult} hitResult 
  * @return {Boolean}
  */
-function hitGroup(hitResult) {
-	return inGroup(hitResult.item)
-}
+// function hitGroup(hitResult) {
+// 	return inGroup(hitResult.item)
+// }
 
 function hasAnimation(item, type=false) {
-	if(item.animation == undefined) return false; 
-	if(item.animation.type == undefined) return false;
-	if(type) return item.animation.type == type;
-	return true;
+	return item.hasAnimation();
+	// if(item.animation == undefined) return false; 
+	// if(item.animation.type == undefined) return false;
+	// if(type) return item.animation.type == type;
+	// return true;
 }
 
 function isAnimating(item, type=false) {
 	return hasAnimation(item, type) &amp;&amp; item.animation.active == true;
 } 
 
-/**
- * Test if an item is rotating
- * @param  {Item}  item 
- * @return {Boolean}    
- */
-function isRotating(item) {
-	return isAnimating(item, 'rotate')
-}
-
-function isItem(item) {
-	if(isRectangular(item) || isCircular(item)) return true;
-	if(isGroup(item) &amp;&amp; !isBoundingBox(item)) return true;
-	return false
-}
 /********************************************************/
 
 /**
@@ -553,20 +492,21 @@ function moveItem(item, delta) {
 	if(item instanceof Array) 
 		return item.map(function(i) { moveItem(i, delta) });
 
-	// Move the item
-	item.position = item.position.add(delta);
+	item.move(delta);
+	// // Move the item
+	// item.position = item.position.add(delta);
 
-	// Bounding box, only if it exists
-	if(item.bbox) item.bbox.position = item.bbox.position.add(delta);
+	// // Bounding box, only if it exists
+	// if(item.bbox) item.bbox.position = item.bbox.position.add(delta);
 	
-	// Move the animation. We just apply a specific type of transformation:
-	// a translation. The rest should be handled by the animation.
-	var matrix = new Matrix().translate(delta);
-	transformAnimation(item, matrix);
+	// // Move the animation. We just apply a specific type of transformation:
+	// // a translation. The rest should be handled by the animation.
+	// var matrix = new Matrix().translate(delta);
+	// transformAnimation(item, matrix);
 
-	if(item.animation &amp;&amp; item.animation._prevAnimation) {
-		item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
-	}
+	// if(item.animation &amp;&amp; item.animation._prevAnimation) {
+	// 	item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
+	// }
 }
 
 function getCenter(item) {
@@ -585,8 +525,9 @@ function group(theItems, _pushState=true) {
 	theGroup.pivot = new Point(bounds.center);
 
 	setupItem(theGroup);
-	selectOnly(theGroup)
-	startAnimation(theItems, false, true)
+	selectOnly(theGroup);
+	// theItems.map()
+	// startAnimation(theItems, false, true)
 
 	if(_pushState) {
 		var undo = function() {
@@ -615,7 +556,7 @@ function ungroup(theGroup, _pushState=true) {
 	if(theGroup instanceof Array) return theGroup.map(ungroup);
 	if(!isGroup(theGroup)) return;
 
-	var theItems = theGroup.removeChildren().filter(isItem);
+	var theItems = theGroup.removeChildren().filter(function(i){ return i.isArtefact() });
 	var parent = theGroup.parent ? theGroup.parent : project.activeLayer;
 	parent.insertChildren(theGroup.index, theItems);
 
@@ -629,7 +570,9 @@ function ungroup(theGroup, _pushState=true) {
 		}
 		
 		// Only called if hasAnimation(item)
-		transformAnimation(item, theGroup.matrix);
+		if(item.hasAnimation()){
+			item.getAnimation().transform(theGroup.matrix);
+		}
 	}
 
 	// Remove and reset
@@ -694,7 +637,7 @@ function clone(item, move=[0,0]) {
 	copy.position = copy.position.add(move);
 
 	// Animate the item!
-	if(hasAnimation(item)) {
+	if(item.hasAnimation()) {
 		var type = item.animation.type,
 				props = item.animation.properties;
 		var onClone = animations[type].onClone || function() {};
@@ -761,13 +704,13 @@ function changeColorSelection() {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#animations">animations</a></li><li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#clone">clone</a></li><li><a href="global.html#deselect">deselect</a></li><li><a href="global.html#deselectAll">deselectAll</a></li><li><a href="global.html#drawAnimationHandles">drawAnimationHandles</a></li><li><a href="global.html#getAdjacentSegments">getAdjacentSegments</a></li><li><a href="global.html#getBoundingBox">getBoundingBox</a></li><li><a href="global.html#getBounds">getBounds</a></li><li><a href="global.html#getHandle">getHandle</a></li><li><a href="global.html#getHandleByName">getHandleByName</a></li><li><a href="global.html#getOuterGroup">getOuterGroup</a></li><li><a href="global.html#getPositionIndex">getPositionIndex</a></li><li><a href="global.html#getPositionName">getPositionName</a></li><li><a href="global.html#getSegmentByHandle">getSegmentByHandle</a></li><li><a href="global.html#getSegmentByIndex">getSegmentByIndex</a></li><li><a href="global.html#getSegmentByName">getSegmentByName</a></li><li><a href="global.html#getSelected">getSelected</a></li><li><a href="global.html#hitGroup">hitGroup</a></li><li><a href="global.html#inGroup">inGroup</a></li><li><a href="global.html#initAnimation">initAnimation</a></li><li><a href="global.html#isBoundingBox">isBoundingBox</a></li><li><a href="global.html#isCircular">isCircular</a></li><li><a href="global.html#isGroup">isGroup</a></li><li><a href="global.html#isHandle">isHandle</a></li><li><a href="global.html#isRectangular">isRectangular</a></li><li><a href="global.html#isRotating">isRotating</a></li><li><a href="global.html#isSegment">isSegment</a></li><li><a href="global.html#isSelected">isSelected</a></li><li><a href="global.html#mainColor">mainColor</a></li><li><a href="global.html#moveItem">moveItem</a></li><li><a href="global.html#P">P</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#registerAnimation">registerAnimation</a></li><li><a href="global.html#removeAnimationHandles">removeAnimationHandles</a></li><li><a href="global.html#resetAnimation">resetAnimation</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#selectOnly">selectOnly</a></li><li><a href="global.html#selectTool">selectTool</a></li><li><a href="global.html#setupItem">setupItem</a></li><li><a href="global.html#startAnimation">startAnimation</a></li><li><a href="global.html#stopAnimation">stopAnimation</a></li><li><a href="global.html#transformAnimation">transformAnimation</a></li><li><a href="global.html#ungroup">ungroup</a></li><li><a href="global.html#updateAnimation">updateAnimation</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="global.html#Animation">Animation</a></li></ul><h3>Global</h3><ul><li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#clone">clone</a></li><li><a href="global.html#deselect">deselect</a></li><li><a href="global.html#deselectAll">deselectAll</a></li><li><a href="global.html#getAdjacentSegments">getAdjacentSegments</a></li><li><a href="global.html#getBoundingBox">getBoundingBox</a></li><li><a href="global.html#getBounds">getBounds</a></li><li><a href="global.html#getHandle">getHandle</a></li><li><a href="global.html#getHandleByName">getHandleByName</a></li><li><a href="global.html#getOuterGroup">getOuterGroup</a></li><li><a href="global.html#getPositionIndex">getPositionIndex</a></li><li><a href="global.html#getPositionName">getPositionName</a></li><li><a href="global.html#getSegmentByHandle">getSegmentByHandle</a></li><li><a href="global.html#getSegmentByIndex">getSegmentByIndex</a></li><li><a href="global.html#getSegmentByName">getSegmentByName</a></li><li><a href="global.html#getSelected">getSelected</a></li><li><a href="global.html#hasAnimation">hasAnimation</a></li><li><a href="global.html#inGroup">inGroup</a></li><li><a href="global.html#isCircular">isCircular</a></li><li><a href="global.html#isGroup">isGroup</a></li><li><a href="global.html#isHandle">isHandle</a></li><li><a href="global.html#isRectangular">isRectangular</a></li><li><a href="global.html#isSegment">isSegment</a></li><li><a href="global.html#mainColor">mainColor</a></li><li><a href="global.html#moveItem">moveItem</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#registerAnimation">registerAnimation</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#selectOnly">selectOnly</a></li><li><a href="global.html#selectTool">selectTool</a></li><li><a href="global.html#setupRectangle">setupRectangle</a></li><li><a href="global.html#ungroup">ungroup</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun Apr 16 2017 10:20:43 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun Apr 16 2017 14:33:59 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

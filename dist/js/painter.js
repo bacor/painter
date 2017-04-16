@@ -11,6 +11,233 @@ paper.install(window);
  * @type {Object}
  */
 var P = {};
+
+// var PainterRectangle = function(args) {
+// // if(!(this instanceof PainterRectangle)) return new PainterRectangle(arguments);
+// 	console.log('asdfasdfs', args)
+// 	var rectangle = new Path.Rectangle([20,30,100,140]);
+
+// 	return rectangle
+// }
+// 
+
+
+paper.Item.inject({
+	
+	/**
+	 * Show the bounding box of the current item
+	 * @return {Item|Boolean} The current item or false if it is not an Artefact
+	 */
+	showBoundingBox: function() {
+		if(!this.isArtefact()) return false;
+		if(this.bbox) {
+			this.bbox.visible = true;
+		} else {
+			this.bbox = getBoundingBox(this);
+			this.bbox.item = this;
+			this.insertBelow(this.bbox);
+		}
+		return this;
+	},
+
+	/**
+	 * Hide the bounding box
+	 * @return {Item}
+	 */
+	hideBoundingBox: function() {
+		if(this.bbox) this.bbox.visible = false;
+		return this;
+	},
+
+	removeBoundingBox: function() {
+		this.hideBoundingBox();
+		if(this.bbox) this.bbox.remove();
+	},
+
+	/**
+	 * (Re)draws the bounding box
+	 * @return {Item}
+	 */
+	redrawBoundingBox: function() {
+		if(this.bbox) this.bbox.remove();
+		this.bbox = undefined;
+		return this.showBoundingBox();
+	},
+
+	/**
+	 * Test if this is a bounding box
+	 * @return {Boolean} True if this item is a bounding box
+	 */
+	isBoundingBox: function() {
+		return this.type == 'boundingBox';
+	},
+
+	/**
+	 * Test if this is an artefact
+	 * @return {Boolean} True if this item is an artefact
+	 */
+	isArtefact: function() {
+		return this._artefact === true;
+	},
+
+	/**
+	 * Test if this is selected
+	 * @return {Boolean} True if this item is selected
+	 */
+	isSelected: function() {
+		return this.bbox != undefined && this.bbox.visible == true;
+	},
+
+	/**
+	 * Select the current item
+	 * 
+	 * @return {Item} The current item
+	 */
+	select: function() {
+		if(this.isSelected()) return true;
+		this.showBoundingBox();
+		if(this.hasAnimation()) 
+			this.getAnimation().drawHandles();
+		return this;
+	},
+
+	/**
+	 * Deselect this item
+	 *
+	 * Removes the bounding box and animation handles if they exist.
+	 * @return {Item} The current item
+	 */
+	deselect: function() {
+		this.hideBoundingBox();
+		this.strokeColor = undefined;
+		this.dashArray = undefined;
+		if(this.hasAnimation())
+			this.getAnimation().removeHandles();
+		return this;
+	},
+
+	/**
+	 * Animate the item.
+	 * 
+	 * @param  {String} type       The type of animation, e.g. 'bounce' or 'rotate'.
+	 * @param  {Object} properties Properties for this animation. The shape of this object
+	 * differs across types of animations. 
+	 * @return {Animation}         The animation object
+	 */
+	animate: function(type, properties) {
+		
+		if(this.hasAnimation()) {
+			var anim = this.getAnimation();
+			anim.remove();
+			delete anim
+		}
+
+		this.data.animation = new P.Animation(this, type, properties);
+		return this.getAnimation();
+	},
+
+	/**
+	 * Get the animation object 
+	 * 
+	 * @return {Animation|Boolean} The animation object, an instance of {@link Animation}
+	 * or `false` if no animation exists.
+	 */
+	getAnimation: function() {
+		return this.data.animation ? this.data.animation : false;
+	},
+
+	hasAnimation: function(type=false) {
+		var anim = this.getAnimation();
+		if(!anim) return false;
+		if(anim.type == undefined) return false; // remove?
+		if(type) return anim.type == type;
+		return true;
+	},
+
+	isAnimating: function() {
+		return this.hasAnimation() ? this.getAnimation().isActive() : false;
+	},
+
+	/**
+	 * Move the item by a specified distance.
+	 *
+	 * Repositioning the item directly gives undesired results, since the item
+	 * has a bounding box and possibly animation handles that also need to be 
+	 * repositioned. That is what this function takes care of.
+	 *
+	 * @todo Use a general transform function instead?
+	 * 
+	 * @param  {paper.Point} delta The distance by which the item should be moved.
+	 * @return {Item} The current item
+	 */
+	move: function(delta) {
+
+		// Move the item
+		this.position = this.position.add(delta);
+
+		// Bounding box, only if it exists
+		if(this.bbox) this.bbox.position = this.bbox.position.add(delta);
+
+		// if(isGroup(this)) {
+		// 	this.children.map(function(item){ 
+		// 		item.redrawBoundingBox(); 
+		// 		item.hideBoundingBox();
+		// 	});
+		// }
+		
+		// Move the animation. We just apply a specific type of transformation:
+		// a translation. The rest should be handled by the animation.
+		if(this.hasAnimation()) {
+			var matrix = new Matrix().translate(delta);
+			this.getAnimation().transform(matrix);
+
+			// Todo: history
+			// if(item.animation && item.animation._prevAnimation) {
+			// 	item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
+			// }
+		}
+
+
+
+		return this;
+	},
+
+	getShadowBounds: function() {
+		if(!isGroup(this)) {
+			return this.bbox ? this.bbox.children['shadow'].bounds : false;
+		}
+
+		// For groups we combine all shadow bounds. In that case, the bound
+		// does not change when children are animated.
+		var bounds;
+		for(var i=0; i<this.children.length;i++){
+			var child = this.children[i];
+			if(child.isArtefact()) {
+				var childBounds = child.getShadowBounds();
+
+				// Transform the child bounds by the groups transformation matrix
+				var topLeft = childBounds.topLeft.transform(this.matrix);
+				var bottomRight = childBounds.bottomRight.transform(this.matrix);
+				childBounds = new Rectangle(topLeft, bottomRight);
+
+				// Extend the bounds by the child's bounds
+				bounds = bounds ? bounds.unite(childBounds) : childBounds;
+			}
+		}
+		return bounds
+	},
+
+	getShadow: function() {
+		return this.bbox.children['shadow'];
+	},
+
+	transformAll: function(matrix) {
+		this.transform(matrix);
+		if(this.bbox) this.bbox.transform(matrix);
+		if(this.hasAnimation()) this.getAnimation().transform(matrix);
+	}
+
+});
 ;/**
  * History
  *
@@ -104,9 +331,11 @@ P.History = (function() {
  * This file contains various helpers
  */
 
+function setupRectangle(item) {}
 
 function setupItem(item) {
 	item.animation = undefined;
+	item._artefact = true;
 }
 
 /********************************************************/
@@ -156,7 +385,7 @@ function getBoundingBox(item) {
 	if(!isCircular(item)) {
 
 		// The item's shadow
-		if(isGroup(item)) var bounds = getBounds(item);
+		if(isGroup(item)) var bounds = item.getShadowBounds();
 		shadow = isGroup(item) ? new Path.Rectangle(bounds) : item.clone();
 
 		// The border of the bounding box (expanded slightly)
@@ -182,6 +411,7 @@ function getBoundingBox(item) {
 	if(isCircular(item)) {
 		shadow = item.clone();
 		var radius = (item.bounds.width + 12) / 2
+		console.log(item)
 		var center = item.position 
 		var border = new Path.Circle(item.position, radius)
 		border.strokeColor = mainColor
@@ -210,37 +440,10 @@ function getBoundingBox(item) {
 	return bbox;
 }
 
-function showBoundingBox(item) {
-	if(item instanceof Array) return item.map(showBoundingBox);
-
-	if(item.bbox) {
-		item.bbox.visible = true
-	}
-	else {
-		bbox = getBoundingBox(item);
-		bbox.item = item;
-		item.bbox = bbox;
-		item.insertBelow(bbox)
-	}
-}
-
-function hideBoundingBox(item) {
-	if(item instanceof Array) return item.map(hideBoundingBox);
-	if(item.bbox) item.bbox.visible = false;
-}
-
-function redrawBoundingBox(item) {
-	if(item instanceof Array) return item.map(redrawBoundingBox);
-	if(item.bbox) item.bbox.remove();
-	item.bbox = undefined;
-
-	return showBoundingBox(item);
-}
-
-function getShadowBounds(item){
-	if(!item.bbox) return false;
-	return item.bbox.children['shadow'].bounds
-}
+// function getShadowBounds(item){
+// 	if(!item.bbox) return false;
+// 	return item.bbox.children['shadow'].bounds
+// }
 
 /**
  * Returns the proper bounds of elements, ignoring animations
@@ -255,24 +458,25 @@ function getShadowBounds(item){
  * @return {Rectangle}      The proper bounds
  */
 function getBounds(item){
-	if(!isGroup(item)) return getShadowBounds(item);
+	return item.getShadowBounds();
+	// if(!isGroup(item)) return getShadowBounds(item);
 
-	// For groups we combine all shadow bounds. In that case, the bound
-	// does not change when children are animated.
-	var bounds;
-	for(var i=0; i<item.children.length;i++){
-		var child = item.children[i]
-		if(isItem(child)) {
-			childBounds = getBounds(child)
-			bounds = bounds ? bounds.unite(childBounds) : childBounds;
-		}
-	}
+	// // For groups we combine all shadow bounds. In that case, the bound
+	// // does not change when children are animated.
+	// var bounds;
+	// for(var i=0; i<item.children.length;i++){
+	// 	var child = item.children[i]
+	// 	if(child.isArtefact()) {
+	// 		childBounds = getBounds(child)
+	// 		bounds = bounds ? bounds.unite(childBounds) : childBounds;
+	// 	}
+	// }
 
 	// Apply possible group transformations
 	// var _tmp = new Path.Rectangle(bounds);
 	// bounds = _tmp.transform(item.matrix).bounds
 	// _tmp.remove()
-	return bounds
+	// return bounds
 }
 
 /**
@@ -288,13 +492,7 @@ function getBounds(item){
  */
 function select(item) {
 	if(item instanceof Array) return item.map(select);
-	if(!item || isSelected(item)) return;
-	showBoundingBox(item)
-
-	if(hasAnimation(item))
-		drawAnimationHandles(item);
-
-	// if(isGroup(item)) item.children.map(showBoundingBox);
+	item.select();
 }
 
 /**
@@ -306,10 +504,8 @@ function select(item) {
  * @return {None}
  */
 function deselect(item) {
-	hideBoundingBox(item);
-	item.strokeColor = undefined;
-	item.dashArray = undefined;
-	removeAnimationHandles(item);
+	if(item instanceof Array) return item.map(deselect);
+	item.deselect()
 }
 
 /**
@@ -322,9 +518,7 @@ function deselect(item) {
  * @return {None}
  */
 function deselectAll(items) {
-	var items = project.getItems({
-		match: isSelected
-	})
+	var items = getSelected();
 
 	for(var i=0; i<items.length;i++) {
 		deselect(items[i])
@@ -346,31 +540,13 @@ function selectOnly(item) {
  * @param  {Function} match The match function, defaults to isSelected
  * @return {Array}       Selected items
  */
-function getSelected(match=isSelected) {
+function getSelected() {
 	return project.getItems({
-		match: match
+		match: function(i) { return i.isSelected() }
 	})
 }
 
 /********************************************************/
-
-/**
- * Test if an item is selected
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isSelected(item) {
-	return item.bbox != undefined && item.bbox.visible == true
-}
-
-/**
- * Test if an item is a bounding box
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isBoundingBox(item) {
-	return item.type == 'boundingBox'
-}
 
 /**
  * Test if an item is rectangular. 
@@ -446,40 +622,6 @@ function inGroup(item) {
 	return false;
 }
 
-/**
- * Tests if a group has been hit
- * @param  {HitResult} hitResult 
- * @return {Boolean}
- */
-function hitGroup(hitResult) {
-	return inGroup(hitResult.item)
-}
-
-function hasAnimation(item, type=false) {
-	if(item.animation == undefined) return false; 
-	if(item.animation.type == undefined) return false;
-	if(type) return item.animation.type == type;
-	return true;
-}
-
-function isAnimating(item, type=false) {
-	return hasAnimation(item, type) && item.animation.active == true;
-} 
-
-/**
- * Test if an item is rotating
- * @param  {Item}  item 
- * @return {Boolean}    
- */
-function isRotating(item) {
-	return isAnimating(item, 'rotate')
-}
-
-function isItem(item) {
-	if(isRectangular(item) || isCircular(item)) return true;
-	if(isGroup(item) && !isBoundingBox(item)) return true;
-	return false
-}
 /********************************************************/
 
 /**
@@ -608,38 +750,6 @@ function getOuterGroup(item) {
 
 /********************************************************/
 
-/**
- * Move an item, its bounding box and animation.
- *
- * This function moves all the objects related to an item: its
- * bounding box and the animation. The animation is moved by calling
- * the `onTransform` method with a translation matrix. 
- *
- * @todo Why not have a general `transformItem` function?
- * @param  {item} item  	
- * @param  {Point} delta 
- * @return {None}      
- */
-function moveItem(item, delta) {
-	if(item instanceof Array) 
-		return item.map(function(i) { moveItem(i, delta) });
-
-	// Move the item
-	item.position = item.position.add(delta);
-
-	// Bounding box, only if it exists
-	if(item.bbox) item.bbox.position = item.bbox.position.add(delta);
-	
-	// Move the animation. We just apply a specific type of transformation:
-	// a translation. The rest should be handled by the animation.
-	var matrix = new Matrix().translate(delta);
-	transformAnimation(item, matrix);
-
-	if(item.animation && item.animation._prevAnimation) {
-		item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
-	}
-}
-
 function getCenter(item) {
 	return item.bbox.children['shadow'].bounds.center;
 }
@@ -650,14 +760,14 @@ function group(theItems, _pushState=true) {
 
 	var theGroup = new Group(theItems);
 	theGroup.type = 'group'
+	setupItem(theGroup);
 	theGroup.transformContent = false;
 
-	var bounds = getBounds(theGroup)
+	var bounds = theGroup.getShadowBounds()
 	theGroup.pivot = new Point(bounds.center);
 
-	setupItem(theGroup);
-	selectOnly(theGroup)
-	startAnimation(theItems, false, true)
+	selectOnly(theGroup);
+	// startAnimation(theItems, false, true)
 
 	if(_pushState) {
 		var undo = function() {
@@ -686,27 +796,16 @@ function ungroup(theGroup, _pushState=true) {
 	if(theGroup instanceof Array) return theGroup.map(ungroup);
 	if(!isGroup(theGroup)) return;
 
-	var theItems = theGroup.removeChildren().filter(isItem);
+	var theItems = theGroup.removeChildren().filter(function(i){ return i.isArtefact() });
 	var parent = theGroup.parent ? theGroup.parent : project.activeLayer;
 	parent.insertChildren(theGroup.index, theItems);
 
-	// Transform children just like the group
-	for(var i=0; i<theItems.length; i++){
-		var item = theItems[i];
-		
-		if(!hasAnimation(theGroup)) {
-			item.transform(theGroup.matrix);
-			if(item.bbox) item.bbox.transform(theGroup.matrix);
-		}
-		
-		// Only called if hasAnimation(item)
-		transformAnimation(item, theGroup.matrix);
-	}
-
+	// Stop the animation, to get the actual transformation of the group
+	if(theGroup.hasAnimation()) theGroup.getAnimation().stop();
+	theItems.map(function(item) { item.transformAll(theGroup.matrix) });
+	
 	// Remove and reset
-	deselect(theGroup);
-	theGroup.remove();
-	select(theItems)
+	theGroup.destroy();
 
 	if(_pushState) {
 		var undo = function() {
@@ -726,7 +825,6 @@ function deleteSelection() {
 		deselect(items[i])
 		items[i].remove()
 	}
-
 
 	var undo = function() {
 		items.map(function(i){ project.activeLayer.addChild(i) })
@@ -765,14 +863,14 @@ function clone(item, move=[0,0]) {
 	copy.position = copy.position.add(move);
 
 	// Animate the item!
-	if(hasAnimation(item)) {
+	if(item.hasAnimation()) {
 		var type = item.animation.type,
 				props = item.animation.properties;
 		var onClone = animations[type].onClone || function() {};
 		var newProps = jQuery.extend(true, {}, props);
 		select(copy);
-		initAnimation(copy, type, newProps);
-		if(isAnimating(item)) startAnimation(copy);
+		copy.animate(type, newProps);
+		if(item.isAnimating()) copy.getAnimation().start();
 	}
 
 	return copy;
@@ -822,190 +920,194 @@ function changeColorSelection() {
 		var item = items[i];
 		item.fillColor = getActiveSwatch();
 	}
-};
-var initAnimation, startAnimation, stopAnimation, resetAnimation;
-
-
-/**
+};/**
  * All registered animations
  * @type {Object}
  */
-var animations = {}
+P.animations = {}
 
 /**
- * Initialize an animation.
- *
- * Set up an item to be able to start an animation later on.
- * @param  {mixed} item        The item
- * @param  {string} type       The type of animation
- * @param  {object} properties An object of animation properties
- * @return {item}        		   The item
+ * @name Animation
+ * @class
  */
-function initAnimation(item, type, properties) {
-	// Remove old animations
-	resetAnimation(item)
-	if(hasAnimation(item)) item.animation.handles.remove();
-	if(!item.animation) item.animation = {};
-	if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
-	
-	item.animation.type = type;
-	item.animation.properties = jQuery.extend(true, {}, properties);
+P.Animation = Base.extend(/** @lends Animation */{
 
-	var onInit = animations[type].onInit || function(){};
-	onInit(item, properties);
-	
-	drawAnimationHandles(item)
+	/**
+	 * The type of this animation, e.g. rotate or 'bounce'
+	 * @type {String}
+	 */
+	type: '',
 
-	return item;
-}
+	/**
+	 * The Paper item being animated
+	 * @type {paper.Item}
+	 */
+	item: undefined,
 
-/**
- * Starts an animation
- * @param  {item/array} item		 An item or array of items
- * @param  {string} type  The type of animation to start
- * @return {Boolean}			`true` on success; `false` if item does not have this  animation
- */
-function startAnimation(item, type=false, recurse=true) {
-	if(item instanceof Array) 
-		return item.map(function(i) { startAnimation(i, type, recurse) });
-	if(isGroup(item) && recurse) 
-		startAnimation(item.children, type, false);
-	if(!hasAnimation(item, type)) 
-		return false;
+	/**
+	 * The properties determining the animation
+	 * @type {Object}
+	 */
+	properties: {},
 
-	var type = type || item.animation.type;
-	item.animation.active = true;
-	var onStart = animations[type].onStart || function(){};
-	onStart(item, item.animation.properties);
-
-	item.onFrame = function(event) {
-		animations[type].onFrame(this, this.animation.properties, event)
-		if(isSelected(this)) {
-			drawAnimationHandles(this, type, this.animation.properties);
+	/**
+	 * Initialize an animation.
+	 *
+	 * @name  Animation
+	 * @param  {paper.Item} item The Paper item to animate.
+	 * @param  {String} type Animation type, such as 'bounce' or 'rotate'.
+	 * @param  {Object} properties Default properties.
+	 * @return {Animation}
+	 */
+	initialize: function(item, type, properties) {
+		this.item = item;
+		this.type = type;
+		this.properties = jQuery.extend(true, {}, properties);
+		
+		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
+		
+		// Load all animation-specific methods.
+		var methods = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
+		'onTransform', 'onDrawHandles', 'onUpdate'];
+		for(var i=0; i<methods.length; i++) {
+			var method = methods[i];
+			this['_'+method] = P.animations[this.type][method] || function() {};
 		}
+		
+		this._onInit(this.item, this.properties);
+		this.drawHandles();
+		return this;
+	},
+
+	/**
+	 * Draw the animation handles
+	 * 
+	 * @return {Animation}
+	 */
+	drawHandles: function() {
+		// Clean up old animations
+		this.removeHandles();
+
+		// Draw handles
+		this.handles = this._onDrawHandles(this.item, this.properties);
+		this.handles.parent = this.item.bbox;
+		this.handles.type = 'handle:animation';
+		return this.handles;
+	},
+
+	/**
+	 * Remove the animation handles
+	 * 
+	 * @return {Animation}
+	 */
+	removeHandles: function() {
+		if(this.handles) this.handles.remove();
+		return this;
+	},
+
+	/**
+	 * Update the properties of the animation. The update is often triggered by 
+	 * an event, such as a ToolEvent fired when moving the animation handles. In 
+	 * this case, the event itself can be passed to the update function. 
+	 * Alternatively, you can feed an object with the new properties.
+	 *
+	 * @param {paper.Event|Object} argument Either a Paper event or an object 
+	 * with properties.
+	 * @return {Object} The updated properties
+	 */
+	update: function(argument) {
+		var properties;
+		if(argument instanceof paper.Event) {
+			properties = this._onUpdate(this.item, this.properties, argument);
+		} else {
+			properties = argument;
+		}
+
+		this.properties = $.extend(this.properties, properties);
+		this.drawHandles();
+		return this.properties;
+	},
+
+	/**
+	 * Start the animation
+	 * @param  {Boolean} recurse [description]
+	 * @return {Animation}
+	 */
+	start: function(recurse=true) {
+		// if(isGroup(item) && recurse) 
+		// 	startAnimation(item.children, type, false);
+		
+		this.active = true;
+		this._onStart(this.item, this.properties);
+
+		// Start the animation
+		this.item.onFrame = function(event) {
+			var anim = this.getAnimation();
+			anim._onFrame(this, anim.properties, event);
+			if(this.isSelected()) anim.drawHandles();
+		}
+
+		return this;
+	},
+
+	/**
+	 * Pause the animation in its current state.
+	 * @return {Animation}
+	 */
+	pause: function() {
+		this.active = false;
+		this.item.onFrame = undefined;
+		this._onPause(this.item, this.properties);
+		return this;
+	},
+
+	/**
+	 * Stops the animation: pause the animation and reset the item to its original state.
+	 * @param  {Boolean} recurse Good question...
+	 * @return {Animation}
+	 */
+	stop: function(recurse=false) {
+		// if(isGroup(item) && recurse) resetAnimation(item.children, true);
+
+		// Stop animation
+		this.pause();
+		this._onStop(this.item, this.properties);
+
+		// Update bounding box etc.
+		this.item.redrawBoundingBox();
+		return this;
+	},
+
+	/**
+	 * Remove the animation. It does not actually remove the animation object,
+	 * but resets the animation and removes all items drawn on the canvas, such
+	 * as handles.
+	 * @return {Animation}
+	 */
+	remove: function() {
+		this.stop();
+		this.removeHandles();
+	},
+
+	/**
+	 * Apply a transformation to the animation
+	 * @param  {paper.Matrix} matrix The transformation matrix
+	 * @return {Animation}        [description]
+	 */
+	transform: function(matrix) {
+		this._onTransform(this.item, this.properties, matrix);
+		return this;
+	},
+
+	/**
+	 * Test if this animation is active: if the animation is currently running.
+	 * If the animation is paused or stopped, `isActive` returns `false`.
+	 * @return {Boolean}
+	 */
+	isActive: function() {
+		return this.active == true;
 	}
-	return true;
-}
-
-/**
- * Stops an animation
- *
- * Stops the animation in its current state. The animation can be continued by
- * calling `startAnimation`. The function fires the `onStop` method of the 
- * current animation type.
- * @param  {item} item 
- * @return {Boolean}			`true` on success; `false` if item does not have this  animation
- */
-function stopAnimation(item) {
-	if(item instanceof Array)
-		return item.map(function(i) { stopAnimation(i) });
-	if(!hasAnimation(item)) 
-		return false;
-
-	var type = item.animation.type;
-	item.animation.active = false;
-	item.onFrame = undefined;
-
-	var onStop = animations[type].onStop || function(){};
-	onStop(item, item.animation.properties);
-	return true;
-}
-
-/**
- * Reset an animation
- *
- * The item is restored to it original, unanimated state.
- * @param  {item} item 
- * @param  {String} type type of animation
- * @return {Boolean}     `true` on success; `false` if item does not have this  animation
- */
-function resetAnimation(item, recurse=false) {
-	if(item instanceof Array)
-		return item.map(function(i) { resetAnimation(i, recurse) });
-	if(!isItem(item)) return false;
-	if(isGroup(item) && recurse) resetAnimation(item.children, true);
-	if(!hasAnimation(item)) return false;
-
-	var type = item.animation.type;
-	stopAnimation(item, type);
-
-	// Do animation specific stuff
-	var onReset = animations[type].onReset || function(){}
-	onReset(item, item.animation.properties);
-
-	// Update bounding box etc.
-	redrawBoundingBox(item);
-	return true;
-}
-
-/**
- * Draws the animation handles for an item
- *
- * It uses the drawing method in the animation object.
- * @param  {item} item 
- * @return {Group} The animation handles
- */
-function drawAnimationHandles(item) {
-	
-	// Clean up old animations
-	removeAnimationHandles(item)
-
-	// Draw handles
-	var type = item.animation.type;
-	var props = item.animation.properties;
-
-	var drawHandles = animations[type].drawHandles || function() {};
-	var handles = drawHandles(item, props);
-	handles.parent = item.bbox;
-	handles.type = 'handle:animation';
-	item.animation.handles = handles;	
-
-	return handles;
-}
-
-/**
- * Remove the animation handles for an item.
- * @param  {item} item 
- * @return {None}      
- */
-function removeAnimationHandles(item) {
-	if(item.animation && item.animation.handles)
-		item.animation.handles.remove();
-}
-
-/**
- * Applies a transformation to the animation
- * @param  {item} item   
- * @param  {Matrix} matrix the matrix
- * @return {None}        
- */
-function transformAnimation(item, matrix) {
-	if(item instanceof Array)
-		return item.map(function(i) { transformAnimation(i, matrix) });
-	if(!isItem(item)) return false;
-	if(!hasAnimation(item)) return false;
-
-	var type = item.animation.type; 
-	var properties = item.animation.properties;
-	animations[type].onTransform(item, properties, matrix);
-}
-
-/**
- * Update the animation properties of an item 
- * @param  {item} item       
- * @param  {Object} properties An object with animation properties
- * @return {Object}            The updated properties
- */
-function updateAnimation(item, properties, event) {
-	if(!properties) {
-		var type = item.animation.type
-		var onUpdate = animations[type].onUpdate || function() {};
-		var properties = onUpdate(item, item.animation.properties, event);
-	}
-	item.animation.properties = $.extend(item.animation.properties, properties);
-	drawAnimationHandles(item)
-	return item.animation.properties
-}
+})
 
 /**
  * Register an animation
@@ -1015,6 +1117,7 @@ function updateAnimation(item, properties, event) {
  * has a single parameter: the center point around which the item rotates. 
  * The drawing app iteracts with the animation through various functions. The 
  * most important ones are
+ * 
  * - `onUpdate(item, properties, event)` should update the properties object 
  * 		based on a mouse event. This function is called whenever the animation 
  * 		tool is active and the mouse moves. The properties determined here are
@@ -1025,83 +1128,93 @@ function updateAnimation(item, properties, event) {
  * - `onTransform(item, properties, matrix)` handles a transform of the item.
  * 		The properties probably contain some point in a relative coordinate system.
  * 		This function should apply the matrix to that point.
- * - `onReset(item, properties)` Should undo the animation and reset the item.
+ * - `onStop(item, properties)` Should undo the animation and reset the item.
+ * 
  * @param  {String} type              Name of the animation
  * @param  {Object} animation         Animation object
  * @param  {Object} defaultProperties Default properties
- * @return {None}                   
+ * @return {Object} The animation                   
  */
-function registerAnimation(type, animation, defaultProperties) {
+P.registerAnimation = function(type, animation, defaultProperties) {
 
 	// Set up the animation tool
 	if(!animation.tool) animation.tool = new Tool();
 
 	// The current item on which the tool works.
-	var currentItem;
+	var item;
 
 	// On Mouse Down
-	animation.tool.onMouseDown = animation.tool.onMouseDown || function(event) {
-		currentItem = getSelected()[0]
-		if(currentItem == undefined) {
+	var _onMouseDown = function(event) {
+		item = getSelected()[0]
+		if(item == undefined) {
 			hitResult = project.hitTest(event.point, {
 				fill: true, tolerance: 5
 			})
 			
 			if(!hitResult) return false;
-			currentItem = hitResult.item			
+			item = hitResult.item			
 		}
-		selectOnly(currentItem);
+		selectOnly(item);
 
 		// Set up animation
-		initAnimation(currentItem, type, defaultProperties)
+		var anim = item.animate(type, defaultProperties);
+
+		// if(!item.animation) item.animation = {};
+		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 		
 		// Update the properties.
-		updateAnimation(currentItem, undefined, event);
-
+		anim.update(event);
 	}
 
 	// Mouse drag event
-	animation.tool.onMouseDrag = animation.tool.onMouseDrag || function(event) {
-		if(!currentItem) return;
-		updateAnimation(currentItem, undefined, event);
+	var _onMouseDrag = function(event) {
+		if(!item) return;
+		item.getAnimation().update(event);
 	}
 
 	// Mouse up event
-	animation.tool.onMouseUp = animation.tool.mouseUp || function(event) {
-		if(!currentItem) return;
-		startAnimation(currentItem);
+	var _onMouseUp = function(event) {
+		if(!item) return;
+		item.getAnimation().start();
+		
+		// var item = currentItem;
+		// var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
+		// var curAnimation = jQuery.extend(true, {}, item.animation);
+		// item.animation._prevAnimation = curAnimation;
 
-		var item = currentItem;
-		var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
-		var curAnimation = jQuery.extend(true, {}, item.animation);
-		item.animation._prevAnimation = curAnimation;
+		// var undo = function() {
+		// 	resetAnimation(item);
 
- 		var undo = function() {
- 	 		resetAnimation(item);
+		// if(Object.keys(prevAnimation).length == 0) {
+		// item.animation._prevAnimation = {}
+		// item.animation = {}
+		// } else {
+		// item.animation = prevAnimation
+		// updateAnimation(item, prevAnimation.properties)
+		// startAnimation(item)
+		// }
+		// }
 
-			if(Object.keys(prevAnimation).length == 0) {
-				item.animation._prevAnimation = {}
-				item.animation = {}
-			} else {
-	 			item.animation = prevAnimation
-	 			updateAnimation(item, prevAnimation.properties)
-	 			startAnimation(item)
-	 		}
- 		}
+		// var redo = function() {
+		// 	resetAnimation(item)
+		// 	item.animation = curAnimation
+		// 	updateAnimation(item, curAnimation.properties)
+		// 	startAnimation(item)
+		// 	select(item)
+		// }
 
- 		var redo = function() {
- 			resetAnimation(item)
- 			item.animation = curAnimation
- 			updateAnimation(item, curAnimation.properties)
- 			startAnimation(item)
- 			select(item)
- 		}
-
-		P.History.registerState(undo, redo);
+		// P.History.registerState(undo, redo);
 	}
 
+	// Store methods if none exist
+	animation.tool.onMouseDrag = animation.tool.onMouseDown || _onMouseDown;
+	animation.tool.onMouseDrag = animation.tool.onMouseDrag || _onMouseDrag;
+	animation.tool.onMouseUp = animation.tool.mouseUp || _onMouseUp;
+
 	// Store!
-	animations[type] = animation;
+	P.animations[type] = animation;
+
+	return animation;
 };/**
  * Register the bounce animation
  * @return {null}
@@ -1129,13 +1242,13 @@ function registerAnimation(type, animation, defaultProperties) {
 	}
 
 	// Reset
-	bounce.onReset = function(item, props) {
+	bounce.onStop = function(item, props) {
 		item.position = props.startPoint.add(props.position)
 		props.position = 0;
 	}
 
 	// Draws the handles
-	bounce.drawHandles = function(item, props) {
+	bounce.onDrawHandles = function(item, props) {
 		var line, dot1, dot2, handles;
 		
 		line = new Path.Line(props.startPoint, props.endPoint)
@@ -1168,7 +1281,7 @@ function registerAnimation(type, animation, defaultProperties) {
 	}
 
 	// Register the animation
-	registerAnimation('bounce', bounce, { speed: 2, position: 0 })
+	P.registerAnimation('bounce', bounce, { speed: 2, position: 0 })
 
 })();
 /**
@@ -1190,8 +1303,6 @@ circleTool.onMouseDown = function(event) {
 }
 
 circleTool.onMouseDrag = function(event) {
-	// todo: this is not the illustrator-type behaviour. 
-	// Is that a problem?
 	var color = circle.fillColor;
 	var diff = event.point.subtract(event.downPoint)
 	var radius = diff.length / 2
@@ -1241,7 +1352,9 @@ var currentItems;
 dragTool.onMouseDown = function(event) {}
 
 dragTool.onMouseDrag = function(event) {
-	moveItem(currentItems, event.delta)
+	currentItems.map(function(item) {
+		item.move(event.delta)
+	})
 }
 
 dragTool.onMouseUp = function(event) {
@@ -1274,7 +1387,7 @@ manipulateTool.onSwitch = function(event) {
 
 manipulateTool.onMouseDrag = function(event) {
 	if(currentItems.length == 1) {
-			var item = currentItems[0]
+			var item = currentItems[0];
 
 			// Rectangle!
 			if( isRectangular(item) ) {
@@ -1289,8 +1402,8 @@ manipulateTool.onMouseDrag = function(event) {
 				// Move segments
 				// To do: this is still a bit buggy... You sometimes get crosses, or the
 				// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
-				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
-				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
+				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x));
+				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y));
 				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
 				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
 				sameX.point   = sameX.point.add([deltaX, 0]);
@@ -1298,12 +1411,12 @@ manipulateTool.onMouseDrag = function(event) {
 				segment.point = segment.point.add([deltaX, deltaY]);
 
 				// Update bounding box
-				redrawBoundingBox(item)
+				item.redrawBoundingBox();
 
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
 				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor
+				newHandle.fillColor = mainColor;
 			}
 
 			// Circles are just scaled
@@ -1314,8 +1427,8 @@ manipulateTool.onMouseDrag = function(event) {
 						radius = item.bounds.width,
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor)
-				redrawBoundingBox(item);
+				item.scale(scaleFactor);
+				item.redrawBoundingBox();
 
 				// Color the selected handle
 				var newHandle = item.bbox.children[1];
@@ -1331,16 +1444,20 @@ manipulateTool.onMouseDrag = function(event) {
 						radius = Math.sqrt(width*width + height*height), // Diagonal
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor)
-				item.bbox.children['shadow'].scale(scaleFactor)
+				item.scale(scaleFactor);
+				item.bbox.children['shadow'].scale(scaleFactor);
 
 				// Update the selection box
-				redrawBoundingBox(item);
+				item.redrawBoundingBox();
+
+				// item.children.map(function(child) {
+				// 	child.redrawBoundingBox(); 
+				// })
 
 				// Color selected handle
-				var newHandleName = getPositionName(handle)
+				var newHandleName = getPositionName(handle);
 				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor
+				newHandle.fillColor = mainColor;
 			}
 		}
 }
@@ -1357,34 +1474,35 @@ var rectangle;
 
 rectTool.onMouseDown = function(event) {
 	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	rectangle.fillColor = getActiveSwatch()
+	setupRectangle(rectangle)
+	rectangle.fillColor = getActiveSwatch();
 }
 
 rectTool.onMouseDrag = function(event) {
-	color = rectangle.fillColor
-	rectangle.remove()
+	color = rectangle.fillColor;
+	rectangle.remove();
 	rectangle = new Path.Rectangle(event.downPoint, event.point);
-	rectangle.fillColor = color
-	rectangle.opacity = .9
+	rectangle.fillColor = color;
+	rectangle.opacity = .9;
 }
 
 rectTool.onMouseUp = function() {
-	rectangle.type = 'rectangle'
+	rectangle.type = 'rectangle';
 	setupItem(rectangle);
 
 	// Scope!
 	var rect = rectangle;
 
 	var undo = function() {
-		deselect(rect)
-		rect.remove()
+		deselect(rect);
+		rect.remove();
 	}
 
 	var redo = function() {
 		project.activeLayer.addChild(rect);
 	}
 
-	P.History.addState(undo, redo)
+	P.History.registerState(undo, redo);
 };/**
  * Register the rotate animation 
  *
@@ -1402,7 +1520,7 @@ rectTool.onMouseUp = function() {
 	}
 
 	// Reset
-	rotate.onReset = function(item, props) {
+	rotate.onStop = function(item, props) {
 
 		// Rotate the item back to its original position
 		var deg = - props.degree
@@ -1420,7 +1538,7 @@ rectTool.onMouseUp = function() {
 	}
 
 	// Draws the handles
-	rotate.drawHandles = function(item, props) {
+	rotate.onDrawHandles = function(item, props) {
 		var border, tl, br, middle, line, dot, handles;
 
 		// Determine the middle of the bounding box: average of two opposite corners
@@ -1449,7 +1567,7 @@ rectTool.onMouseUp = function() {
 	}
 
 	// Register!
-	registerAnimation('rotate', rotate, { speed: 2 })
+	P.registerAnimation('rotate', rotate, { speed: 2 })
 
 })();
 /**
@@ -1531,7 +1649,7 @@ selectTool.onMouseDown = function(event) {
 
 			// If you click outside the selection, deselect the current selection
 			// and select the thing you clicked on.
-			else if(!isSelected(item)) {
+			else if(!item.isSelected()) {
 				currentItems = [item]
 			}
 			
@@ -1572,12 +1690,15 @@ selectionTool.onMouseUp = function(event) {
 	rect = new Rectangle(event.downPoint, event.point)
 	var items = project.activeLayer.getItems({ 
 		overlapping: rect,
-	
-		// Don't match elements inside a group (the group will be selected already)
 		match: function(item) { 
-			return !inGroup(item) && !isBoundingBox(item)
+			return item.isArtefact()
 		}
 	});
+	console.log(items)
+
+	// If we put this in the match, it doesn't work?
+	items = items.filter(function(item) { return !inGroup(item) })
+	console.log(items)
 
 	// And select!
 	select(items);
@@ -1601,8 +1722,8 @@ $(window).ready(function() {
 	paper.setup('canvas');
 
 	// Hmmmm....
-	bounceTool = animations.bounce.tool
-	rotationTool = animations.rotate.tool
+	bounceTool = P.animations.bounce.tool
+	rotationTool = P.animations.rotate.tool
 	
 	function onKeyDown(event) {
 
@@ -1675,7 +1796,9 @@ $(window).ready(function() {
 	r.fillColor = getColor(0, 7)
 	// r.selected = true
 	r.type = 'rectangle'
+	setupRectangle(r)
 	setupItem(r)
+
 	c = new Path.Circle([300,100], 40)
 	c.fillColor = getColor(1, 7)
 	// c.selected = true
@@ -1693,7 +1816,7 @@ $(window).ready(function() {
 	// r.selected = true
 	r.type = 'rectangle'
 	setupItem(r)
-
+setupRectangle(r)
 	c = new Path.Circle([500,300], 40)
 	c.fillColor = getColor(4, 7)
 	// c.selected = true

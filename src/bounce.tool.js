@@ -25,13 +25,13 @@
 	}
 
 	// Reset
-	bounce.onReset = function(item, props) {
+	bounce.onStop = function(item, props) {
 		item.position = props.startPoint.add(props.position)
 		props.position = 0;
 	}
 
 	// Draws the handles
-	bounce.drawHandles = function(item, props) {
+	bounce.onDrawHandles = function(item, props) {
 		var line, dot1, dot2, handles;
 		
 		line = new Path.Line(props.startPoint, props.endPoint)
@@ -64,6 +64,6 @@
 	}
 
 	// Register the animation
-	registerAnimation('bounce', bounce, { speed: 2, position: 0 })
+	P.registerAnimation('bounce', bounce, { speed: 2, position: 0 })
 
 })()

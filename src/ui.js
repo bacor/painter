@@ -18,8 +18,8 @@ $(window).ready(function() {
 	paper.setup('canvas');
 
 	// Hmmmm....
-	bounceTool = animations.bounce.tool
-	rotationTool = animations.rotate.tool
+	bounceTool = P.animations.bounce.tool
+	rotationTool = P.animations.rotate.tool
 	
 	function onKeyDown(event) {
 
@@ -92,7 +92,9 @@ $(window).ready(function() {
 	r.fillColor = getColor(0, 7)
 	// r.selected = true
 	r.type = 'rectangle'
+	setupRectangle(r)
 	setupItem(r)
+
 	c = new Path.Circle([300,100], 40)
 	c.fillColor = getColor(1, 7)
 	// c.selected = true
@@ -110,7 +112,7 @@ $(window).ready(function() {
 	// r.selected = true
 	r.type = 'rectangle'
 	setupItem(r)
-
+setupRectangle(r)
 	c = new Path.Circle([500,300], 40)
 	c.fillColor = getColor(4, 7)
 	// c.selected = true

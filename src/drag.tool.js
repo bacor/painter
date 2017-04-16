@@ -5,7 +5,9 @@ var currentItems;
 dragTool.onMouseDown = function(event) {}
 
 dragTool.onMouseDrag = function(event) {
-	moveItem(currentItems, event.delta)
+	currentItems.map(function(item) {
+		item.move(event.delta)
+	})
 }
 
 dragTool.onMouseUp = function(event) {

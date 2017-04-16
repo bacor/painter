@@ -5,10 +5,11 @@
  * This file contains various helpers
  */
 
+function setupRectangle(item) {}
 
 function setupItem(item) {
-	console.log('asdfadf')
 	item.animation = undefined;
+	item._artefact = true;
 }
 
 /********************************************************/
@@ -58,7 +59,7 @@ function getBoundingBox(item) {
 	if(!isCircular(item)) {
 
 		// The item's shadow
-		if(isGroup(item)) var bounds = getBounds(item);
+		if(isGroup(item)) var bounds = item.getShadowBounds();
 		shadow = isGroup(item) ? new Path.Rectangle(bounds) : item.clone();
 
 		// The border of the bounding box (expanded slightly)
@@ -84,6 +85,7 @@ function getBoundingBox(item) {
 	if(isCircular(item)) {
 		shadow = item.clone();
 		var radius = (item.bounds.width + 12) / 2
+		console.log(item)
 		var center = item.position 
 		var border = new Path.Circle(item.position, radius)
 		border.strokeColor = mainColor
@@ -112,37 +114,10 @@ function getBoundingBox(item) {
 	return bbox;
 }
 
-function showBoundingBox(item) {
-	if(item instanceof Array) return item.map(showBoundingBox);
-
-	if(item.bbox) {
-		item.bbox.visible = true
-	}
-	else {
-		bbox = getBoundingBox(item);
-		bbox.item = item;
-		item.bbox = bbox;
-		item.insertBelow(bbox)
-	}
-}
-
-function hideBoundingBox(item) {
-	if(item instanceof Array) return item.map(hideBoundingBox);
-	if(item.bbox) item.bbox.visible = false;
-}
-
-function redrawBoundingBox(item) {
-	if(item instanceof Array) return item.map(redrawBoundingBox);
-	if(item.bbox) item.bbox.remove();
-	item.bbox = undefined;
-
-	return showBoundingBox(item);
-}
-
-function getShadowBounds(item){
-	if(!item.bbox) return false;
-	return item.bbox.children['shadow'].bounds
-}
+// function getShadowBounds(item){
+// 	if(!item.bbox) return false;
+// 	return item.bbox.children['shadow'].bounds
+// }
 
 /**
  * Returns the proper bounds of elements, ignoring animations
@@ -157,24 +132,25 @@ function getShadowBounds(item){
  * @return {Rectangle}      The proper bounds
  */
 function getBounds(item){
-	if(!isGroup(item)) return getShadowBounds(item);
+	return item.getShadowBounds();
+	// if(!isGroup(item)) return getShadowBounds(item);
 
-	// For groups we combine all shadow bounds. In that case, the bound
-	// does not change when children are animated.
-	var bounds;
-	for(var i=0; i<item.children.length;i++){
-		var child = item.children[i]
-		if(isItem(child)) {
-			childBounds = getBounds(child)
-			bounds = bounds ? bounds.unite(childBounds) : childBounds;
-		}
-	}
+	// // For groups we combine all shadow bounds. In that case, the bound
+	// // does not change when children are animated.
+	// var bounds;
+	// for(var i=0; i<item.children.length;i++){
+	// 	var child = item.children[i]
+	// 	if(child.isArtefact()) {
+	// 		childBounds = getBounds(child)
+	// 		bounds = bounds ? bounds.unite(childBounds) : childBounds;
+	// 	}
+	// }
 
 	// Apply possible group transformations
 	// var _tmp = new Path.Rectangle(bounds);
 	// bounds = _tmp.transform(item.matrix).bounds
 	// _tmp.remove()
-	return bounds
+	// return bounds
 }
 
 /**
@@ -190,13 +166,7 @@ function getBounds(item){
  */
 function select(item) {
 	if(item instanceof Array) return item.map(select);
-	if(!item || isSelected(item)) return;
-	showBoundingBox(item)
-
-	if(hasAnimation(item))
-		drawAnimationHandles(item);
-
-	// if(isGroup(item)) item.children.map(showBoundingBox);
+	item.select();
 }
 
 /**
@@ -208,10 +178,8 @@ function select(item) {
  * @return {None}
  */
 function deselect(item) {
-	hideBoundingBox(item);
-	item.strokeColor = undefined;
-	item.dashArray = undefined;
-	removeAnimationHandles(item);
+	if(item instanceof Array) return item.map(deselect);
+	item.deselect()
 }
 
 /**
@@ -224,9 +192,7 @@ function deselect(item) {
  * @return {None}
  */
 function deselectAll(items) {
-	var items = project.getItems({
-		match: isSelected
-	})
+	var items = getSelected();
 
 	for(var i=0; i<items.length;i++) {
 		deselect(items[i])
@@ -248,31 +214,13 @@ function selectOnly(item) {
  * @param  {Function} match The match function, defaults to isSelected
  * @return {Array}       Selected items
  */
-function getSelected(match=isSelected) {
+function getSelected() {
 	return project.getItems({
-		match: match
+		match: function(i) { return i.isSelected() }
 	})
 }
 
 /********************************************************/
-
-/**
- * Test if an item is selected
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isSelected(item) {
-	return item.bbox != undefined && item.bbox.visible == true
-}
-
-/**
- * Test if an item is a bounding box
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isBoundingBox(item) {
-	return item.type == 'boundingBox'
-}
 
 /**
  * Test if an item is rectangular. 
@@ -348,40 +296,6 @@ function inGroup(item) {
 	return false;
 }
 
-/**
- * Tests if a group has been hit
- * @param  {HitResult} hitResult 
- * @return {Boolean}
- */
-function hitGroup(hitResult) {
-	return inGroup(hitResult.item)
-}
-
-function hasAnimation(item, type=false) {
-	if(item.animation == undefined) return false; 
-	if(item.animation.type == undefined) return false;
-	if(type) return item.animation.type == type;
-	return true;
-}
-
-function isAnimating(item, type=false) {
-	return hasAnimation(item, type) && item.animation.active == true;
-} 
-
-/**
- * Test if an item is rotating
- * @param  {Item}  item 
- * @return {Boolean}    
- */
-function isRotating(item) {
-	return isAnimating(item, 'rotate')
-}
-
-function isItem(item) {
-	if(isRectangular(item) || isCircular(item)) return true;
-	if(isGroup(item) && !isBoundingBox(item)) return true;
-	return false
-}
 /********************************************************/
 
 /**
@@ -510,38 +424,6 @@ function getOuterGroup(item) {
 
 /********************************************************/
 
-/**
- * Move an item, its bounding box and animation.
- *
- * This function moves all the objects related to an item: its
- * bounding box and the animation. The animation is moved by calling
- * the `onTransform` method with a translation matrix. 
- *
- * @todo Why not have a general `transformItem` function?
- * @param  {item} item  	
- * @param  {Point} delta 
- * @return {None}      
- */
-function moveItem(item, delta) {
-	if(item instanceof Array) 
-		return item.map(function(i) { moveItem(i, delta) });
-
-	// Move the item
-	item.position = item.position.add(delta);
-
-	// Bounding box, only if it exists
-	if(item.bbox) item.bbox.position = item.bbox.position.add(delta);
-	
-	// Move the animation. We just apply a specific type of transformation:
-	// a translation. The rest should be handled by the animation.
-	var matrix = new Matrix().translate(delta);
-	transformAnimation(item, matrix);
-
-	if(item.animation && item.animation._prevAnimation) {
-		item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
-	}
-}
-
 function getCenter(item) {
 	return item.bbox.children['shadow'].bounds.center;
 }
@@ -552,14 +434,14 @@ function group(theItems, _pushState=true) {
 
 	var theGroup = new Group(theItems);
 	theGroup.type = 'group'
+	setupItem(theGroup);
 	theGroup.transformContent = false;
 
-	var bounds = getBounds(theGroup)
+	var bounds = theGroup.getShadowBounds()
 	theGroup.pivot = new Point(bounds.center);
 
-	setupItem(theGroup);
-	selectOnly(theGroup)
-	startAnimation(theItems, false, true)
+	selectOnly(theGroup);
+	// startAnimation(theItems, false, true)
 
 	if(_pushState) {
 		var undo = function() {
@@ -588,27 +470,16 @@ function ungroup(theGroup, _pushState=true) {
 	if(theGroup instanceof Array) return theGroup.map(ungroup);
 	if(!isGroup(theGroup)) return;
 
-	var theItems = theGroup.removeChildren().filter(isItem);
+	var theItems = theGroup.removeChildren().filter(function(i){ return i.isArtefact() });
 	var parent = theGroup.parent ? theGroup.parent : project.activeLayer;
 	parent.insertChildren(theGroup.index, theItems);
 
-	// Transform children just like the group
-	for(var i=0; i<theItems.length; i++){
-		var item = theItems[i];
-		
-		if(!hasAnimation(theGroup)) {
-			item.transform(theGroup.matrix);
-			if(item.bbox) item.bbox.transform(theGroup.matrix);
-		}
-		
-		// Only called if hasAnimation(item)
-		transformAnimation(item, theGroup.matrix);
-	}
-
+	// Stop the animation, to get the actual transformation of the group
+	if(theGroup.hasAnimation()) theGroup.getAnimation().stop();
+	theItems.map(function(item) { item.transformAll(theGroup.matrix) });
+	
 	// Remove and reset
-	deselect(theGroup);
-	theGroup.remove();
-	select(theItems)
+	theGroup.destroy();
 
 	if(_pushState) {
 		var undo = function() {
@@ -628,7 +499,6 @@ function deleteSelection() {
 		deselect(items[i])
 		items[i].remove()
 	}
-
 
 	var undo = function() {
 		items.map(function(i){ project.activeLayer.addChild(i) })
@@ -667,14 +537,14 @@ function clone(item, move=[0,0]) {
 	copy.position = copy.position.add(move);
 
 	// Animate the item!
-	if(hasAnimation(item)) {
+	if(item.hasAnimation()) {
 		var type = item.animation.type,
 				props = item.animation.properties;
 		var onClone = animations[type].onClone || function() {};
 		var newProps = jQuery.extend(true, {}, props);
 		select(copy);
-		initAnimation(copy, type, newProps);
-		if(isAnimating(item)) startAnimation(copy);
+		copy.animate(type, newProps);
+		if(item.isAnimating()) copy.getAnimation().start();
 	}
 
 	return copy;

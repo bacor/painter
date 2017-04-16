@@ -10,7 +10,7 @@ manipulateTool.onSwitch = function(event) {
 
 manipulateTool.onMouseDrag = function(event) {
 	if(currentItems.length == 1) {
-			var item = currentItems[0]
+			var item = currentItems[0];
 
 			// Rectangle!
 			if( isRectangular(item) ) {
@@ -25,8 +25,8 @@ manipulateTool.onMouseDrag = function(event) {
 				// Move segments
 				// To do: this is still a bit buggy... You sometimes get crosses, or the
 				// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
-				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x))
-				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y))
+				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x));
+				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y));
 				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
 				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
 				sameX.point   = sameX.point.add([deltaX, 0]);
@@ -34,12 +34,12 @@ manipulateTool.onMouseDrag = function(event) {
 				segment.point = segment.point.add([deltaX, deltaY]);
 
 				// Update bounding box
-				redrawBoundingBox(item)
+				item.redrawBoundingBox();
 
 				// Color selected handle
 				var newHandleName = getPositionName(segment);
 				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor
+				newHandle.fillColor = mainColor;
 			}
 
 			// Circles are just scaled
@@ -50,8 +50,8 @@ manipulateTool.onMouseDrag = function(event) {
 						radius = item.bounds.width,
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor)
-				redrawBoundingBox(item);
+				item.scale(scaleFactor);
+				item.redrawBoundingBox();
 
 				// Color the selected handle
 				var newHandle = item.bbox.children[1];
@@ -67,16 +67,20 @@ manipulateTool.onMouseDrag = function(event) {
 						radius = Math.sqrt(width*width + height*height), // Diagonal
 						newRadius = event.point.subtract(center).length * 2 - 6,
 						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor)
-				item.bbox.children['shadow'].scale(scaleFactor)
+				item.scale(scaleFactor);
+				item.bbox.children['shadow'].scale(scaleFactor);
 
 				// Update the selection box
-				redrawBoundingBox(item);
+				item.redrawBoundingBox();
+
+				// item.children.map(function(child) {
+				// 	child.redrawBoundingBox(); 
+				// })
 
 				// Color selected handle
-				var newHandleName = getPositionName(handle)
+				var newHandleName = getPositionName(handle);
 				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor
+				newHandle.fillColor = mainColor;
 			}
 		}
 }

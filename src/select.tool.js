@@ -78,7 +78,7 @@ selectTool.onMouseDown = function(event) {
 
 			// If you click outside the selection, deselect the current selection
 			// and select the thing you clicked on.
-			else if(!isSelected(item)) {
+			else if(!item.isSelected()) {
 				currentItems = [item]
 			}
 			
