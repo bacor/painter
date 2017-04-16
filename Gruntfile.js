@@ -59,6 +59,21 @@ module.exports = function(grunt) {
       },
     },
 
+    jsdoc : {
+      dist : {
+        src: ['src/*.js'],
+        options: {
+            destination: 'docs'
+        },
+        configure: {
+          "plugins": ["plugins/markdown"],
+          "markdown": {
+            "tags": ["summary"]
+          }
+        }
+      }
+    }
+
   });
 
   grunt.loadNpmTasks('grunt-contrib-watch');
@@ -66,7 +81,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-sass');
   grunt.loadNpmTasks('grunt-newer')
+  grunt.loadNpmTasks('grunt-jsdoc');
+
 
   grunt.registerTask('dist', ['sass', 'copy', 'concat:dev']);
+  // grunt.registerTask('doc', [])
   // grunt.registerTask('dist', ['sass', 'concat:dependencies', 'concat:dev']);
 };

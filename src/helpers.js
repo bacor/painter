@@ -7,6 +7,7 @@
 
 
 function setupItem(item) {
+	console.log('asdfadf')
 	item.animation = undefined;
 }
 
