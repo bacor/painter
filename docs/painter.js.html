@@ -1,64 +1,459 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>JSDoc: Source: painter.js</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>DocStrap Source: painter.js</title>
 
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+	<!--[if lt IE 9]>
+	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+	<link type="text/css" rel="stylesheet" href="styles/sunlight.default.css">
+
+	<link type="text/css" rel="stylesheet" href="styles/site.cosmo.css">
+
 </head>
 
 <body>
 
-<div id="main">
+<div class="navbar navbar-default navbar-fixed-top navbar-inverse">
+<div class="container">
+	<div class="navbar-header">
+		<a class="navbar-brand" href="index.html">DocStrap</a>
+		<button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#topNavigation">
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+        </button>
+	</div>
+	<div class="navbar-collapse collapse" id="topNavigation">
+		<ul class="nav navbar-nav">
+			
+			<li class="dropdown">
+				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="P.html">P</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="Animation.html">Animation</a></li><li><a href="Artefact.html">Artefact</a></li><li><a href="Artefact.Circle.html">Artefact.Circle</a></li><li><a href="Artefact.Group.html">Artefact.Group</a></li><li><a href="Artefact.Rectangle.html">Artefact.Rectangle</a></li><li><a href="History.html">History</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#manipulateTool">manipulateTool</a></li><li><a href="global.html#mmap">mmap</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#selectTool">selectTool</a></li>
+				</ul>
+			</li>
+			
+		</ul>
+        
+            <div class="col-sm-3 col-md-3">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
+                        <div class="input-group-btn">
+                            <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        
+	</div>
 
-    <h1 class="page-title">Source: painter.js</h1>
+</div>
+</div>
 
+
+<div class="container" id="toc-content">
+<div class="row">
+
+	
+	<div class="col-md-12">
+	
+		<div id="main">
+			
+
+		<h1 class="page-title">Source: painter.js</h1>
     
-
-
-
-    
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>/**
+<section>
+    <article>
+        <pre
+            class="sunlight-highlight-javascript linenums">/**
  * Painter.js
  */
-
-// Probably want to get rid of this and use 
-// the paper namespace everywhere
-paper.install(window);
 
 /**
  * Painter, encapsulates everything!
  * @type {Object}
+ * @global
+ * @namespace 
  */
-var P = {};
-</code></pre>
-        </article>
-    </section>
+var P = {
+
+	/**
+	 * The color used for bounding boxes, animation handles etc.
+	 * 
+	 * @type {String}
+	 * @private
+	 */
+	mainColor: '#78C3D0',
+
+	/**
+	 * Select an artefact or multiple artefacts.
+	 * 
+	 * @param  {Artefact[]} artefact One or multiple artefacts
+	 * @return {Artefact[]}
+	 * @instance
+	 */
+	select: function(artefact) {
+		if(artefact instanceof Array) return artefact.map(P.select);
+		return artefact.select();
+	},
+
+	/**
+	 * Deselect an artefact
+	 *
+	 * This removes the bounding box and resets styling specific to selected
+	 * items.
+	 * @param  {Artefact[]} artefact One or multiple artefacts
+	 * @return {Artefact[]}
+	 * @instance
+	 */
+	deselect: function(artefact) {
+		if(artefact instanceof Array) return artefact.map(P.deselect);
+		return artefact.deselect();
+	},
+
+	/**
+	 * Deselects all the currently selected artefacts.
+	 *
+	 * @return {Artefact[]} The artefacts that were deselected
+	 * @instance
+	 */
+	deselectAll: function() {
+		return P.getArtefacts().mmap('deselect');
+	},
+
+	/**
+	 * Selects only this artefact and deselect all others.
+	 * 
+	 * @param {Artefact[]} aftefact The artefact or artefacts to select
+	 * @return {Artefact[]} The selected artefact(s)
+	 * @instance
+	 */
+	selectOnly: function(artefact) {
+		P.deselectAll();
+		return P.select(artefact);
+	},
+
+	/**
+	 * Get all artefacts
+	 * 
+	 * @return {Artefact[]}
+	 * @instance
+	 */
+	getArtefacts: function() {
+		return Object.values(P.artefacts);
+	},
+
+	/**
+	 * Return all selected artefacts
+	 * 
+	 * @return {Artefact[]}
+	 * @instance
+	 */
+	getSelected: function() {
+		return P.getArtefacts().filter(function(artefact) {
+			return artefact.isSelected();
+		})
+	},
+
+	/*****************************************************/
+
+	/**
+	 * Test if the artefact is a handle
+	 * 
+	 * @param  {paper.Item} item The handle
+	 * @return {Boolean}
+	 * @instance
+	 */
+	isHandle: function(item) {
+		if(!item.name) return false;
+		return item.name.startsWith('handle');
+	},
+
+	/**
+	 * Test if an item is in a group
+	 * @param  {paper.Item}	item
+	 * @return {Boolean}
+	 * @instance
+	 */
+	inGroup: function(item) {
+		if(item.parent) return item.parent.className == 'Group';
+		return false;
+	},
+
+	/**
+	 * Test if an object is an artefact. It can test both whether a Paper.js
+	 * item corresponds to an artefact or whether an object actually is
+	 * an instance of {@link Artefact}, when `strict=true`.
+	 * 
+	 * @param  {paper.Item|Artefact} obj The object to Test
+	 * @param  {Boolean} [strict=false] Only match objects that are actual 
+	 * instances of {@link Artefact}?
+	 * @return {Boolean}
+	 * @instance
+	 */
+	isArtefact: function(obj, strict) {
+		if(obj instanceof P.Artefact) return true;
+		if(!strict &amp;&amp; obj.data &amp;&amp; obj.data._artefact) 
+			return P.isArtefact(obj.data._artefact);
+		return false;
+	},
+
+	/*****************************************************/
+
+	/**
+	 * Get the artefact corresponding to an item.
+	 * 	
+	 * @param  {paper.Item} item 
+	 * @return {Artefact|Boolean} The Artefact or `false` if none was found.
+	 * @instance
+	 */
+	getArtefact: function(item) {
+		if(item.name == 'shadow') {
+			return item.parent.data._artefact;
+		}
+
+		if(P.inGroup(item)) {
+			var outerGroup = P.getOuterGroup(item);
+			return P.getArtefact(outerGroup);
+		}
+
+		else if(item.data._artefact &amp;&amp; P.isArtefact(item.data._artefact)) {
+			return item.data._artefact;
+		}
+
+		else{
+			return false
+		}
+	},
+
+	/**
+	 * Find the outermost group containing the item.
+	 * 
+	 * @param  {paper.Item} 	item 
+	 * @return {paper.Group}  The outermost group containing `item`
+	 * @instance
+	 */
+	getOuterGroup: function(item) {
+		if(P.inGroup(item.parent)) return P.getOuterGroup(item.parent);
+		return item.parent
+	},
+
+	/*****************************************************/
+
+	/**
+	 * Get the `i`'th of `num_color` equally spaced colors in the HSB spectrum.
+	 * 
+	 * @param  {Number}  i 					 Which color to fetch, by index.
+	 * @param  {Number}  num_colors  Divide the spectrum in how many colors?
+	 * @param  {Float}   [noise=0.4] Noise
+	 * @param  {Boolean} css         If `true` it returns a CSS-friendly color string.
+	 * @return {String}
+	 * @instance
+	 */
+	getColor: function(i, num_colors, noise=.4, css=true) {
+		var noise = Math.random() * noise - .5*noise
+		var hue = ( (i+noise) / num_colors * 360 ) % 360
+		if(hue &lt; 0) hue = 360 + hue;
+		var color = {
+			hue: Math.round(hue),
+			saturation: 75,
+			brightness: 60
+		}
+		if(css) return "hsl(" + color.hue+', '+color.saturation+'%, '+color.brightness+'%)';
+		else return color
+	},
+	
+	/**
+	 * Get the active swatch
+	 * 
+	 * @return {String}
+	 */
+	getActiveSwatch: function() {
+		var index = $('.swatch.active').data('colorIndex');
+		var numSwatches = $('.swatch.active').data('numSwatches');
+		return P.getColor(index, numSwatches)
+	},
+
+};
+
+
+/**
+ * Method Map: calls a method of every element in an array. This makes 
+ * chaining super easy with arrays of Artefacts, for example.
+ * 
+ * @example
+ * // Get the currently selected artefacts
+ * var artefacts = P.getSelected();
+ * 
+ * // First clone them and then select them
+ * var move = [30, 40]
+ * artefacts.mmap('clone', [move]).mmap('select');
+ *
+ * @param  {String} name The method to apply
+ * @param  {Array} args An array of arguments passed to the method.
+ * @return {Array}      An array with the result of every call
+ * @inner
+ * @memberof Array
+ * @global
+ */
+Array.prototype.mmap = function(name, args) {
+	return this.map(function(element) {
+		return element[name].apply(element, args);
+	});
+}
+</pre>
+    </article>
+</section>
 
 
 
+
+
+		</div>
+	</div>
+
+	<div class="clearfix"></div>
+
+	
 
 </div>
+</div>
 
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#animations">animations</a></li><li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#clone">clone</a></li><li><a href="global.html#deselect">deselect</a></li><li><a href="global.html#deselectAll">deselectAll</a></li><li><a href="global.html#drawAnimationHandles">drawAnimationHandles</a></li><li><a href="global.html#getAdjacentSegments">getAdjacentSegments</a></li><li><a href="global.html#getBoundingBox">getBoundingBox</a></li><li><a href="global.html#getBounds">getBounds</a></li><li><a href="global.html#getHandle">getHandle</a></li><li><a href="global.html#getHandleByName">getHandleByName</a></li><li><a href="global.html#getOuterGroup">getOuterGroup</a></li><li><a href="global.html#getPositionIndex">getPositionIndex</a></li><li><a href="global.html#getPositionName">getPositionName</a></li><li><a href="global.html#getSegmentByHandle">getSegmentByHandle</a></li><li><a href="global.html#getSegmentByIndex">getSegmentByIndex</a></li><li><a href="global.html#getSegmentByName">getSegmentByName</a></li><li><a href="global.html#getSelected">getSelected</a></li><li><a href="global.html#hitGroup">hitGroup</a></li><li><a href="global.html#inGroup">inGroup</a></li><li><a href="global.html#initAnimation">initAnimation</a></li><li><a href="global.html#isBoundingBox">isBoundingBox</a></li><li><a href="global.html#isCircular">isCircular</a></li><li><a href="global.html#isGroup">isGroup</a></li><li><a href="global.html#isHandle">isHandle</a></li><li><a href="global.html#isRectangular">isRectangular</a></li><li><a href="global.html#isRotating">isRotating</a></li><li><a href="global.html#isSegment">isSegment</a></li><li><a href="global.html#isSelected">isSelected</a></li><li><a href="global.html#mainColor">mainColor</a></li><li><a href="global.html#moveItem">moveItem</a></li><li><a href="global.html#P">P</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#registerAnimation">registerAnimation</a></li><li><a href="global.html#removeAnimationHandles">removeAnimationHandles</a></li><li><a href="global.html#resetAnimation">resetAnimation</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#selectOnly">selectOnly</a></li><li><a href="global.html#selectTool">selectTool</a></li><li><a href="global.html#setupItem">setupItem</a></li><li><a href="global.html#startAnimation">startAnimation</a></li><li><a href="global.html#stopAnimation">stopAnimation</a></li><li><a href="global.html#transformAnimation">transformAnimation</a></li><li><a href="global.html#ungroup">ungroup</a></li><li><a href="global.html#updateAnimation">updateAnimation</a></li></ul>
-</nav>
 
-<br class="clear">
+    <div class="modal fade" id="searchResults">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Search results</h4>
+          </div>
+          <div class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div>
+
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun Apr 16 2017 10:20:43 GMT+0200 (CEST)
+
+
+	<span class="copyright">
+	DocStrap Copyright © 2012-2015 The contributors to the JSDoc3 and DocStrap projects.
+	</span>
+
+<span class="jsdoc-message">
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a>
+	
+		on Tue Apr 18th 2017
+	
+	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
+</span>
 </footer>
 
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
+<script src="scripts/docstrap.lib.js"></script>
+<script src="scripts/toc.js"></script>
+
+    <script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
+
+<script>
+$( function () {
+	$( "[id*='$']" ).each( function () {
+		var $this = $( this );
+
+		$this.attr( "id", $this.attr( "id" ).replace( "$", "__" ) );
+	} );
+
+	$( ".tutorial-section pre, .readme-section pre, pre.prettyprint.source" ).each( function () {
+		var $this = $( this );
+
+		var example = $this.find( "code" );
+		exampleText = example.html();
+		var lang = /{@lang (.*?)}/.exec( exampleText );
+		if ( lang && lang[1] ) {
+			exampleText = exampleText.replace( lang[0], "" );
+			example.html( exampleText );
+			lang = lang[1];
+		} else {
+			var langClassMatch = example.parent()[0].className.match(/lang\-(\S+)/);
+			lang = langClassMatch ? langClassMatch[1] : "javascript";
+		}
+
+		if ( lang ) {
+
+			$this
+			.addClass( "sunlight-highlight-" + lang )
+			.addClass( "linenums" )
+			.html( example.html() );
+
+		}
+	} );
+
+	Sunlight.highlightAll( {
+		lineNumbers : true,
+		showMenu : true,
+		enableDoclinks : true
+	} );
+
+	$.catchAnchorLinks( {
+        navbarOffset: 10
+	} );
+	$( "#toc" ).toc( {
+		anchorName  : function ( i, heading, prefix ) {
+			return $( heading ).attr( "id" ) || ( prefix + i );
+		},
+		selectors   : "#toc-content h1,#toc-content h2,#toc-content h3,#toc-content h4",
+		showAndHide : false,
+		smoothScrolling: true
+	} );
+
+	$( "#main span[id^='toc']" ).addClass( "toc-shim" );
+	$( '.dropdown-toggle' ).dropdown();
+
+    $( "table" ).each( function () {
+      var $this = $( this );
+      $this.addClass('table');
+    } );
+
+} );
+</script>
+
+
+
+<!--Navigation and Symbol Display-->
+
+
+<!--Google Analytics-->
+
+
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            SearcherDisplay.init();
+        });
+    </script>
+
+
 </body>
 </html>

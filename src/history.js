@@ -1,17 +1,19 @@
 /**
  * History
  *
- * Registers actions and implements undo/redo functionality. Actions 
+ * @class  Registers actions and implements undo/redo functionality. Actions 
  * are registered by providing two functions, `undo` and `redo`, that
  * take no other arguments (i.e., they are thunks). When registering 
  * these functions, care has to be taken that the right variables are
  * copied and scoped appropriately so that later actions do not change
  * the references in the `un/redo` functions. 
  *
- * Actions for animations are a bit tricky, as one has to track the
- * complete `item.animation` object. All this is solved in animations.js.
+ * History is always instantiated in `P.history`. Use this to register
+ * new states.
+ *
+ * @name History
  */
-P._HistoryClass = paper.Base.extend({
+P.History = paper.Base.extend(/** @lends History */{
 
 	initialize: function() {
 		this.states = [{}];
@@ -27,7 +29,7 @@ P._HistoryClass = paper.Base.extend({
 	 * scoping and copying relevant variables itself.
 	 * @param  {Function} redo A redo function that when called redoes
 	 * the action undone by `undo`. Again, it takes no arguments.
-	 * @return {None}
+	 * @instance
 	 */
 	registerState: function(undo, redo) {
 		this.states = this.states.slice(0, this.index+1);
@@ -44,7 +46,7 @@ P._HistoryClass = paper.Base.extend({
 	 * Redo the last action
 	 *
 	 * Moves the index one step forward in the history, if possible.
-	 * @return 
+	 * @instance
 	 */
 	redo: function() {
 		if(this.index >= this.states.length-1) return false;
@@ -54,7 +56,7 @@ P._HistoryClass = paper.Base.extend({
 
 	/**
 	 * Undo the last action
-	 * @return {None} 
+	 * @instance
 	 */
 	undo: function() {
 		if(this.index == 0) return false;
@@ -63,5 +65,9 @@ P._HistoryClass = paper.Base.extend({
 	}
 })
 
-// Instantiate
-P.History = new P._HistoryClass();
+/**
+ * Instance of the HistoryClass.
+ * 
+ * @type {P.HistoryClass}
+ */
+P.history = new P.History();

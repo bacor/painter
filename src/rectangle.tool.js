@@ -27,5 +27,5 @@ rectTool.onMouseUp = function() {
 	// History
 	var undo = function() { artefact.destroy(); }
 	var redo = function() { artefact.restore(); }
-	P.History.registerState(undo, redo)
+	P.history.registerState(undo, redo)
 }

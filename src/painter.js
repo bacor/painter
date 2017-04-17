@@ -5,21 +5,25 @@
 /**
  * Painter, encapsulates everything!
  * @type {Object}
+ * @global
+ * @namespace 
  */
 var P = {
 
+	/**
+	 * The color used for bounding boxes, animation handles etc.
+	 * 
+	 * @type {String}
+	 * @private
+	 */
 	mainColor: '#78C3D0',
 
 	/**
-	 * Select an item or multiple items.
-	 *
-	 * The item is not selected using the Paper.js's default `item.selected = true`. 
-	 * Rather, we draw a custom bounding box around the item, allowing a bit
-	 * more flexibility (e.g. different bounding boxes for different types of
-	 * items). To test if an item has been selected using our custom selection
-	 * method, the test function `isSelected` can be used.
-	 * @param  {mixed} items An item or multiple items
-	 * @return {None}
+	 * Select an artefact or multiple artefacts.
+	 * 
+	 * @param  {Artefact[]} artefact One or multiple artefacts
+	 * @return {Artefact[]}
+	 * @instance
 	 */
 	select: function(artefact) {
 		if(artefact instanceof Array) return artefact.map(P.select);
@@ -27,12 +31,13 @@ var P = {
 	},
 
 	/**
-	 * Deselect an item
+	 * Deselect an artefact
 	 *
 	 * This removes the bounding box and resets styling specific to selected
 	 * items.
-	 * @param  {item} item 
-	 * @return {None}
+	 * @param  {Artefact[]} artefact One or multiple artefacts
+	 * @return {Artefact[]}
+	 * @instance
 	 */
 	deselect: function(artefact) {
 		if(artefact instanceof Array) return artefact.map(P.deselect);
@@ -40,36 +45,42 @@ var P = {
 	},
 
 	/**
-	 * Deselects all the currently selected items.
+	 * Deselects all the currently selected artefacts.
 	 *
-	 * Again, we don't use the in-built selection mechanism, but rely on our own
-	 * bounding boxes. Only items with bounding boxes are deselected, the function
-	 * does not care about the value of `item.selected`.
-	 * @param  {array} items 
-	 * @return {None}
+	 * @return {Artefact[]} The artefacts that were deselected
+	 * @instance
 	 */
 	deselectAll: function() {
 		return P.getArtefacts().mmap('deselect');
 	},
 
 	/**
-	 * Selects only this item
-	 * @param  {item} item The only item to select
-	 * @return {None}
+	 * Selects only this artefact and deselect all others.
+	 * 
+	 * @param {Artefact[]} aftefact The artefact or artefacts to select
+	 * @return {Artefact[]} The selected artefact(s)
+	 * @instance
 	 */
-	selectOnly: function(artefacts) {
+	selectOnly: function(artefact) {
 		P.deselectAll();
-		return P.select(artefacts);
+		return P.select(artefact);
 	},
 
+	/**
+	 * Get all artefacts
+	 * 
+	 * @return {Artefact[]}
+	 * @instance
+	 */
 	getArtefacts: function() {
 		return Object.values(P.artefacts);
 	},
 
 	/**
-	 * Return all selected items
-	 * @param  {Function} match The match function, defaults to isSelected
-	 * @return {Array}       Selected items
+	 * Return all selected artefacts
+	 * 
+	 * @return {Artefact[]}
+	 * @instance
 	 */
 	getSelected: function() {
 		return P.getArtefacts().filter(function(artefact) {
@@ -80,9 +91,11 @@ var P = {
 	/*****************************************************/
 
 	/**
-	 * Test if the item is a handle of a bounding box.
-	 * @param  {Item}  item 
+	 * Test if the artefact is a handle
+	 * 
+	 * @param  {paper.Item} item The handle
 	 * @return {Boolean}
+	 * @instance
 	 */
 	isHandle: function(item) {
 		if(!item.name) return false;
@@ -91,15 +104,27 @@ var P = {
 
 	/**
 	 * Test if an item is in a group
-	 * @param  {Item} 		item 
+	 * @param  {paper.Item}	item
 	 * @return {Boolean}
+	 * @instance
 	 */
 	inGroup: function(item) {
 		if(item.parent) return item.parent.className == 'Group';
 		return false;
 	},
 
-	isArtefact: function(obj, strict=false) {
+	/**
+	 * Test if an object is an artefact. It can test both whether a Paper.js
+	 * item corresponds to an artefact or whether an object actually is
+	 * an instance of {@link Artefact}, when `strict=true`.
+	 * 
+	 * @param  {paper.Item|Artefact} obj The object to Test
+	 * @param  {Boolean} [strict=false] Only match objects that are actual 
+	 * instances of {@link Artefact}?
+	 * @return {Boolean}
+	 * @instance
+	 */
+	isArtefact: function(obj, strict) {
 		if(obj instanceof P.Artefact) return true;
 		if(!strict && obj.data && obj.data._artefact) 
 			return P.isArtefact(obj.data._artefact);
@@ -108,6 +133,13 @@ var P = {
 
 	/*****************************************************/
 
+	/**
+	 * Get the artefact corresponding to an item.
+	 * 	
+	 * @param  {paper.Item} item 
+	 * @return {Artefact|Boolean} The Artefact or `false` if none was found.
+	 * @instance
+	 */
 	getArtefact: function(item) {
 		if(item.name == 'shadow') {
 			return item.parent.data._artefact;
@@ -128,9 +160,11 @@ var P = {
 	},
 
 	/**
-	 * Find the higest group in which the item is contained
-	 * @param  {Item} 	item 
-	 * @return {Group}  The outermost group containing `item`
+	 * Find the outermost group containing the item.
+	 * 
+	 * @param  {paper.Item} 	item 
+	 * @return {paper.Group}  The outermost group containing `item`
+	 * @instance
 	 */
 	getOuterGroup: function(item) {
 		if(P.inGroup(item.parent)) return P.getOuterGroup(item.parent);
@@ -139,6 +173,16 @@ var P = {
 
 	/*****************************************************/
 
+	/**
+	 * Get the `i`'th of `num_color` equally spaced colors in the HSB spectrum.
+	 * 
+	 * @param  {Number}  i 					 Which color to fetch, by index.
+	 * @param  {Number}  num_colors  Divide the spectrum in how many colors?
+	 * @param  {Float}   [noise=0.4] Noise
+	 * @param  {Boolean} css         If `true` it returns a CSS-friendly color string.
+	 * @return {String}
+	 * @instance
+	 */
 	getColor: function(i, num_colors, noise=.4, css=true) {
 		var noise = Math.random() * noise - .5*noise
 		var hue = ( (i+noise) / num_colors * 360 ) % 360
@@ -151,7 +195,12 @@ var P = {
 		if(css) return "hsl(" + color.hue+', '+color.saturation+'%, '+color.brightness+'%)';
 		else return color
 	},
-
+	
+	/**
+	 * Get the active swatch
+	 * 
+	 * @return {String}
+	 */
 	getActiveSwatch: function() {
 		var index = $('.swatch.active').data('colorIndex');
 		var numSwatches = $('.swatch.active').data('numSwatches');
@@ -161,7 +210,25 @@ var P = {
 };
 
 
-// Method Map
+/**
+ * Method Map: calls a method of every element in an array. This makes 
+ * chaining super easy with arrays of Artefacts, for example.
+ * 
+ * @example
+ * // Get the currently selected artefacts
+ * var artefacts = P.getSelected();
+ * 
+ * // First clone them and then select them
+ * var move = [30, 40]
+ * artefacts.mmap('clone', [move]).mmap('select');
+ *
+ * @param  {String} name The method to apply
+ * @param  {Array} args An array of arguments passed to the method.
+ * @return {Array}      An array with the result of every call
+ * @inner
+ * @memberof Array
+ * @global
+ */
 Array.prototype.mmap = function(name, args) {
 	return this.map(function(element) {
 		return element[name].apply(element, args);

@@ -26,6 +26,6 @@ dragTool.onMouseUp = function(event, artefacts) {
 			})
 		}
 		
-		P.History.registerState(undo, redo);
+		P.history.registerState(undo, redo);
 	}
 }

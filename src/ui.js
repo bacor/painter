@@ -21,7 +21,7 @@ $(window).ready(function() {
 	function onKeyDown(event) {
 
 		if(event.key == 'backspace' || event.key == 'd') {
-			P.deleteSelection()
+			P.delete(P.getSelected)
 		}
 
 		else if(event.key == 'space') {
@@ -168,7 +168,7 @@ $(window).ready(function() {
 	})
 
 	$('a.tool[data-tool=clone]').on('click', function() {
-		P.cloneSelection([20,20])
+		P.clone(P.getSelected(), [20,20]);
 	})
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
@@ -223,7 +223,7 @@ $(window).ready(function() {
 					.on('click', function() {
 						$('.swatch').removeClass('active');
 						$(this).addClass('active');
-						P.changeColorSelection();
+						P.changeColor(P.getSelected());
 					})
 		if(i == 0) $swatch.addClass('active');
 	}

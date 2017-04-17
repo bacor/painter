@@ -65,12 +65,12 @@ module.exports = function(grunt) {
       dist : {
         src: ['src/*.js'],
         options: {
-            destination: 'docs'
-        },
-        configure: {
+          destination: 'docs',
+          template : "node_modules/ink-docstrap/template",
+          configure : "node_modules/ink-docstrap/template/jsdoc.conf.json",
           "plugins": ["plugins/markdown"],
           "markdown": {
-            "tags": ["summary"]
+            "tags": ["summary", "class"],
           }
         }
       }

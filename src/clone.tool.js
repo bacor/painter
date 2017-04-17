@@ -3,8 +3,7 @@ cloneTool = new paper.Tool();
 
 var currentItems;
 cloneTool.onMouseDown = function(event) {
-	currentItems = P.getSelected();
-	currentItems = cloneSelection();
+	currentItems = P.clone(P.getSelected());
 }
 
 cloneTool.onMouseDrag = function(event) {

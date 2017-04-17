@@ -6,32 +6,17 @@ P.animations = {}
 
 /**
  * @name Animation
- * @class
+ * @class The main animation class
+ * @property {Artefact} artefact The artefact being animated
+ * @property {String} type The type of animation. This must correspond to a 
+ * registered animation such as `bounce` or `rotate`.
+ * @property {Object} properties All properties determining the animation.
  */
 P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
-	 * The type of this animation, e.g. rotate or 'bounce'
-	 * @type {String}
-	 */
-	type: '',
-
-	/**
-	 * The Paper item being animated
-	 * @type {paper.Item}
-	 */
-	item: undefined,
-
-	/**
-	 * The properties determining the animation
-	 * @type {Object}
-	 */
-	properties: {},
-
-	/**
 	 * Initialize an animation.
 	 *
-	 * @name  Animation
 	 * @param  {paper.Item} item The Paper item to animate.
 	 * @param  {String} type Animation type, such as 'bounce' or 'rotate'.
 	 * @param  {Object} properties Default properties.
@@ -43,27 +28,24 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 		this.item.data._animation = this;
 		this.type = type;
 		this.properties = jQuery.extend(true, {}, properties);
-		// // if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 
-		// // Load all animation-specific methods.
-		this._loadActions();
-		this._onInit(this.artefact, this.properties);
-		this.drawHandles();
-	},
-
-	_loadActions: function() {
+		// Load all animation-specific methods.
 		var actions = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
 		'onTransform', 'onDrawHandles', 'onUpdate'];
 		for(var i=0; i<actions.length; i++) {
 			var action = actions[i];
 			this['_'+action] = P.animations[this.type][action] || function() {};
 		}
+
+		this._onInit(this.artefact, this.properties);
+		this.drawHandles();
 	},
 
 	/**
 	 * Draw the animation handles
 	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	drawHandles: function() {
 		// Clean up old animations
@@ -81,6 +63,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * Remove the animation handles
 	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	removeHandles: function(self) {
 		if(this.handles != undefined) {
@@ -99,6 +82,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * @param {paper.Event|Object} argument Either a Paper event or an object 
 	 * with properties.
 	 * @return {Object} The updated properties
+	 * @instance
 	 */
 	update: function(argument) {
 		var properties;
@@ -117,11 +101,9 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * Start the animation
 	 * @param  {Boolean} recurse [description]
 	 * @return {Animation}
+	 * @instance
 	 */
 	start: function(recurse=true) {
-		// if(isGroup(item) && recurse) 
-		// 	startAnimation(item.children, type, false);
-		
 		this.active = true;
 		this._onStart(this.artefact, this.properties);
 
@@ -138,7 +120,9 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
 	 * Pause the animation in its current state.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	pause: function() {
 		this.active = false;
@@ -148,14 +132,13 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	},
 
 	/**
-	 * Stops the animation: pause the animation and reset the item to its original state.
-	 * @param  {Boolean} recurse Good question...
+	 * Stops the animation: pause the animation and reset the item to its 
+	 * original state.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
-	stop: function(recurse=false) {
-		// if(isGroup(item) && recurse) resetAnimation(item.children, true);
-
-		// Stop animation
+	stop: function() {
 		this.pause();
 		this._onStop(this.artefact, this.properties);
 		return this;
@@ -165,7 +148,9 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * Remove the animation. It does not actually remove the animation object,
 	 * but resets the animation and removes all items drawn on the canvas, such
 	 * as handles.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	remove: function() {
 		this.stop();
@@ -174,9 +159,11 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	},
 
 	/**
-	 * Apply a transformation to the animation
+	 * Apply a transformation to the animation.
+	 * 
 	 * @param  {paper.Matrix} matrix The transformation matrix
-	 * @return {Animation}        [description]
+	 * @return {Animation}
+	 * @instance
 	 */
 	transform: function(matrix) {
 		this._onTransform(this.artefact, this.properties, matrix);
@@ -186,16 +173,31 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	/**
 	 * Test if this animation is active: if the animation is currently running.
 	 * If the animation is paused or stopped, `isActive` returns `false`.
+	 * 
 	 * @return {Boolean}
+	 * @instance
 	 */
 	isActive: function() {
 		return this.active == true;
 	},
 
+	/**
+	 * Create a (deep) copy of the animation properties
+	 * 
+	 * @return {Object} copy of the properties
+	 * @instance
+	 */
 	cloneProperties: function() {
 		return jQuery.extend(true, {}, this.properties);
 	},
 
+	/**
+	 * Export the animation as a plain object which fully determines the
+	 * animation. (Currently, that's just its `properties` and `type`).
+	 * 
+	 * @return {Object}
+	 * @instance
+	 */
 	export: function() {
 		return {
 			'properties': this.cloneProperties(),
@@ -214,21 +216,23 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
  * most important ones are
  * 
  * - `onUpdate(item, properties, event)` should update the properties object 
- * 		based on a mouse event. This function is called whenever the animation 
- * 		tool is active and the mouse moves. The properties determined here are
- * 		passed to all functions below.
+ * based on a mouse event. This function is called whenever the animation 
+ * tool is active and the mouse moves. The properties determined here are
+ * passed to all functions below.
  * - `onFrame(item, properties, events)` updates the object based on the properties,
- * 		event etc. This is the core of the animation
+ * event etc. This is the core of the animation
  * - `drawHandles(item, properties)` returns a `Group` with the handles
  * - `onTransform(item, properties, matrix)` handles a transform of the item.
- * 		The properties probably contain some point in a relative coordinate system.
- * 		This function should apply the matrix to that point.
+ * The properties probably contain some point in a relative coordinate system.
+ * This function should apply the matrix to that point.
  * - `onStop(item, properties)` Should undo the animation and reset the item.
- * 
+ *
  * @param  {String} type              Name of the animation
  * @param  {Object} animation         Animation object
  * @param  {Object} defaultProperties Default properties
- * @return {Object} The animation                   
+ * @return {Object} The animation
+ * @memberOf P
+ * @instance 
  */
 P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	
@@ -289,7 +293,7 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 			artefact.animate(_cur.type, _cur.properties).start()
 		}
 
-		P.History.registerState(undo, redo);
+		P.history.registerState(undo, redo);
 	}
 
 	// Store methods if none exist

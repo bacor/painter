@@ -1,32 +1,90 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>JSDoc: Source: select.tool.js</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>DocStrap Source: select.tool.js</title>
 
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+	<!--[if lt IE 9]>
+	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+	<link type="text/css" rel="stylesheet" href="styles/sunlight.default.css">
+
+	<link type="text/css" rel="stylesheet" href="styles/site.cosmo.css">
+
 </head>
 
 <body>
 
-<div id="main">
+<div class="navbar navbar-default navbar-fixed-top navbar-inverse">
+<div class="container">
+	<div class="navbar-header">
+		<a class="navbar-brand" href="index.html">DocStrap</a>
+		<button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#topNavigation">
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+        </button>
+	</div>
+	<div class="navbar-collapse collapse" id="topNavigation">
+		<ul class="nav navbar-nav">
+			
+			<li class="dropdown">
+				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="P.html">P</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="Animation.html">Animation</a></li><li><a href="Artefact.html">Artefact</a></li><li><a href="Artefact.Circle.html">Artefact.Circle</a></li><li><a href="Artefact.Group.html">Artefact.Group</a></li><li><a href="Artefact.Rectangle.html">Artefact.Rectangle</a></li><li><a href="History.html">History</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#manipulateTool">manipulateTool</a></li><li><a href="global.html#mmap">mmap</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#selectTool">selectTool</a></li>
+				</ul>
+			</li>
+			
+		</ul>
+        
+            <div class="col-sm-3 col-md-3">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
+                        <div class="input-group-btn">
+                            <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        
+	</div>
 
-    <h1 class="page-title">Source: select.tool.js</h1>
+</div>
+</div>
 
+
+<div class="container" id="toc-content">
+<div class="row">
+
+	
+	<div class="col-md-12">
+	
+		<div id="main">
+			
+
+		<h1 class="page-title">Source: select.tool.js</h1>
     
-
-
-
-    
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>
+<section>
+    <article>
+        <pre
+            class="sunlight-highlight-javascript linenums">
 /**
  * Selection tool
  *
@@ -36,26 +94,47 @@
  * largely through the mode the selector is in.
  */
 
-selectTool = new Tool()
-var currentItems = [];
+selectTool = new paper.Tool()
 
-function switchTool(newTool, event) {
-	selectOnly(currentItems);
+function switchTool(newTool, event, artefacts, target) {
 
 	// Update the new tool, this is a bit hacky though.
 	newTool._downPoint = event.downPoint;
 	newTool._point = event.downPoint;
 	newTool._downCount += 1; // Not strictly necessary
 
+	// Store the current artefacts
+	newTool._artefacts = artefacts;
+	newTool._target = target;
+
+	// Mouse Down
+	var _onMouseDown = newTool.onMouseDown || function() {};
+	newTool.onMouseDown = function(event) {
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		return _onMouseDown(event, artifacts, target);
+	}
+
+	// Mouse Drag
+	var _onMouseDrag = newTool.onMouseDrag || function() {}
+	newTool.onMouseDrag = function(event) {
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		return _onMouseDrag(event, artifacts, target);
+	}
+
 	// Reactivate selection tool afterwards!
-	var _onMouseUp = newTool.onMouseUp
+	var _onMouseUp = newTool.onMouseUp || function() {};
 	newTool.onMouseUp = function(event) {
-		_onMouseUp(event)
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		_onMouseUp(event, artifacts, target);
 		selectTool.activate()
 	}
+
 	// Update the event
 	event.tool = newTool;
-
+	
 	// Activate!
 	newTool.activate()
 	if(newTool.onSwitch) {
@@ -68,79 +147,192 @@ function switchTool(newTool, event) {
 selectTool.onMouseDown = function(event) {
 	
 	// Test if we hit an item
-	hitResult = project.hitTest(event.point, {
+	var hitResult = project.hitTest(event.point, {
 		fill: true,
 		tolerance: 5
 	})
 
-	// Get currently selected items
-	currentItems = getSelected()
+	// We hit noting!
+	if(!hitResult) {
+		P.deselectAll();
+		switchTool(selectionTool, event, []);
+	}
+	
+	// We hit a handle --> edit selection
+	else if(P.isHandle(hitResult.item)) {
+		if(hitResult.item.name.endsWith('animation')) return;
+		var artefacts = [P.getArtefact(hitResult.item)]
+		switchTool(manipulateTool, event, artefacts, hitResult.item);
+	}
 
-	// We hit something!
-	if(hitResult) {
-		var item = hitResult.item
+	// Hit an item
+	else {
 
-		// Shadow --> select actual item
-		if(item.type == 'shadow') item = item.parent.item;
+		// Note: this also fetches the artefact of a shadow
+		var hit = P.getArtefact(hitResult.item);
+		var artefacts = P.getSelected();
 
-		// Anmination handles shouldn't do anything
-		if(isAnimationHandle(item)) return;
-			
-		// We hit a handle --> edit selection
-		if(isHandle(item)) {
-			currentItems = [item];
-			switchTool(manipulateTool, event);
+		if(Key.isDown('shift')) {
+
+			// Already selected: remove from selection
+			if(hit.isSelected()) {
+				var index = artefacts.indexOf(hit);
+				artefacts.splice(index, 1);
+			} 
+
+			// Not selected yet: add to selection
+			else {
+				artefacts.push(hit);	
+			}
+
+		}
+		
+		// If you click outside the selection with no modifiers, select the hit.
+		else if(!hit.isSelected()) {
+			artefacts = [hit]
 		}
 
-		// We hit an object --> drag
-		else if(item.type) {
-			mode = 'dragging'
+		// Update selection
+		P.selectOnly(artefacts);
 
-			// Select the group if the item we hit is in a group
-			if(inGroup(item)) item = getOuterGroup(item);
-			
-			// If the shift key is pressed, just add the item to the selection.
-			if(Key.isDown('shift')) {
-				currentItems.push(item);	
-			}
-
-			// If you click outside the selection, deselect the current selection
-			// and select the thing you clicked on.
-			else if(!item.isSelected()) {
-				currentItems = [item]
-			}
-			
-			var newTool = Key.isDown('alt') ? cloneTool : dragTool;
-			switchTool(newTool, event)
-
-		} else return;
-	} 
-
-	// Nothing was hit; start a selection instead
-	else {
-		currentItems = []
-		switchTool(selectionTool, event)
+		// Switch
+		var newTool = Key.isDown('alt') ? cloneTool : dragTool;
+		switchTool(newTool, event, artefacts)
 	}
-}</code></pre>
-        </article>
-    </section>
+}</pre>
+    </article>
+</section>
 
 
 
+
+
+		</div>
+	</div>
+
+	<div class="clearfix"></div>
+
+	
 
 </div>
+</div>
 
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="global.html#Animation">Animation</a></li></ul><h3>Global</h3><ul><li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#clone">clone</a></li><li><a href="global.html#deselect">deselect</a></li><li><a href="global.html#deselectAll">deselectAll</a></li><li><a href="global.html#getAdjacentSegments">getAdjacentSegments</a></li><li><a href="global.html#getBoundingBox">getBoundingBox</a></li><li><a href="global.html#getBounds">getBounds</a></li><li><a href="global.html#getHandle">getHandle</a></li><li><a href="global.html#getHandleByName">getHandleByName</a></li><li><a href="global.html#getOuterGroup">getOuterGroup</a></li><li><a href="global.html#getPositionIndex">getPositionIndex</a></li><li><a href="global.html#getPositionName">getPositionName</a></li><li><a href="global.html#getSegmentByHandle">getSegmentByHandle</a></li><li><a href="global.html#getSegmentByIndex">getSegmentByIndex</a></li><li><a href="global.html#getSegmentByName">getSegmentByName</a></li><li><a href="global.html#getSelected">getSelected</a></li><li><a href="global.html#hasAnimation">hasAnimation</a></li><li><a href="global.html#inGroup">inGroup</a></li><li><a href="global.html#isCircular">isCircular</a></li><li><a href="global.html#isGroup">isGroup</a></li><li><a href="global.html#isHandle">isHandle</a></li><li><a href="global.html#isRectangular">isRectangular</a></li><li><a href="global.html#isSegment">isSegment</a></li><li><a href="global.html#mainColor">mainColor</a></li><li><a href="global.html#moveItem">moveItem</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#registerAnimation">registerAnimation</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#selectOnly">selectOnly</a></li><li><a href="global.html#selectTool">selectTool</a></li><li><a href="global.html#setupRectangle">setupRectangle</a></li><li><a href="global.html#ungroup">ungroup</a></li></ul>
-</nav>
 
-<br class="clear">
+    <div class="modal fade" id="searchResults">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Search results</h4>
+          </div>
+          <div class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div>
+
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun Apr 16 2017 14:33:59 GMT+0200 (CEST)
+
+
+	<span class="copyright">
+	DocStrap Copyright © 2012-2015 The contributors to the JSDoc3 and DocStrap projects.
+	</span>
+
+<span class="jsdoc-message">
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a>
+	
+		on Tue Apr 18th 2017
+	
+	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
+</span>
 </footer>
 
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
+<script src="scripts/docstrap.lib.js"></script>
+<script src="scripts/toc.js"></script>
+
+    <script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
+
+<script>
+$( function () {
+	$( "[id*='$']" ).each( function () {
+		var $this = $( this );
+
+		$this.attr( "id", $this.attr( "id" ).replace( "$", "__" ) );
+	} );
+
+	$( ".tutorial-section pre, .readme-section pre, pre.prettyprint.source" ).each( function () {
+		var $this = $( this );
+
+		var example = $this.find( "code" );
+		exampleText = example.html();
+		var lang = /{@lang (.*?)}/.exec( exampleText );
+		if ( lang && lang[1] ) {
+			exampleText = exampleText.replace( lang[0], "" );
+			example.html( exampleText );
+			lang = lang[1];
+		} else {
+			var langClassMatch = example.parent()[0].className.match(/lang\-(\S+)/);
+			lang = langClassMatch ? langClassMatch[1] : "javascript";
+		}
+
+		if ( lang ) {
+
+			$this
+			.addClass( "sunlight-highlight-" + lang )
+			.addClass( "linenums" )
+			.html( example.html() );
+
+		}
+	} );
+
+	Sunlight.highlightAll( {
+		lineNumbers : true,
+		showMenu : true,
+		enableDoclinks : true
+	} );
+
+	$.catchAnchorLinks( {
+        navbarOffset: 10
+	} );
+	$( "#toc" ).toc( {
+		anchorName  : function ( i, heading, prefix ) {
+			return $( heading ).attr( "id" ) || ( prefix + i );
+		},
+		selectors   : "#toc-content h1,#toc-content h2,#toc-content h3,#toc-content h4",
+		showAndHide : false,
+		smoothScrolling: true
+	} );
+
+	$( "#main span[id^='toc']" ).addClass( "toc-shim" );
+	$( '.dropdown-toggle' ).dropdown();
+
+    $( "table" ).each( function () {
+      var $this = $( this );
+      $this.addClass('table');
+    } );
+
+} );
+</script>
+
+
+
+<!--Navigation and Symbol Display-->
+
+
+<!--Google Analytics-->
+
+
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            SearcherDisplay.init();
+        });
+    </script>
+
+
 </body>
 </html>

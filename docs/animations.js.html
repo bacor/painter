@@ -1,117 +1,161 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>JSDoc: Source: animations.js</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>DocStrap Source: animations.js</title>
 
-    <script src="scripts/prettify/prettify.js"> </script>
-    <script src="scripts/prettify/lang-css.js"> </script>
-    <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
-    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+	<!--[if lt IE 9]>
+	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+	<link type="text/css" rel="stylesheet" href="styles/sunlight.default.css">
+
+	<link type="text/css" rel="stylesheet" href="styles/site.cosmo.css">
+
 </head>
 
 <body>
 
-<div id="main">
+<div class="navbar navbar-default navbar-fixed-top navbar-inverse">
+<div class="container">
+	<div class="navbar-header">
+		<a class="navbar-brand" href="index.html">DocStrap</a>
+		<button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#topNavigation">
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+        </button>
+	</div>
+	<div class="navbar-collapse collapse" id="topNavigation">
+		<ul class="nav navbar-nav">
+			
+			<li class="dropdown">
+				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="P.html">P</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="Animation.html">Animation</a></li><li><a href="Artefact.html">Artefact</a></li><li><a href="Artefact.Circle.html">Artefact.Circle</a></li><li><a href="Artefact.Group.html">Artefact.Group</a></li><li><a href="Artefact.Rectangle.html">Artefact.Rectangle</a></li><li><a href="History.html">History</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#manipulateTool">manipulateTool</a></li><li><a href="global.html#mmap">mmap</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#selectTool">selectTool</a></li>
+				</ul>
+			</li>
+			
+		</ul>
+        
+            <div class="col-sm-3 col-md-3">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
+                        <div class="input-group-btn">
+                            <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        
+	</div>
 
-    <h1 class="page-title">Source: animations.js</h1>
+</div>
+</div>
 
+
+<div class="container" id="toc-content">
+<div class="row">
+
+	
+	<div class="col-md-12">
+	
+		<div id="main">
+			
+
+		<h1 class="page-title">Source: animations.js</h1>
     
-
-
-
-    
-    <section>
-        <article>
-            <pre class="prettyprint source linenums"><code>
-var initAnimation, startAnimation, stopAnimation, resetAnimation;
-
-
-/**
+<section>
+    <article>
+        <pre
+            class="sunlight-highlight-javascript linenums">/**
  * All registered animations
  * @type {Object}
  */
 P.animations = {}
 
 /**
- * @name  Animation
- * @class
+ * @name Animation
+ * @class The main animation class
+ * @property {Artefact} artefact The artefact being animated
+ * @property {String} type The type of animation. This must correspond to a 
+ * registered animation such as `bounce` or `rotate`.
+ * @property {Object} properties All properties determining the animation.
  */
-var Animation = Base.extend(/** @lends Animation */{
-
-	/**
-	 * The type of this animation, e.g. rotate or 'bounce'
-	 * @type {String}
-	 */
-	type: '',
-
-	/**
-	 * The Paper item being animated
-	 * @type {paper.Item}
-	 */
-	item: undefined,
-
-	/**
-	 * The properties determining the animation
-	 * @type {Object}
-	 */
-	properties: {},
+P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
 	 * Initialize an animation.
 	 *
-	 * @name  Animation
 	 * @param  {paper.Item} item The Paper item to animate.
 	 * @param  {String} type Animation type, such as 'bounce' or 'rotate'.
 	 * @param  {Object} properties Default properties.
 	 * @return {Animation}
 	 */
-	initialize: function(item, type, properties) {
-		this.item = item;
+	initialize: function(artefact, type, properties) {
+		this.artefact = artefact;
+		this.item = artefact.item;
+		this.item.data._animation = this;
 		this.type = type;
 		this.properties = jQuery.extend(true, {}, properties);
-		
-		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
-		
+
 		// Load all animation-specific methods.
-		var methods = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
+		var actions = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
 		'onTransform', 'onDrawHandles', 'onUpdate'];
-		for(var i=0; i&lt;methods.length; i++) {
-			var method = methods[i];
-			this['_'+method] = P.animations[this.type][method] || function() {};
+		for(var i=0; i&lt;actions.length; i++) {
+			var action = actions[i];
+			this['_'+action] = P.animations[this.type][action] || function() {};
 		}
-		
-		this._onInit(this.item, this.properties);
+
+		this._onInit(this.artefact, this.properties);
 		this.drawHandles();
-		return this;
 	},
 
 	/**
 	 * Draw the animation handles
 	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	drawHandles: function() {
 		// Clean up old animations
-		this.removeHandles();
+		this.removeHandles(this);
 
 		// Draw handles
-		this.handles = this._onDrawHandles(this.item, this.properties);
-		this.handles.parent = this.item.bbox;
-		this.handles.type = 'handle:animation';
-		return this.handles;
+		var handles = this._onDrawHandles(this.artefact, this.properties);
+		handles.parent = this.artefact.bbox;
+		handles.name = 'handle:animation';
+		this.handles = handles;
+		return handles;
 	},
 
 	/**
 	 * Remove the animation handles
 	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
-	removeHandles: function() {
-		if(this.handles) this.handles.remove();
+	removeHandles: function(self) {
+		if(this.handles != undefined) {
+			this.handles.remove();
+			this.handles = undefined;
+		}		
 		return this;
 	},
 
@@ -124,16 +168,17 @@ var Animation = Base.extend(/** @lends Animation */{
 	 * @param {paper.Event|Object} argument Either a Paper event or an object 
 	 * with properties.
 	 * @return {Object} The updated properties
+	 * @instance
 	 */
 	update: function(argument) {
 		var properties;
 		if(argument instanceof paper.Event) {
-			properties = this._onUpdate(this.item, this.properties, argument);
+			properties = this._onUpdate(this.artefact, this.properties, argument);
 		} else {
 			properties = argument;
 		}
 
-		this.properties = $.extend(this.properties, properties);
+		this.properties = jQuery.extend(this.properties, properties);
 		this.drawHandles();
 		return this.properties;
 	},
@@ -142,19 +187,18 @@ var Animation = Base.extend(/** @lends Animation */{
 	 * Start the animation
 	 * @param  {Boolean} recurse [description]
 	 * @return {Animation}
+	 * @instance
 	 */
 	start: function(recurse=true) {
-		// if(isGroup(item) &amp;&amp; recurse) 
-		// 	startAnimation(item.children, type, false);
-		
 		this.active = true;
-		this._onStart(this.item, this.properties);
+		this._onStart(this.artefact, this.properties);
 
 		// Start the animation
+		var artefact = this.artefact;
+		var anim = this;
 		this.item.onFrame = function(event) {
-			var anim = this.getAnimation();
-			anim._onFrame(this, anim.properties, event);
-			if(this.isSelected()) anim.drawHandles();
+			anim._onFrame(artefact, anim.properties, event);
+			// if(artefact.isSelected()) anim.drawHandles();
 		}
 
 		return this;
@@ -162,29 +206,27 @@ var Animation = Base.extend(/** @lends Animation */{
 
 	/**
 	 * Pause the animation in its current state.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	pause: function() {
 		this.active = false;
 		this.item.onFrame = undefined;
-		this._onPause(this.item, this.properties);
+		this._onPause(this.artefact, this.properties);
 		return this;
 	},
 
 	/**
-	 * Stops the animation: pause the animation and reset the item to its original state.
-	 * @param  {Boolean} recurse Good question...
+	 * Stops the animation: pause the animation and reset the item to its 
+	 * original state.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
-	stop: function(recurse=false) {
-		// if(isGroup(item) &amp;&amp; recurse) resetAnimation(item.children, true);
-
-		// Stop animation
+	stop: function() {
 		this.pause();
-		this._onStop(this.item, this.properties);
-
-		// Update bounding box etc.
-		this.item.drawBoundingBox();
+		this._onStop(this.artefact, this.properties);
 		return this;
 	},
 
@@ -192,34 +234,63 @@ var Animation = Base.extend(/** @lends Animation */{
 	 * Remove the animation. It does not actually remove the animation object,
 	 * but resets the animation and removes all items drawn on the canvas, such
 	 * as handles.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	remove: function() {
 		this.stop();
 		this.removeHandles();
+		delete this.item.data._animation
 	},
 
 	/**
-	 * Apply a transformation to the animation
+	 * Apply a transformation to the animation.
+	 * 
 	 * @param  {paper.Matrix} matrix The transformation matrix
-	 * @return {Animation}        [description]
+	 * @return {Animation}
+	 * @instance
 	 */
 	transform: function(matrix) {
-		this._onTransform(this.item, this.properties, matrix);
+		this._onTransform(this.artefact, this.properties, matrix);
 		return this;
 	},
 
 	/**
 	 * Test if this animation is active: if the animation is currently running.
 	 * If the animation is paused or stopped, `isActive` returns `false`.
+	 * 
 	 * @return {Boolean}
+	 * @instance
 	 */
 	isActive: function() {
 		return this.active == true;
+	},
+
+	/**
+	 * Create a (deep) copy of the animation properties
+	 * 
+	 * @return {Object} copy of the properties
+	 * @instance
+	 */
+	cloneProperties: function() {
+		return jQuery.extend(true, {}, this.properties);
+	},
+
+	/**
+	 * Export the animation as a plain object which fully determines the
+	 * animation. (Currently, that's just its `properties` and `type`).
+	 * 
+	 * @return {Object}
+	 * @instance
+	 */
+	export: function() {
+		return {
+			'properties': this.cloneProperties(),
+			'type': this.type + ''
+		}
 	}
-
 })
-
 
 /**
  * Register an animation
@@ -229,131 +300,231 @@ var Animation = Base.extend(/** @lends Animation */{
  * has a single parameter: the center point around which the item rotates. 
  * The drawing app iteracts with the animation through various functions. The 
  * most important ones are
+ * 
  * - `onUpdate(item, properties, event)` should update the properties object 
- * 		based on a mouse event. This function is called whenever the animation 
- * 		tool is active and the mouse moves. The properties determined here are
- * 		passed to all functions below.
+ * based on a mouse event. This function is called whenever the animation 
+ * tool is active and the mouse moves. The properties determined here are
+ * passed to all functions below.
  * - `onFrame(item, properties, events)` updates the object based on the properties,
- * 		event etc. This is the core of the animation
+ * event etc. This is the core of the animation
  * - `drawHandles(item, properties)` returns a `Group` with the handles
  * - `onTransform(item, properties, matrix)` handles a transform of the item.
- * 		The properties probably contain some point in a relative coordinate system.
- * 		This function should apply the matrix to that point.
+ * The properties probably contain some point in a relative coordinate system.
+ * This function should apply the matrix to that point.
  * - `onStop(item, properties)` Should undo the animation and reset the item.
+ *
  * @param  {String} type              Name of the animation
  * @param  {Object} animation         Animation object
  * @param  {Object} defaultProperties Default properties
- * @return {None}                   
+ * @return {Object} The animation
+ * @memberOf P
+ * @instance 
  */
-function registerAnimation(type, animation, defaultProperties) {
-
+P.registerAnimation = function(type, newAnimation, defaultProperties) {
+	
 	// Set up the animation tool
-	if(!animation.tool) animation.tool = new Tool();
+	if(!newAnimation.tool) newAnimation.tool = new paper.Tool();
 
 	// The current item on which the tool works.
-	var currentItem;
+	var artefact;
+	var prevAnimation;
 
 	// On Mouse Down
-	animation.tool.onMouseDown = animation.tool.onMouseDown || function(event) {
-		currentItem = getSelected()[0]
-		if(currentItem == undefined) {
+	var _onMouseDown = function(event) {
+		artefact = P.getSelected()[0]
+		if(artefact == undefined) {
 			hitResult = project.hitTest(event.point, {
-				fill: true, tolerance: 5
+				fill: true, 
+				tolerance: 5,
 			})
-			
 			if(!hitResult) return false;
-			currentItem = hitResult.item			
+			artefact = P.getArtefact(hitResult.item)
 		}
-		selectOnly(currentItem);
+		P.selectOnly(artefact);
 
-		// Set up animation
-		// initAnimation(currentItem, type, defaultProperties)
-		var item = currentItem
-		// if(hasAnimation(item)) {
-		// 	item.animation.reset()
-		// 	item.animation.handles.remove();
-		// }
+		// Previous animation
+		prevAnimation = artefact.hasAnimation() ? artefact.getAnimation().export() : {};
 
-		var anim = item.animate(type, defaultProperties);
-		// item.animation = new Animation(item, type, defaultProperties)
-		// console.log(item.animation)
-
-		// if(!item.animation) item.animation = {};
-		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
+		// Animate.
+		artefact.animate(type, defaultProperties);
 		
 
-
-		anim.update(event);
-		// // Update the properties.
-		// updateAnimation(currentItem, undefined, event);
-
+		// Update the properties.
+		artefact.getAnimation().update(event);
 	}
 
 	// Mouse drag event
-	animation.tool.onMouseDrag = animation.tool.onMouseDrag || function(event) {
-		if(!currentItem) return;
-		var anim = currentItem.getAnimation();
-		anim.update(event);
+	var _onMouseDrag = function(event) {
+		if(!artefact) return;
+		artefact.getAnimation().update(event);
 	}
 
 	// Mouse up event
-	animation.tool.onMouseUp = animation.tool.mouseUp || function(event) {
-		if(!currentItem) return;
-		currentItem.getAnimation().start();
-		// anim.start();
-		// startAnimation(currentItem);
+	var _onMouseUp = function(event) {
+		if(!artefact) return;
+		artefact.getAnimation().start();
+		
+		var _prev = prevAnimation;
+		var _cur = artefact.getAnimation().export();
+		prevAnimation = _cur;
+		
+		var undo = function() {
+			if(Object.keys(_prev).length == 0) {
+				return artefact.removeAnimation();
+			}
+			artefact.animate(_prev.type, _prev.properties).start()
+		}
 
-		// var item = currentItem;
-		// var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
-		// var curAnimation = jQuery.extend(true, {}, item.animation);
-		// item.animation._prevAnimation = curAnimation;
+		var redo = function() {
+			artefact.animate(_cur.type, _cur.properties).start()
+		}
 
- 	// 	var undo = function() {
- 	//  		resetAnimation(item);
-
-		// 	if(Object.keys(prevAnimation).length == 0) {
-		// 		item.animation._prevAnimation = {}
-		// 		item.animation = {}
-		// 	} else {
-	 // 			item.animation = prevAnimation
-	 // 			updateAnimation(item, prevAnimation.properties)
-	 // 			startAnimation(item)
-	 // 		}
- 	// 	}
-
- 	// 	var redo = function() {
- 	// 		resetAnimation(item)
- 	// 		item.animation = curAnimation
- 	// 		updateAnimation(item, curAnimation.properties)
- 	// 		startAnimation(item)
- 	// 		select(item)
- 	// 	}
-
-		// P.History.registerState(undo, redo);
+		P.history.registerState(undo, redo);
 	}
 
+	// Store methods if none exist
+	newAnimation.tool.onMouseDown = newAnimation.tool.onMouseDown || _onMouseDown;
+	newAnimation.tool.onMouseDrag = newAnimation.tool.onMouseDrag || _onMouseDrag;
+	newAnimation.tool.onMouseUp = newAnimation.tool.mouseUp || _onMouseUp;
+
 	// Store!
-	P.animations[type] = animation;
-}</code></pre>
-        </article>
-    </section>
+	P.animations[type] = newAnimation;
+
+	return newAnimation;
+}</pre>
+    </article>
+</section>
 
 
 
+
+
+		</div>
+	</div>
+
+	<div class="clearfix"></div>
+
+	
 
 </div>
+</div>
 
-<nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="global.html#Animation">Animation</a></li></ul><h3>Global</h3><ul><li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#clone">clone</a></li><li><a href="global.html#deselect">deselect</a></li><li><a href="global.html#deselectAll">deselectAll</a></li><li><a href="global.html#getAdjacentSegments">getAdjacentSegments</a></li><li><a href="global.html#getBoundingBox">getBoundingBox</a></li><li><a href="global.html#getBounds">getBounds</a></li><li><a href="global.html#getHandle">getHandle</a></li><li><a href="global.html#getHandleByName">getHandleByName</a></li><li><a href="global.html#getOuterGroup">getOuterGroup</a></li><li><a href="global.html#getPositionIndex">getPositionIndex</a></li><li><a href="global.html#getPositionName">getPositionName</a></li><li><a href="global.html#getSegmentByHandle">getSegmentByHandle</a></li><li><a href="global.html#getSegmentByIndex">getSegmentByIndex</a></li><li><a href="global.html#getSegmentByName">getSegmentByName</a></li><li><a href="global.html#getSelected">getSelected</a></li><li><a href="global.html#hasAnimation">hasAnimation</a></li><li><a href="global.html#inGroup">inGroup</a></li><li><a href="global.html#isCircular">isCircular</a></li><li><a href="global.html#isGroup">isGroup</a></li><li><a href="global.html#isHandle">isHandle</a></li><li><a href="global.html#isRectangular">isRectangular</a></li><li><a href="global.html#isSegment">isSegment</a></li><li><a href="global.html#mainColor">mainColor</a></li><li><a href="global.html#moveItem">moveItem</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#registerAnimation">registerAnimation</a></li><li><a href="global.html#select">select</a></li><li><a href="global.html#selectOnly">selectOnly</a></li><li><a href="global.html#selectTool">selectTool</a></li><li><a href="global.html#setupRectangle">setupRectangle</a></li><li><a href="global.html#ungroup">ungroup</a></li></ul>
-</nav>
 
-<br class="clear">
+    <div class="modal fade" id="searchResults">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Search results</h4>
+          </div>
+          <div class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div>
+
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Sun Apr 16 2017 14:33:59 GMT+0200 (CEST)
+
+
+	<span class="copyright">
+	DocStrap Copyright © 2012-2015 The contributors to the JSDoc3 and DocStrap projects.
+	</span>
+
+<span class="jsdoc-message">
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a>
+	
+		on Tue Apr 18th 2017
+	
+	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
+</span>
 </footer>
 
-<script> prettyPrint(); </script>
-<script src="scripts/linenumber.js"> </script>
+<script src="scripts/docstrap.lib.js"></script>
+<script src="scripts/toc.js"></script>
+
+    <script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
+
+<script>
+$( function () {
+	$( "[id*='$']" ).each( function () {
+		var $this = $( this );
+
+		$this.attr( "id", $this.attr( "id" ).replace( "$", "__" ) );
+	} );
+
+	$( ".tutorial-section pre, .readme-section pre, pre.prettyprint.source" ).each( function () {
+		var $this = $( this );
+
+		var example = $this.find( "code" );
+		exampleText = example.html();
+		var lang = /{@lang (.*?)}/.exec( exampleText );
+		if ( lang && lang[1] ) {
+			exampleText = exampleText.replace( lang[0], "" );
+			example.html( exampleText );
+			lang = lang[1];
+		} else {
+			var langClassMatch = example.parent()[0].className.match(/lang\-(\S+)/);
+			lang = langClassMatch ? langClassMatch[1] : "javascript";
+		}
+
+		if ( lang ) {
+
+			$this
+			.addClass( "sunlight-highlight-" + lang )
+			.addClass( "linenums" )
+			.html( example.html() );
+
+		}
+	} );
+
+	Sunlight.highlightAll( {
+		lineNumbers : true,
+		showMenu : true,
+		enableDoclinks : true
+	} );
+
+	$.catchAnchorLinks( {
+        navbarOffset: 10
+	} );
+	$( "#toc" ).toc( {
+		anchorName  : function ( i, heading, prefix ) {
+			return $( heading ).attr( "id" ) || ( prefix + i );
+		},
+		selectors   : "#toc-content h1,#toc-content h2,#toc-content h3,#toc-content h4",
+		showAndHide : false,
+		smoothScrolling: true
+	} );
+
+	$( "#main span[id^='toc']" ).addClass( "toc-shim" );
+	$( '.dropdown-toggle' ).dropdown();
+
+    $( "table" ).each( function () {
+      var $this = $( this );
+      $this.addClass('table');
+    } );
+
+} );
+</script>
+
+
+
+<!--Navigation and Symbol Display-->
+
+
+<!--Google Analytics-->
+
+
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            SearcherDisplay.init();
+        });
+    </script>
+
+
 </body>
 </html>

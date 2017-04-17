@@ -5,21 +5,25 @@
 /**
  * Painter, encapsulates everything!
  * @type {Object}
+ * @global
+ * @namespace 
  */
 var P = {
 
+	/**
+	 * The color used for bounding boxes, animation handles etc.
+	 * 
+	 * @type {String}
+	 * @private
+	 */
 	mainColor: '#78C3D0',
 
 	/**
-	 * Select an item or multiple items.
-	 *
-	 * The item is not selected using the Paper.js's default `item.selected = true`. 
-	 * Rather, we draw a custom bounding box around the item, allowing a bit
-	 * more flexibility (e.g. different bounding boxes for different types of
-	 * items). To test if an item has been selected using our custom selection
-	 * method, the test function `isSelected` can be used.
-	 * @param  {mixed} items An item or multiple items
-	 * @return {None}
+	 * Select an artefact or multiple artefacts.
+	 * 
+	 * @param  {Artefact[]} artefact One or multiple artefacts
+	 * @return {Artefact[]}
+	 * @instance
 	 */
 	select: function(artefact) {
 		if(artefact instanceof Array) return artefact.map(P.select);
@@ -27,12 +31,13 @@ var P = {
 	},
 
 	/**
-	 * Deselect an item
+	 * Deselect an artefact
 	 *
 	 * This removes the bounding box and resets styling specific to selected
 	 * items.
-	 * @param  {item} item 
-	 * @return {None}
+	 * @param  {Artefact[]} artefact One or multiple artefacts
+	 * @return {Artefact[]}
+	 * @instance
 	 */
 	deselect: function(artefact) {
 		if(artefact instanceof Array) return artefact.map(P.deselect);
@@ -40,36 +45,42 @@ var P = {
 	},
 
 	/**
-	 * Deselects all the currently selected items.
+	 * Deselects all the currently selected artefacts.
 	 *
-	 * Again, we don't use the in-built selection mechanism, but rely on our own
-	 * bounding boxes. Only items with bounding boxes are deselected, the function
-	 * does not care about the value of `item.selected`.
-	 * @param  {array} items 
-	 * @return {None}
+	 * @return {Artefact[]} The artefacts that were deselected
+	 * @instance
 	 */
 	deselectAll: function() {
 		return P.getArtefacts().mmap('deselect');
 	},
 
 	/**
-	 * Selects only this item
-	 * @param  {item} item The only item to select
-	 * @return {None}
+	 * Selects only this artefact and deselect all others.
+	 * 
+	 * @param {Artefact[]} aftefact The artefact or artefacts to select
+	 * @return {Artefact[]} The selected artefact(s)
+	 * @instance
 	 */
-	selectOnly: function(artefacts) {
+	selectOnly: function(artefact) {
 		P.deselectAll();
-		return P.select(artefacts);
+		return P.select(artefact);
 	},
 
+	/**
+	 * Get all artefacts
+	 * 
+	 * @return {Artefact[]}
+	 * @instance
+	 */
 	getArtefacts: function() {
 		return Object.values(P.artefacts);
 	},
 
 	/**
-	 * Return all selected items
-	 * @param  {Function} match The match function, defaults to isSelected
-	 * @return {Array}       Selected items
+	 * Return all selected artefacts
+	 * 
+	 * @return {Artefact[]}
+	 * @instance
 	 */
 	getSelected: function() {
 		return P.getArtefacts().filter(function(artefact) {
@@ -80,9 +91,11 @@ var P = {
 	/*****************************************************/
 
 	/**
-	 * Test if the item is a handle of a bounding box.
-	 * @param  {Item}  item 
+	 * Test if the artefact is a handle
+	 * 
+	 * @param  {paper.Item} item The handle
 	 * @return {Boolean}
+	 * @instance
 	 */
 	isHandle: function(item) {
 		if(!item.name) return false;
@@ -91,15 +104,27 @@ var P = {
 
 	/**
 	 * Test if an item is in a group
-	 * @param  {Item} 		item 
+	 * @param  {paper.Item}	item
 	 * @return {Boolean}
+	 * @instance
 	 */
 	inGroup: function(item) {
 		if(item.parent) return item.parent.className == 'Group';
 		return false;
 	},
 
-	isArtefact: function(obj, strict=false) {
+	/**
+	 * Test if an object is an artefact. It can test both whether a Paper.js
+	 * item corresponds to an artefact or whether an object actually is
+	 * an instance of {@link Artefact}, when `strict=true`.
+	 * 
+	 * @param  {paper.Item|Artefact} obj The object to Test
+	 * @param  {Boolean} [strict=false] Only match objects that are actual 
+	 * instances of {@link Artefact}?
+	 * @return {Boolean}
+	 * @instance
+	 */
+	isArtefact: function(obj, strict) {
 		if(obj instanceof P.Artefact) return true;
 		if(!strict && obj.data && obj.data._artefact) 
 			return P.isArtefact(obj.data._artefact);
@@ -108,6 +133,13 @@ var P = {
 
 	/*****************************************************/
 
+	/**
+	 * Get the artefact corresponding to an item.
+	 * 	
+	 * @param  {paper.Item} item 
+	 * @return {Artefact|Boolean} The Artefact or `false` if none was found.
+	 * @instance
+	 */
 	getArtefact: function(item) {
 		if(item.name == 'shadow') {
 			return item.parent.data._artefact;
@@ -128,9 +160,11 @@ var P = {
 	},
 
 	/**
-	 * Find the higest group in which the item is contained
-	 * @param  {Item} 	item 
-	 * @return {Group}  The outermost group containing `item`
+	 * Find the outermost group containing the item.
+	 * 
+	 * @param  {paper.Item} 	item 
+	 * @return {paper.Group}  The outermost group containing `item`
+	 * @instance
 	 */
 	getOuterGroup: function(item) {
 		if(P.inGroup(item.parent)) return P.getOuterGroup(item.parent);
@@ -139,6 +173,16 @@ var P = {
 
 	/*****************************************************/
 
+	/**
+	 * Get the `i`'th of `num_color` equally spaced colors in the HSB spectrum.
+	 * 
+	 * @param  {Number}  i 					 Which color to fetch, by index.
+	 * @param  {Number}  num_colors  Divide the spectrum in how many colors?
+	 * @param  {Float}   [noise=0.4] Noise
+	 * @param  {Boolean} css         If `true` it returns a CSS-friendly color string.
+	 * @return {String}
+	 * @instance
+	 */
 	getColor: function(i, num_colors, noise=.4, css=true) {
 		var noise = Math.random() * noise - .5*noise
 		var hue = ( (i+noise) / num_colors * 360 ) % 360
@@ -151,7 +195,12 @@ var P = {
 		if(css) return "hsl(" + color.hue+', '+color.saturation+'%, '+color.brightness+'%)';
 		else return color
 	},
-
+	
+	/**
+	 * Get the active swatch
+	 * 
+	 * @return {String}
+	 */
 	getActiveSwatch: function() {
 		var index = $('.swatch.active').data('colorIndex');
 		var numSwatches = $('.swatch.active').data('numSwatches');
@@ -161,7 +210,25 @@ var P = {
 };
 
 
-// Method Map
+/**
+ * Method Map: calls a method of every element in an array. This makes 
+ * chaining super easy with arrays of Artefacts, for example.
+ * 
+ * @example
+ * // Get the currently selected artefacts
+ * var artefacts = P.getSelected();
+ * 
+ * // First clone them and then select them
+ * var move = [30, 40]
+ * artefacts.mmap('clone', [move]).mmap('select');
+ *
+ * @param  {String} name The method to apply
+ * @param  {Array} args An array of arguments passed to the method.
+ * @return {Array}      An array with the result of every call
+ * @inner
+ * @memberof Array
+ * @global
+ */
 Array.prototype.mmap = function(name, args) {
 	return this.map(function(element) {
 		return element[name].apply(element, args);
@@ -170,17 +237,19 @@ Array.prototype.mmap = function(name, args) {
 ;/**
  * History
  *
- * Registers actions and implements undo/redo functionality. Actions 
+ * @class  Registers actions and implements undo/redo functionality. Actions 
  * are registered by providing two functions, `undo` and `redo`, that
  * take no other arguments (i.e., they are thunks). When registering 
  * these functions, care has to be taken that the right variables are
  * copied and scoped appropriately so that later actions do not change
  * the references in the `un/redo` functions. 
  *
- * Actions for animations are a bit tricky, as one has to track the
- * complete `item.animation` object. All this is solved in animations.js.
+ * History is always instantiated in `P.history`. Use this to register
+ * new states.
+ *
+ * @name History
  */
-P._HistoryClass = paper.Base.extend({
+P.History = paper.Base.extend(/** @lends History */{
 
 	initialize: function() {
 		this.states = [{}];
@@ -196,7 +265,7 @@ P._HistoryClass = paper.Base.extend({
 	 * scoping and copying relevant variables itself.
 	 * @param  {Function} redo A redo function that when called redoes
 	 * the action undone by `undo`. Again, it takes no arguments.
-	 * @return {None}
+	 * @instance
 	 */
 	registerState: function(undo, redo) {
 		this.states = this.states.slice(0, this.index+1);
@@ -213,7 +282,7 @@ P._HistoryClass = paper.Base.extend({
 	 * Redo the last action
 	 *
 	 * Moves the index one step forward in the history, if possible.
-	 * @return 
+	 * @instance
 	 */
 	redo: function() {
 		if(this.index >= this.states.length-1) return false;
@@ -223,7 +292,7 @@ P._HistoryClass = paper.Base.extend({
 
 	/**
 	 * Undo the last action
-	 * @return {None} 
+	 * @instance
 	 */
 	undo: function() {
 		if(this.index == 0) return false;
@@ -232,14 +301,37 @@ P._HistoryClass = paper.Base.extend({
 	}
 })
 
-// Instantiate
-P.History = new P._HistoryClass();
-;
+/**
+ * Instance of the HistoryClass.
+ * 
+ * @type {P.HistoryClass}
+ */
+P.history = new P.History();
+;/**
+ * An object tracking all artefacts. Artefacts are registered by the id of
+ * the item. To get an array, just use `Object.values(P.artefacts)` or call
+ * `P.allArtefacts()`.
+ * 
+ * @private
+ * @type {Object}
+ */
 P.artefacts = {}
 
-P.Artefact = paper.Base.extend({
+/**
+ * @name Artefact
+ * @class The main artefact class
+ */
+P.Artefact = paper.Base.extend(/** @lends Artefact */{
+	
+	/**
+	 * @private
+	 * @type {String}
+	 */
 	_class: 'Artefact',
 
+	/**
+	 * Constructor
+	 */
 	initialize: function(item) {
 		this.item = item;
 		this.item.data._artefact = this;
@@ -252,8 +344,10 @@ P.Artefact = paper.Base.extend({
 	},
 
 	/**
-	 * Show the bounding box of the current item
-	 * @return {Item|Boolean} The current item or false if it is not an Artefact
+	 * Show the bounding box of the current artefact
+	 * 
+	 * @return {Artefact} This artefact
+	 * @instance
 	 */
 	showBoundingBox: function() {
 		if(!this.bbox) this.drawBoundingBox();
@@ -263,13 +357,21 @@ P.Artefact = paper.Base.extend({
 
 	/**
 	 * Hide the bounding box
-	 * @return {Item}
+	 * 
+	 * @return {Artefact} This artefact
+	 * @instance
 	 */
 	hideBoundingBox: function() {
 		if(this.bbox) this.bbox.visible = false;
 		return this;
 	},
 
+	/**
+	 * Completely remove the bounding box of this artefact
+	 * 
+	 * @return {Artefact} This artefact
+	 * @instance
+	 */
 	removeBoundingBox: function() {
 		this.hideBoundingBox();
 		if(this.bbox) this.bbox.remove();
@@ -277,6 +379,16 @@ P.Artefact = paper.Base.extend({
 		return this;
 	},
 
+	/**
+	 * Draw the bounding box of the artefact.
+	 * 
+	 * This function relies on the `_drawBoundingBox` in one of the inheriting 
+	 * classes {@link Artefact.Rectangle}, {@link Artefact.Circle} or {@link Artefact.Group}, 
+	 * which actually generates the handles, border and shadow element.
+	 * 	
+	 * @return {Aftefact} This artefact
+	 * @instance
+	 */
 	drawBoundingBox: function() {
 		if(!this._drawBoundingBox) {
 			console.log('ERROR!')
@@ -311,6 +423,8 @@ P.Artefact = paper.Base.extend({
 
 	/**
 	 * Generate a handle object
+	 *
+	 * @private
 	 * @param  {Point} position The position for the handle
 	 * @return {Path}
 	 */
@@ -336,17 +450,20 @@ P.Artefact = paper.Base.extend({
 	},
 
 	/**
-	 * Test if this is selected
-	 * @return {Boolean} True if this item is selected
+	 * @summary Test if this Artefact is selected
+	 * @return {Boolean}
+	 * @instance
 	 */
 	isSelected: function() {
 		return this.selected == true;
 	},
 
 	/**
-	 * Select the current item
+	 * Select the current artefact. If an artefact is selected, the bounding box and 
+	 * animation handles, if they exist, are shown. 
 	 * 
-	 * @return {Item} The current item
+	 * @return {Artefact}
+	 * @instance
 	 */
 	select: function() {
 		if(!this.isSelected()) {
@@ -358,10 +475,10 @@ P.Artefact = paper.Base.extend({
 	},
 
 	/**
-	 * Deselect this item
-	 *
-	 * Removes the bounding box and animation handles if they exist.
-	 * @return {Item} The current item
+	 * Deselect this artefact. Removes the bounding box and animation handles.
+	 * 
+	 * @return {Artefact}
+	 * @instance
 	 */
 	deselect: function() {
 		this.hideBoundingBox();
@@ -374,12 +491,14 @@ P.Artefact = paper.Base.extend({
 	},
 
 	/**
-	 * Animate the item.
+	 * Animate the artefact. This adds an {@link Animation} object of a certain type to the
+	 * artefact. 
 	 * 
 	 * @param  {String} type       The type of animation, e.g. 'bounce' or 'rotate'.
 	 * @param  {Object} properties Properties for this animation. The shape of this object
 	 * differs across types of animations. 
 	 * @return {Animation}         The animation object
+	 * @instance
 	 */
 	animate: function(type, properties) {
 		this.removeAnimation()
@@ -389,6 +508,11 @@ P.Artefact = paper.Base.extend({
 		return this.anim;
 	},
 
+	/**
+	 * Completely removes the animation from this artefact, if any exists.
+	 * @return {undefined}
+	 * @instance
+	 */
 	removeAnimation: function() {
 		if(!this.hasAnimation()) return;
 		this.getAnimation().remove()
@@ -396,47 +520,82 @@ P.Artefact = paper.Base.extend({
 	},
 
 	/**
-	 * Get the animation object 
+	 * Get the animation object.
 	 * 
-	 * @return {Animation|Boolean} The animation object, an instance of {@link Animation}
-	 * or `false` if no animation exists.
+	 * @return {Animation} The animation object, an instance of {@link Animation}.
+	 * @instance
 	 */
 	getAnimation: function() {
 		return this.anim;
-		// return this.animation;
 	},
 
-	hasAnimation: function(type=false) {
+	/**
+	 * Test if this artefact has an animation.
+	 * 	
+	 * @param  {Boolean|String} [type=false] If `type` is specified, it also checks
+	 * if the animation is of the given type
+	 * @return {Boolean}
+	 * @instance
+	 */
+	hasAnimation: function(type) {
 		if(!this.getAnimation()) return false;
 		if(type) return this.getAnimation().type == type;
 		return true;
 	},
 
+	/**
+	 * Test if this artefact is currently animating, that is, if the animation is active.
+	 * 	
+	 * @return {Boolean}
+	 * @instance
+	 */
 	isAnimating: function() {
 		return this.hasAnimation() ? this.getAnimation().isActive() : false;
 	},
 
-	getShadowBounds: function(transform=false) {
+	/**
+	 * Get the so called 'shadow bounds'. The *shadow* object is the heart of 
+	 * the bounding box and has the same shape as the Artefact. The shadow (and 
+	 * bounding box) stay in place when the artefact is animated. In this way, 
+	 * the shadow provides a way to find out the exact dimensions of an artefact
+	 * if the animation would be removed, without ever having to stop the 
+	 * animation. The bounds of the shadow are thus of special importance.
+	 *
+	 * For groups, the shadow bounds are computed recursively, by combining the 
+	 * shadow bounds of children up to a certain depth.
+	 * 
+	 * @param  {Number} [depth=1] How deep the recursion should go; only used 
+	 * when computing the bounds of a {@link Artefact.Group}.
+	 * @return {paper.Rectangle} The bounds
+	 * @instance
+	 */
+	getShadowBounds: function(depth=1) {
 		return this.shadow ? this.shadow.bounds : false;
 	},
 
+	/**
+	 * Transform this item. The transformation will also be applied to the 
+	 * bounding box and the animation (handles). In this way, the artefact always
+	 * moves as a single unit.
+	 * 
+	 * @param  {paper.Matrix} matrix The transformation Matrix
+	 * @return {Artefact}
+	 * @instance
+	 */
 	transform: function(matrix) {
 		this.item.transform(matrix);
 		if(this.bbox) this.bbox.transform(matrix);
 		if(this.hasAnimation()) this.getAnimation().transform(matrix);
+		return this;
 	},
 
 	/**
-	 * Move the item by a specified distance.
-	 *
-	 * Repositioning the item directly gives undesired results, since the item
-	 * has a bounding box and possibly animation handles that also need to be 
-	 * repositioned. That is what this function takes care of.
-	 *
-	 * @todo Use a general transform function instead?
+	 * Move the item by a specified distance. Internally, the {@link Artefact.transform}
+	 * method is used.
 	 * 
 	 * @param  {paper.Point} delta The distance by which the item should be moved.
-	 * @return {Item} The current item
+	 * @return {Artefact}
+	 * @instance
 	 */
 	move: function(delta) {
 		var matrix = new Matrix().translate(delta);
@@ -444,6 +603,12 @@ P.Artefact = paper.Base.extend({
 		return this;
 	},
 
+	/**
+	 * Destroy this artefact
+	 * 
+	 * @return {}
+	 * @instance
+	 */
 	destroy: function() {
 		this.deselect();
 		if(this.bbox) {
@@ -458,6 +623,14 @@ P.Artefact = paper.Base.extend({
 		delete P.artefacts[this.id];
 	},
 
+	/**
+	 * Restore this artefact. After destroying the artefact, a reference to it
+	 * might still exist. In that case, `restore` can be called to, yes, restore
+	 * the artefact. This is typically used in undo/redo settings.
+	 * 
+	 * @return {Artefact}
+	 * @instance
+	 */
 	restore: function() {
 		project.activeLayer.addChild(this.item);
 		if(this.hasAnimation()) this.getAnimation().start;
@@ -465,6 +638,16 @@ P.Artefact = paper.Base.extend({
 		return this;
 	},
 
+	/**
+	 * Clone the artefact. This should result in a deep copy, with no references
+	 * to the original artefact. Paper items, bounding boxes, animations, all
+	 * should be copied.
+	 * 	
+	 * @param  {Boolean|Artefact} [copy=false] If a copy is given, the current item
+	 * is not cloned, but the copy is further updated to mirror the current artefact.
+	 * @return {Artefact} A clone of the original artefact.
+	 * @instance 
+	 */
 	clone: function(copy=false) {
 
 		// Construct new copy
@@ -497,23 +680,54 @@ P.Artefact = paper.Base.extend({
 		this.deselect();
 		copy.select();
 
-		console.log('copy', copy)
 		return copy;
 	},
 
+	/**
+	 * Test if this artefact is a {@link Artefact.Rectangle}
+	 * @return {Boolean}
+	 * @instance
+	 */
 	isRectangle: function() {
 		return this instanceof P.Artefact.Rectangle;
 	},
 
+	/**
+	 * Test if this artefact is a {@link Artefact.Circle}
+	 * @return {Boolean} [description]
+	 * @instance
+	 */
 	isCircle: function() {
 		return this instanceof P.Artefact.Circle;
-	}
+	},
+
+	/**
+	 * Manipulate the artefact using an {@link paper.ToolEvent}. The behaviour
+	 * is different for different artefacts and overridden by inheriting classes.
+	 * 
+	 * @param  {paper.ToolEvent} event
+	 * @param  {paper.Item} handle The handle hit by the event
+	 * @return {}
+	 * @instance
+	 */
+	manipulate: function(event, handle) {}
 
 })
 
-P.Artefact.Rectangle = P.Artefact.extend({
+/**
+ * @name Artefact.Rectangle
+ * @class A rectangular Artefact. Yes, really just a rectangle.
+ */
+P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
+
 	_class: 'Rectangle',
 
+	/**
+	 * Constructor
+	 * @param  {paper.Item|args} args Either a rectangular paper.Item or arguments
+	 * that can be passed to the paper.Path.Rectangle constructor.	
+	 * @return {}
+	 */
 	initialize: function(args) {
 		var item;
 		if(args instanceof paper.Item) {
@@ -524,6 +738,10 @@ P.Artefact.Rectangle = P.Artefact.extend({
 		P.Artefact.apply(this, [item]);
 	},
 
+	/**
+	 * Draws the bounding box for a rectangular artefact.
+	 * @private
+	 */
 	_drawBoundingBox: function() {
 		var handles = [];
 		var shadow = this.item.clone();
@@ -558,6 +776,11 @@ P.Artefact.Rectangle = P.Artefact.extend({
 		}
 	},
 
+	/**
+	 * @private
+	 * @param  {ToolEvent} event
+	 * @param  {Item} handle [description]
+	 */
 	manipulate: function(event, handle) {
 		if(this.isAnimating()) return false;
 
@@ -591,12 +814,12 @@ P.Artefact.Rectangle = P.Artefact.extend({
 		newHandle.fillColor = P.mainColor;
 	},
 
-
 	/**
 	* Get the adjacent segments of a given segment on a rectangle
-	*
+	* @private
 	* @param  {Segment} segment 
-	* @return {object}         An object `{ sameX: sameXSegment, sameY: sameYSegment }`.
+	* @return {Object} Object containing the segment with the same X 
+	* and the one with the same Y coordinate.
 	*/
 	_getAdjacentSegments: function(segment) {
 		var adjacents = {
@@ -621,7 +844,11 @@ P.Artefact.Rectangle = P.Artefact.extend({
 
 });
 
-P.Artefact.Circle = P.Artefact.extend({
+/**
+ * @name  Artefact.Circle
+ * @class  A circular Artefact.
+ */
+P.Artefact.Circle = P.Artefact.extend(/** @lends Artefact.Circle */{
 	_class: 'Circle',
 
 	initialize: function(args) {
@@ -664,7 +891,12 @@ P.Artefact.Circle = P.Artefact.extend({
 
 })
 
-P.Artefact.Group = P.Artefact.extend({
+/**
+ * @name Artefact.Group
+ * @class The group Artefact is an artefact consisting of several others.
+ * It is really just a group with some added niceties.
+ */
+P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	_class: 'Group',
 
 	initialize: function(artefacts) {
@@ -682,6 +914,12 @@ P.Artefact.Group = P.Artefact.extend({
 		this.children.mmap('deselect');
 	},
 
+	/**
+	 * Override the default clone method 
+	 * 
+	 * @private
+	 * @return {Artefact.Group}
+	 */
 	clone: function clone() {
 		this.deselect();
 		var clonedChildren = this.children.mmap('clone').mmap('deselect')
@@ -691,7 +929,16 @@ P.Artefact.Group = P.Artefact.extend({
 		return copy
 	},
 
-	getShadowBounds: function(depth=1) {
+	/**
+	 * Override the default getShadowBounds. Instead, compute the shadow bounds,
+	 * by recursively combining the shadow bounds of children.
+	 *
+	 * @private
+	 * @param  {Number} [depth=1] How deep the recursion should go
+	 * @return {paper.Rectangle}
+	 */
+	getShadowBounds: function(depth) {
+		var depth = depth || 1;
 		// Get the shadow bounds only up to a certain depth
 		if(this.shadow && depth == 0){
 			return this.shadow.bounds
@@ -707,6 +954,10 @@ P.Artefact.Group = P.Artefact.extend({
 		return bounds
 	},
 
+	/**
+	 * Draw bounding box around the group
+	 * @private
+	 */
 	_drawBoundingBox: function() {
 		// The item's shadow
 		var bounds = this.getShadowBounds();
@@ -730,6 +981,13 @@ P.Artefact.Group = P.Artefact.extend({
 		} 
 	},
 
+	/**
+	 * Manipulate the group, that is, scale it.
+	 *
+	 * @private
+	 * @param {paper.ToolEvent} event
+	 * @param {paper.Item} handle
+	 */
 	manipulate: function(event, handle) {
 		if(this.isAnimating()) return false;
 		
@@ -751,6 +1009,12 @@ P.Artefact.Group = P.Artefact.extend({
 			this.bbox.children[handle.name].fillColor = P.mainColor;
 	},
 
+	/**
+	 * Ungroup. Destroys the group and inserts the children Artefact at the
+	 * same position in the layer.
+	 * 
+	 * @return {Artefact[]} Artefacts
+	 */
 	ungroup: function() {
 		// Reinstert parent items
 		var childItems = this.children.map(function(child){ return child.item });
@@ -783,13 +1047,24 @@ P.Artefact.Group = P.Artefact.extend({
 		return this.children;
 	},
 
+	/**
+	 * Override the default destroy
+	 * @param  {Boolean} [destroyChildren=true] Destroy the children as well?
+	 * @return {}
+	 */
 	destroy: function destroy(destroyChildren=false) {
 		if(destroyChildren) this.children.mmap('destroy');
-		return destroy.base.call(this);
+		destroy.base.call(this);
 	}
 });
-P.deleteSelection = function(artefacts) {
-	var artefacts = artefacts || P.getSelected();
+/**
+ * Delete the artefacts
+ * 
+ * @param  {Artefact[]} artefacts
+ * @memberOf P
+ * @instance
+ */
+P.delete = function(artefacts) {
 
 	var undo = function() {
 		artefacts.mmap('restore').mmap('select');
@@ -799,12 +1074,21 @@ P.deleteSelection = function(artefacts) {
 		artefacts.mmap('destroy');
 	}
 	
-	P.History.registerState(undo, redo);
+	P.history.registerState(undo, redo);
 
 	redo();
 }
 
-P.group = function(items) {
+/**
+ * Group an array of artefacts
+ *
+ * @todo The undo operation breaks the history...
+ * @param  {Artefact[]} artefacts The artefacts to group.
+ * @return {Artefact.Group}
+ * @memberOf P
+ * @instance
+ */
+P.group = function(artefacts) {
 
 	var undo = function() {
 		// To do: this breaks up the history chain since we no 
@@ -813,19 +1097,26 @@ P.group = function(items) {
 	}
 
 	var redo = function() {
-		return artefact = new P.Artefact.Group(items).select();
+		return artefact = new P.Artefact.Group(artefacts).select();
 	}
 
-	P.History.registerState(undo, redo)		
+	P.history.registerState(undo, redo)		
 
 	// Perform the action
 	return redo();
 }
 
 /**
- * See https://github.com/paperjs/paper.js/issues/1026
- * @param  {Group} group 
- * @return {Array}       Children
+ * Ungroup an {@link Artefact.Group}. 
+ * 
+ * Note that there is no ungrouping procedure in  Paper.js 
+ * ([see here](https://github.com/paperjs/paper.js/issues/1026)),
+ * so we implement our own ungrouping operation.
+ * 
+ * @param  {Artefact.Group} 
+ * @return {Artefact[]} An array of children artefacts
+ * @memberOf P
+ * @instance
  */
 P.ungroup = function(theGroup) {
 	if(theGroup instanceof Array) return theGroup.map(P.ungroup);
@@ -841,14 +1132,24 @@ P.ungroup = function(theGroup) {
 		theGroup = new P.Artefact.Group(children);
 	}
 
-	P.History.registerState(undo, redo);
+	P.history.registerState(undo, redo);
 	
 	// Perform the action
 	return redo();
 }
 
-P.cloneSelection = function(move=[0,0]) {
-	var artefacts = P.getSelected();
+/**
+ * Clone the currently selected artefacts
+ * 
+ * @param  {Artefact[]} artefacts	asdf	
+ * @param  {Array|paper.Point} [move=[0,0]] Move the clones by this distance.
+ * Defaults to no movement (`[0,0]`).
+ * @return {Artefacts[]} The cloned artefacts
+ * @memberOf P
+ * @instance
+ */
+P.clone = function(artefacts, move) {
+	var move = move || [0,0];
 	var clones = artefacts.mmap('clone').mmap('move', [move]);
 	P.selectOnly(clones);
 
@@ -858,16 +1159,23 @@ P.cloneSelection = function(move=[0,0]) {
 	var redo = function() {
 		clones.mmap('restore').mmap('select');
 	}
-	P.History.registerState(undo, redo)
+	P.history.registerState(undo, redo)
 
 	return clones;
 }
 
-
-P.changeColorSelection = function() {
-	var swatch = P.getActiveSwatch(),
-			artefacts = P.getSelected(),
-			origColors;
+/**
+ * Change the color of the artefacts
+ * 	
+ * @param {Artefact[]} artefacts
+ * @param {String} [swatch=null] The swatch to use. Defaults to the
+ * active swatch.
+ * @memberOf P
+ * @instance
+ */
+P.changeColor = function(artefacts, swatch) {
+	var swatch = swatch || P.getActiveSwatch();
+	var origColors;
 	
 	var redo = function() {
 		origColors = artefacts.map(function(artefact) {
@@ -884,7 +1192,7 @@ P.changeColorSelection = function() {
 		});
 	}
 	
-	P.History.registerState(undo, redo);
+	P.history.registerState(undo, redo);
 
 	redo();
 };/**
@@ -895,32 +1203,17 @@ P.animations = {}
 
 /**
  * @name Animation
- * @class
+ * @class The main animation class
+ * @property {Artefact} artefact The artefact being animated
+ * @property {String} type The type of animation. This must correspond to a 
+ * registered animation such as `bounce` or `rotate`.
+ * @property {Object} properties All properties determining the animation.
  */
 P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
-	 * The type of this animation, e.g. rotate or 'bounce'
-	 * @type {String}
-	 */
-	type: '',
-
-	/**
-	 * The Paper item being animated
-	 * @type {paper.Item}
-	 */
-	item: undefined,
-
-	/**
-	 * The properties determining the animation
-	 * @type {Object}
-	 */
-	properties: {},
-
-	/**
 	 * Initialize an animation.
 	 *
-	 * @name  Animation
 	 * @param  {paper.Item} item The Paper item to animate.
 	 * @param  {String} type Animation type, such as 'bounce' or 'rotate'.
 	 * @param  {Object} properties Default properties.
@@ -932,27 +1225,24 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 		this.item.data._animation = this;
 		this.type = type;
 		this.properties = jQuery.extend(true, {}, properties);
-		// // if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 
-		// // Load all animation-specific methods.
-		this._loadActions();
-		this._onInit(this.artefact, this.properties);
-		this.drawHandles();
-	},
-
-	_loadActions: function() {
+		// Load all animation-specific methods.
 		var actions = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
 		'onTransform', 'onDrawHandles', 'onUpdate'];
 		for(var i=0; i<actions.length; i++) {
 			var action = actions[i];
 			this['_'+action] = P.animations[this.type][action] || function() {};
 		}
+
+		this._onInit(this.artefact, this.properties);
+		this.drawHandles();
 	},
 
 	/**
 	 * Draw the animation handles
 	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	drawHandles: function() {
 		// Clean up old animations
@@ -970,6 +1260,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * Remove the animation handles
 	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	removeHandles: function(self) {
 		if(this.handles != undefined) {
@@ -988,6 +1279,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * @param {paper.Event|Object} argument Either a Paper event or an object 
 	 * with properties.
 	 * @return {Object} The updated properties
+	 * @instance
 	 */
 	update: function(argument) {
 		var properties;
@@ -1006,11 +1298,9 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * Start the animation
 	 * @param  {Boolean} recurse [description]
 	 * @return {Animation}
+	 * @instance
 	 */
 	start: function(recurse=true) {
-		// if(isGroup(item) && recurse) 
-		// 	startAnimation(item.children, type, false);
-		
 		this.active = true;
 		this._onStart(this.artefact, this.properties);
 
@@ -1027,7 +1317,9 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
 	 * Pause the animation in its current state.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	pause: function() {
 		this.active = false;
@@ -1037,14 +1329,13 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	},
 
 	/**
-	 * Stops the animation: pause the animation and reset the item to its original state.
-	 * @param  {Boolean} recurse Good question...
+	 * Stops the animation: pause the animation and reset the item to its 
+	 * original state.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
-	stop: function(recurse=false) {
-		// if(isGroup(item) && recurse) resetAnimation(item.children, true);
-
-		// Stop animation
+	stop: function() {
 		this.pause();
 		this._onStop(this.artefact, this.properties);
 		return this;
@@ -1054,7 +1345,9 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	 * Remove the animation. It does not actually remove the animation object,
 	 * but resets the animation and removes all items drawn on the canvas, such
 	 * as handles.
+	 * 
 	 * @return {Animation}
+	 * @instance
 	 */
 	remove: function() {
 		this.stop();
@@ -1063,9 +1356,11 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	},
 
 	/**
-	 * Apply a transformation to the animation
+	 * Apply a transformation to the animation.
+	 * 
 	 * @param  {paper.Matrix} matrix The transformation matrix
-	 * @return {Animation}        [description]
+	 * @return {Animation}
+	 * @instance
 	 */
 	transform: function(matrix) {
 		this._onTransform(this.artefact, this.properties, matrix);
@@ -1075,16 +1370,31 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	/**
 	 * Test if this animation is active: if the animation is currently running.
 	 * If the animation is paused or stopped, `isActive` returns `false`.
+	 * 
 	 * @return {Boolean}
+	 * @instance
 	 */
 	isActive: function() {
 		return this.active == true;
 	},
 
+	/**
+	 * Create a (deep) copy of the animation properties
+	 * 
+	 * @return {Object} copy of the properties
+	 * @instance
+	 */
 	cloneProperties: function() {
 		return jQuery.extend(true, {}, this.properties);
 	},
 
+	/**
+	 * Export the animation as a plain object which fully determines the
+	 * animation. (Currently, that's just its `properties` and `type`).
+	 * 
+	 * @return {Object}
+	 * @instance
+	 */
 	export: function() {
 		return {
 			'properties': this.cloneProperties(),
@@ -1103,21 +1413,23 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
  * most important ones are
  * 
  * - `onUpdate(item, properties, event)` should update the properties object 
- * 		based on a mouse event. This function is called whenever the animation 
- * 		tool is active and the mouse moves. The properties determined here are
- * 		passed to all functions below.
+ * based on a mouse event. This function is called whenever the animation 
+ * tool is active and the mouse moves. The properties determined here are
+ * passed to all functions below.
  * - `onFrame(item, properties, events)` updates the object based on the properties,
- * 		event etc. This is the core of the animation
+ * event etc. This is the core of the animation
  * - `drawHandles(item, properties)` returns a `Group` with the handles
  * - `onTransform(item, properties, matrix)` handles a transform of the item.
- * 		The properties probably contain some point in a relative coordinate system.
- * 		This function should apply the matrix to that point.
+ * The properties probably contain some point in a relative coordinate system.
+ * This function should apply the matrix to that point.
  * - `onStop(item, properties)` Should undo the animation and reset the item.
- * 
+ *
  * @param  {String} type              Name of the animation
  * @param  {Object} animation         Animation object
  * @param  {Object} defaultProperties Default properties
- * @return {Object} The animation                   
+ * @return {Object} The animation
+ * @memberOf P
+ * @instance 
  */
 P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	
@@ -1178,7 +1490,7 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 			artefact.animate(_cur.type, _cur.properties).start()
 		}
 
-		P.History.registerState(undo, redo);
+		P.history.registerState(undo, redo);
 	}
 
 	// Store methods if none exist
@@ -1303,14 +1615,13 @@ circleTool.onMouseUp = function(event) {
 	// History
 	var undo = function() { artefact.destroy(); }
 	var redo = function() { artefact.restore(); }
-	P.History.registerState(undo, redo)
+	P.history.registerState(undo, redo)
 };
 cloneTool = new paper.Tool();
 
 var currentItems;
 cloneTool.onMouseDown = function(event) {
-	currentItems = P.getSelected();
-	currentItems = cloneSelection();
+	currentItems = P.clone(P.getSelected());
 }
 
 cloneTool.onMouseDrag = function(event) {
@@ -1345,7 +1656,7 @@ dragTool.onMouseUp = function(event, artefacts) {
 			})
 		}
 		
-		P.History.registerState(undo, redo);
+		P.history.registerState(undo, redo);
 	}
 };/**
  * @todo support for history redo/undo
@@ -1392,7 +1703,7 @@ rectTool.onMouseUp = function() {
 	// History
 	var undo = function() { artefact.destroy(); }
 	var redo = function() { artefact.restore(); }
-	P.History.registerState(undo, redo)
+	P.history.registerState(undo, redo)
 };/**
  * Register the rotate animation 
  *
@@ -1646,7 +1957,7 @@ $(window).ready(function() {
 	function onKeyDown(event) {
 
 		if(event.key == 'backspace' || event.key == 'd') {
-			P.deleteSelection()
+			P.delete(P.getSelected)
 		}
 
 		else if(event.key == 'space') {
@@ -1793,7 +2104,7 @@ $(window).ready(function() {
 	})
 
 	$('a.tool[data-tool=clone]').on('click', function() {
-		P.cloneSelection([20,20])
+		P.clone(P.getSelected(), [20,20]);
 	})
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
@@ -1848,7 +2159,7 @@ $(window).ready(function() {
 					.on('click', function() {
 						$('.swatch').removeClass('active');
 						$(this).addClass('active');
-						P.changeColorSelection();
+						P.changeColor(P.getSelected());
 					})
 		if(i == 0) $swatch.addClass('active');
 	}
