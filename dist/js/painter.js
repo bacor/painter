@@ -185,7 +185,7 @@ P._HistoryClass = paper.Base.extend({
 	initialize: function() {
 		this.states = [{}];
 		this.index = 0;
-		this.maxStates = 20;
+		this.maxStates = 50;
 	},
 
 	/**
@@ -204,7 +204,7 @@ P._HistoryClass = paper.Base.extend({
 		this.index += 1;
 
 		if(this.states.length > this.maxStates) {
-			this.states = states.slice(this.states.length - this.maxStates);
+			this.states = this.states.slice(this.states.length - this.maxStates);
 			this.index = this.states.length - 1;
 		}
 	},
@@ -382,13 +382,17 @@ P.Artefact = paper.Base.extend({
 	 * @return {Animation}         The animation object
 	 */
 	animate: function(type, properties) {
-		if(this.hasAnimation()) {
-			this.animation.remove();
-		}
+		this.removeAnimation()
 
 		var anim = new P.Animation(this, type, properties);
 		this.anim = anim;
 		return this.anim;
+	},
+
+	removeAnimation: function() {
+		if(!this.hasAnimation()) return;
+		this.getAnimation().remove()
+		this.anim = undefined;
 	},
 
 	/**
@@ -446,10 +450,8 @@ P.Artefact = paper.Base.extend({
 			this.bbox.remove();
 			delete this.bbox;
 		}
-		if(this.hasAnimation()) {
-			this.getAnimation().remove();
-			delete this.getAnimation();
-		}
+		
+		this.removeAnimation();
 
 		// Remove the item the very end!
 		this.item.remove();
@@ -826,7 +828,7 @@ P.group = function(items) {
  * @return {Array}       Children
  */
 P.ungroup = function(theGroup) {
-	if(theGroup instanceof Array) return theGroup.map(ungroup);
+	if(theGroup instanceof Array) return theGroup.map(P.ungroup);
 	if(!theGroup.ungroup) return false;
 	var children;
 
@@ -933,14 +935,18 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 		// // if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 
 		// // Load all animation-specific methods.
-		var methods = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
-		'onTransform', 'onDrawHandles', 'onUpdate'];
-		for(var i=0; i<methods.length; i++) {
-			var method = methods[i];
-			this['_'+method] = P.animations[this.type][method] || function() {};
-		}
+		this._loadActions();
 		this._onInit(this.artefact, this.properties);
 		this.drawHandles();
+	},
+
+	_loadActions: function() {
+		var actions = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
+		'onTransform', 'onDrawHandles', 'onUpdate'];
+		for(var i=0; i<actions.length; i++) {
+			var action = actions[i];
+			this['_'+action] = P.animations[this.type][action] || function() {};
+		}
 	},
 
 	/**
@@ -1053,6 +1059,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 	remove: function() {
 		this.stop();
 		this.removeHandles();
+		delete this.item.data._animation
 	},
 
 	/**
@@ -1076,14 +1083,14 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	cloneProperties: function() {
 		return jQuery.extend(true, {}, this.properties);
+	},
+
+	export: function() {
+		return {
+			'properties': this.cloneProperties(),
+			'type': this.type + ''
+		}
 	}
-	// clone: function(artefact) {
-	// 	var artefact = artefact || this.artefact;
-	// 	var properties = jQuery.extend(true, {}, this.properties);
-	// 	var type = '' + this.type;
-	// 	var copy = new P.Animation(artefact, type, properties);
-	// 	return copy
-	// }
 })
 
 /**
@@ -1119,6 +1126,7 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 
 	// The current item on which the tool works.
 	var artefact;
+	var prevAnimation;
 
 	// On Mouse Down
 	var _onMouseDown = function(event) {
@@ -1132,13 +1140,14 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 			artefact = P.getArtefact(hitResult.item)
 		}
 		P.selectOnly(artefact);
-		
+
+		// Previous animation
+		prevAnimation = artefact.hasAnimation() ? artefact.getAnimation().export() : {};
+
 		// Animate.
 		artefact.animate(type, defaultProperties);
 		
-		// if(!item.animation) item.animation = {};
-		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
-		
+
 		// Update the properties.
 		artefact.getAnimation().update(event);
 	}
@@ -1154,33 +1163,22 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 		if(!artefact) return;
 		artefact.getAnimation().start();
 		
-		// var item = currentItem;
-		// var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
-		// var curAnimation = jQuery.extend(true, {}, item.animation);
-		// item.animation._prevAnimation = curAnimation;
+		var _prev = prevAnimation;
+		var _cur = artefact.getAnimation().export();
+		prevAnimation = _cur;
+		
+		var undo = function() {
+			if(Object.keys(_prev).length == 0) {
+				return artefact.removeAnimation();
+			}
+			artefact.animate(_prev.type, _prev.properties).start()
+		}
 
-		// var undo = function() {
-		// 	resetAnimation(item);
+		var redo = function() {
+			artefact.animate(_cur.type, _cur.properties).start()
+		}
 
-		// if(Object.keys(prevAnimation).length == 0) {
-		// item.animation._prevAnimation = {}
-		// item.animation = {}
-		// } else {
-		// item.animation = prevAnimation
-		// updateAnimation(item, prevAnimation.properties)
-		// startAnimation(item)
-		// }
-		// }
-
-		// var redo = function() {
-		// 	resetAnimation(item)
-		// 	item.animation = curAnimation
-		// 	updateAnimation(item, curAnimation.properties)
-		// 	startAnimation(item)
-		// 	select(item)
-		// }
-
-		// P.History.registerState(undo, redo);
+		P.History.registerState(undo, redo);
 	}
 
 	// Store methods if none exist

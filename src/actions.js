@@ -39,7 +39,7 @@ P.group = function(items) {
  * @return {Array}       Children
  */
 P.ungroup = function(theGroup) {
-	if(theGroup instanceof Array) return theGroup.map(ungroup);
+	if(theGroup instanceof Array) return theGroup.map(P.ungroup);
 	if(!theGroup.ungroup) return false;
 	var children;
 

@@ -146,13 +146,17 @@ P.Artefact = paper.Base.extend({
 	 * @return {Animation}         The animation object
 	 */
 	animate: function(type, properties) {
-		if(this.hasAnimation()) {
-			this.animation.remove();
-		}
+		this.removeAnimation()
 
 		var anim = new P.Animation(this, type, properties);
 		this.anim = anim;
 		return this.anim;
+	},
+
+	removeAnimation: function() {
+		if(!this.hasAnimation()) return;
+		this.getAnimation().remove()
+		this.anim = undefined;
 	},
 
 	/**
@@ -210,10 +214,8 @@ P.Artefact = paper.Base.extend({
 			this.bbox.remove();
 			delete this.bbox;
 		}
-		if(this.hasAnimation()) {
-			this.getAnimation().remove();
-			delete this.getAnimation();
-		}
+		
+		this.removeAnimation();
 
 		// Remove the item the very end!
 		this.item.remove();

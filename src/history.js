@@ -16,7 +16,7 @@ P._HistoryClass = paper.Base.extend({
 	initialize: function() {
 		this.states = [{}];
 		this.index = 0;
-		this.maxStates = 20;
+		this.maxStates = 50;
 	},
 
 	/**
@@ -35,7 +35,7 @@ P._HistoryClass = paper.Base.extend({
 		this.index += 1;
 
 		if(this.states.length > this.maxStates) {
-			this.states = states.slice(this.states.length - this.maxStates);
+			this.states = this.states.slice(this.states.length - this.maxStates);
 			this.index = this.states.length - 1;
 		}
 	},
