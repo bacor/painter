@@ -21,7 +21,7 @@ $(window).ready(function() {
 	function onKeyDown(event) {
 
 		if(event.key == 'backspace' || event.key == 'd') {
-			P.delete(P.getSelected)
+			P.delete(P.getSelected())
 		}
 
 		else if(event.key == 'space') {
