@@ -8,7 +8,7 @@ P.animations = {}
  * @name Animation
  * @class
  */
-P.Animation = Base.extend(/** @lends Animation */{
+P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
 	 * The type of this animation, e.g. rotate or 'bounce'
@@ -37,24 +37,23 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 * @param  {Object} properties Default properties.
 	 * @return {Animation}
 	 */
-	initialize: function(item, type, properties) {
-		this.item = item;
+	initialize: function(artefact, type, properties) {
+		this.artefact = artefact;
+		this.item = artefact.item;
+		this.item.data._animation = this;
 		this.type = type;
 		this.properties = jQuery.extend(true, {}, properties);
-		
-		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
-		
-		// Load all animation-specific methods.
+		// // if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
+
+		// // Load all animation-specific methods.
 		var methods = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
 		'onTransform', 'onDrawHandles', 'onUpdate'];
 		for(var i=0; i<methods.length; i++) {
 			var method = methods[i];
 			this['_'+method] = P.animations[this.type][method] || function() {};
 		}
-		
-		this._onInit(this.item, this.properties);
+		this._onInit(this.artefact, this.properties);
 		this.drawHandles();
-		return this;
 	},
 
 	/**
@@ -64,13 +63,14 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 */
 	drawHandles: function() {
 		// Clean up old animations
-		this.removeHandles();
+		this.removeHandles(this);
 
 		// Draw handles
-		this.handles = this._onDrawHandles(this.item, this.properties);
-		this.handles.parent = this.item.bbox;
-		this.handles.type = 'handle:animation';
-		return this.handles;
+		var handles = this._onDrawHandles(this.artefact, this.properties);
+		handles.parent = this.artefact.bbox;
+		handles.name = 'handle:animation';
+		this.handles = handles;
+		return handles;
 	},
 
 	/**
@@ -78,8 +78,11 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 * 
 	 * @return {Animation}
 	 */
-	removeHandles: function() {
-		if(this.handles) this.handles.remove();
+	removeHandles: function(self) {
+		if(this.handles != undefined) {
+			this.handles.remove();
+			this.handles = undefined;
+		}		
 		return this;
 	},
 
@@ -96,12 +99,12 @@ P.Animation = Base.extend(/** @lends Animation */{
 	update: function(argument) {
 		var properties;
 		if(argument instanceof paper.Event) {
-			properties = this._onUpdate(this.item, this.properties, argument);
+			properties = this._onUpdate(this.artefact, this.properties, argument);
 		} else {
 			properties = argument;
 		}
 
-		this.properties = $.extend(this.properties, properties);
+		this.properties = jQuery.extend(this.properties, properties);
 		this.drawHandles();
 		return this.properties;
 	},
@@ -116,13 +119,14 @@ P.Animation = Base.extend(/** @lends Animation */{
 		// 	startAnimation(item.children, type, false);
 		
 		this.active = true;
-		this._onStart(this.item, this.properties);
+		this._onStart(this.artefact, this.properties);
 
 		// Start the animation
+		var artefact = this.artefact;
+		var anim = this;
 		this.item.onFrame = function(event) {
-			var anim = this.getAnimation();
-			anim._onFrame(this, anim.properties, event);
-			if(this.isSelected()) anim.drawHandles();
+			anim._onFrame(artefact, anim.properties, event);
+			// if(artefact.isSelected()) anim.drawHandles();
 		}
 
 		return this;
@@ -135,7 +139,7 @@ P.Animation = Base.extend(/** @lends Animation */{
 	pause: function() {
 		this.active = false;
 		this.item.onFrame = undefined;
-		this._onPause(this.item, this.properties);
+		this._onPause(this.artefact, this.properties);
 		return this;
 	},
 
@@ -149,10 +153,7 @@ P.Animation = Base.extend(/** @lends Animation */{
 
 		// Stop animation
 		this.pause();
-		this._onStop(this.item, this.properties);
-
-		// Update bounding box etc.
-		this.item.redrawBoundingBox();
+		this._onStop(this.artefact, this.properties);
 		return this;
 	},
 
@@ -173,7 +174,7 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 * @return {Animation}        [description]
 	 */
 	transform: function(matrix) {
-		this._onTransform(this.item, this.properties, matrix);
+		this._onTransform(this.artefact, this.properties, matrix);
 		return this;
 	},
 
@@ -184,7 +185,18 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 */
 	isActive: function() {
 		return this.active == true;
+	},
+
+	cloneProperties: function() {
+		return jQuery.extend(true, {}, this.properties);
 	}
+	// clone: function(artefact) {
+	// 	var artefact = artefact || this.artefact;
+	// 	var properties = jQuery.extend(true, {}, this.properties);
+	// 	var type = '' + this.type;
+	// 	var copy = new P.Animation(artefact, type, properties);
+	// 	return copy
+	// }
 })
 
 /**
@@ -213,47 +225,47 @@ P.Animation = Base.extend(/** @lends Animation */{
  * @param  {Object} defaultProperties Default properties
  * @return {Object} The animation                   
  */
-P.registerAnimation = function(type, animation, defaultProperties) {
-
+P.registerAnimation = function(type, newAnimation, defaultProperties) {
+	
 	// Set up the animation tool
-	if(!animation.tool) animation.tool = new Tool();
+	if(!newAnimation.tool) newAnimation.tool = new paper.Tool();
 
 	// The current item on which the tool works.
-	var item;
+	var artefact;
 
 	// On Mouse Down
 	var _onMouseDown = function(event) {
-		item = getSelected()[0]
-		if(item == undefined) {
+		artefact = P.getSelected()[0]
+		if(artefact == undefined) {
 			hitResult = project.hitTest(event.point, {
-				fill: true, tolerance: 5
+				fill: true, 
+				tolerance: 5,
 			})
-			
 			if(!hitResult) return false;
-			item = hitResult.item			
+			artefact = P.getArtefact(hitResult.item)
 		}
-		selectOnly(item);
-
-		// Set up animation
-		var anim = item.animate(type, defaultProperties);
-
+		P.selectOnly(artefact);
+		
+		// Animate.
+		artefact.animate(type, defaultProperties);
+		
 		// if(!item.animation) item.animation = {};
 		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 		
 		// Update the properties.
-		anim.update(event);
+		artefact.getAnimation().update(event);
 	}
 
 	// Mouse drag event
 	var _onMouseDrag = function(event) {
-		if(!item) return;
-		item.getAnimation().update(event);
+		if(!artefact) return;
+		artefact.getAnimation().update(event);
 	}
 
 	// Mouse up event
 	var _onMouseUp = function(event) {
-		if(!item) return;
-		item.getAnimation().start();
+		if(!artefact) return;
+		artefact.getAnimation().start();
 		
 		// var item = currentItem;
 		// var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
@@ -285,12 +297,12 @@ P.registerAnimation = function(type, animation, defaultProperties) {
 	}
 
 	// Store methods if none exist
-	animation.tool.onMouseDrag = animation.tool.onMouseDown || _onMouseDown;
-	animation.tool.onMouseDrag = animation.tool.onMouseDrag || _onMouseDrag;
-	animation.tool.onMouseUp = animation.tool.mouseUp || _onMouseUp;
+	newAnimation.tool.onMouseDown = newAnimation.tool.onMouseDown || _onMouseDown;
+	newAnimation.tool.onMouseDrag = newAnimation.tool.onMouseDrag || _onMouseDrag;
+	newAnimation.tool.onMouseUp = newAnimation.tool.mouseUp || _onMouseUp;
 
 	// Store!
-	P.animations[type] = animation;
+	P.animations[type] = newAnimation;
 
-	return animation;
+	return newAnimation;
 }

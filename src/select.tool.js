@@ -8,26 +8,47 @@
  * largely through the mode the selector is in.
  */
 
-selectTool = new Tool()
-var currentItems = [];
+selectTool = new paper.Tool()
 
-function switchTool(newTool, event) {
-	selectOnly(currentItems);
+function switchTool(newTool, event, artefacts, target) {
 
 	// Update the new tool, this is a bit hacky though.
 	newTool._downPoint = event.downPoint;
 	newTool._point = event.downPoint;
 	newTool._downCount += 1; // Not strictly necessary
 
+	// Store the current artefacts
+	newTool._artefacts = artefacts;
+	newTool._target = target;
+
+	// Mouse Down
+	var _onMouseDown = newTool.onMouseDown || function() {};
+	newTool.onMouseDown = function(event) {
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		return _onMouseDown(event, artifacts, target);
+	}
+
+	// Mouse Drag
+	var _onMouseDrag = newTool.onMouseDrag || function() {}
+	newTool.onMouseDrag = function(event) {
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		return _onMouseDrag(event, artifacts, target);
+	}
+
 	// Reactivate selection tool afterwards!
-	var _onMouseUp = newTool.onMouseUp
+	var _onMouseUp = newTool.onMouseUp || function() {};
 	newTool.onMouseUp = function(event) {
-		_onMouseUp(event)
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		_onMouseUp(event, artifacts, target);
 		selectTool.activate()
 	}
+
 	// Update the event
 	event.tool = newTool;
-
+	
 	// Activate!
 	newTool.activate()
 	if(newTool.onSwitch) {
@@ -40,57 +61,56 @@ function switchTool(newTool, event) {
 selectTool.onMouseDown = function(event) {
 	
 	// Test if we hit an item
-	hitResult = project.hitTest(event.point, {
+	var hitResult = project.hitTest(event.point, {
 		fill: true,
 		tolerance: 5
 	})
 
-	// Get currently selected items
-	currentItems = getSelected()
+	// We hit noting!
+	if(!hitResult) {
+		P.deselectAll();
+		switchTool(selectionTool, event, []);
+	}
+	
+	// We hit a handle --> edit selection
+	else if(P.isHandle(hitResult.item)) {
+		if(hitResult.item.name.endsWith('animation')) return;
+		var artefacts = [P.getArtefact(hitResult.item)]
+		switchTool(manipulateTool, event, artefacts, hitResult.item);
+	}
 
-	// We hit something!
-	if(hitResult) {
-		var item = hitResult.item
+	// Hit an item
+	else {
 
-		// Shadow --> select actual item
-		if(item.type == 'shadow') item = item.parent.item;
+		// Note: this also fetches the artefact of a shadow
+		var hit = P.getArtefact(hitResult.item);
+		var artefacts = P.getSelected();
 
-		// Anmination handles shouldn't do anything
-		if(isAnimationHandle(item)) return;
-			
-		// We hit a handle --> edit selection
-		if(isHandle(item)) {
-			currentItems = [item];
-			switchTool(manipulateTool, event);
+		if(Key.isDown('shift')) {
+
+			// Already selected: remove from selection
+			if(hit.isSelected()) {
+				var index = artefacts.indexOf(hit);
+				artefacts.splice(index, 1);
+			} 
+
+			// Not selected yet: add to selection
+			else {
+				artefacts.push(hit);	
+			}
+
+		}
+		
+		// If you click outside the selection with no modifiers, select the hit.
+		else if(!hit.isSelected()) {
+			artefacts = [hit]
 		}
 
-		// We hit an object --> drag
-		else if(item.type) {
-			mode = 'dragging'
+		// Update selection
+		P.selectOnly(artefacts);
 
-			// Select the group if the item we hit is in a group
-			if(inGroup(item)) item = getOuterGroup(item);
-			
-			// If the shift key is pressed, just add the item to the selection.
-			if(Key.isDown('shift')) {
-				currentItems.push(item);	
-			}
-
-			// If you click outside the selection, deselect the current selection
-			// and select the thing you clicked on.
-			else if(!item.isSelected()) {
-				currentItems = [item]
-			}
-			
-			var newTool = Key.isDown('alt') ? cloneTool : dragTool;
-			switchTool(newTool, event)
-
-		} else return;
-	} 
-
-	// Nothing was hit; start a selection instead
-	else {
-		currentItems = []
-		switchTool(selectionTool, event)
+		// Switch
+		var newTool = Key.isDown('alt') ? cloneTool : dragTool;
+		switchTool(newTool, event, artefacts)
 	}
 }

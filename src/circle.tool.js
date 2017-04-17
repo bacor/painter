@@ -5,25 +5,26 @@
  * Draws circles.
  */
 
-circleTool = new Tool()
-var circle;
+circleTool = new paper.Tool()
+var circle, radius, center;
 
 circleTool.onMouseDown = function(event) {
-	deselectAll()
-	circle = new Path.Circle({
+	P.deselectAll()
+	circle = new paper.Path.Circle({
 		center: event.point, 
 		radius: 0,
-		fillColor: getActiveSwatch()
+		fillColor: P.getActiveSwatch()
 	});
 }
 
 circleTool.onMouseDrag = function(event) {
 	var color = circle.fillColor;
 	var diff = event.point.subtract(event.downPoint)
-	var radius = diff.length / 2
+	radius = diff.length / 2
+	center = diff.divide(2).add(event.downPoint)
 	circle.remove();
 	circle = new Path.Circle({
-		center: diff.divide(2).add(event.downPoint),
+		center: center,
 		radius: radius,
 		opacity: .9,
 		fillColor: color
@@ -31,19 +32,14 @@ circleTool.onMouseDrag = function(event) {
 }
 
 circleTool.onMouseUp = function(event) {
-	circle.type = 'circle'
-	setupItem(circle);
 
-	// scope
-	var circ = circle;
-	var undo = function() {
-		deselect(circ)
-		circ.remove()
-	}
-
-	var redo = function() {
-		project.activeLayer.addChild(circ);
-	}
-
+	// Initialize artefact
+	var artefact = new P.Artefact.Circle(center, radius);
+	artefact.item.fillColor = circle.fillColor
+	circle.remove();
+	
+	// History
+	var undo = function() { artefact.destroy(); }
+	var redo = function() { artefact.restore(); }
 	P.History.registerState(undo, redo)
 }

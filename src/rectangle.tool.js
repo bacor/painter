@@ -5,13 +5,12 @@
  */
 
 
-rectTool = new Tool();
+rectTool = new paper.Tool();
 var rectangle;
 
 rectTool.onMouseDown = function(event) {
 	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	setupRectangle(rectangle)
-	rectangle.fillColor = getActiveSwatch();
+	rectangle.fillColor = P.getActiveSwatch();
 }
 
 rectTool.onMouseDrag = function(event) {
@@ -23,20 +22,10 @@ rectTool.onMouseDrag = function(event) {
 }
 
 rectTool.onMouseUp = function() {
-	rectangle.type = 'rectangle';
-	setupItem(rectangle);
+	var artefact = new P.Artefact.Rectangle(rectangle)
 
-	// Scope!
-	var rect = rectangle;
-
-	var undo = function() {
-		deselect(rect);
-		rect.remove();
-	}
-
-	var redo = function() {
-		project.activeLayer.addChild(rect);
-	}
-
-	P.History.registerState(undo, redo);
+	// History
+	var undo = function() { artefact.destroy(); }
+	var redo = function() { artefact.restore(); }
+	P.History.registerState(undo, redo)
 }

@@ -1,29 +1,29 @@
-dragTool = new Tool();
-var currentItems;
+dragTool = new paper.Tool();
 
-
-dragTool.onMouseDown = function(event) {}
-
-dragTool.onMouseDrag = function(event) {
-	currentItems.map(function(item) {
-		item.move(event.delta)
+dragTool.onMouseDrag = function(event, artefacts) {
+	artefacts.map(function(artefact) {
+		artefact.move(event.delta);
 	})
 }
 
-dragTool.onMouseUp = function(event) {
+dragTool.onMouseUp = function(event, artefacts) {
 
-	var undoDelta = new Point(event.downPoint.subtract(event.point))
-	var redoDelta = new Point(event.point.subtract(event.downPoint))
+	var undoDelta = new paper.Point(event.downPoint.subtract(event.point))
+	var redoDelta = new paper.Point(event.point.subtract(event.downPoint))
 
 	if(redoDelta.length > 1) {
-		var items = currentItems;
+		var artefacts;
 		
 		var undo = function() {
-			moveItem(items, undoDelta);
+			artefacts.map(function(artefact) {
+				artefact.move(undoDelta);
+			})
 		}
 		
 		var redo = function() {
-			moveItem(items, redoDelta)
+			artefacts.map(function(artefact) {
+				artefact.move(redoDelta);
+			})
 		}
 		
 		P.History.registerState(undo, redo);

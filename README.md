@@ -65,4 +65,15 @@ It is important to set the pivot, since it default to the center point of the bo
 - Use data attribute of item to store animations?
 - 
 
+# Extending Paper.js?
+There are only a few types of shapes that can be drawn: 
+- Rectangles (--> PathItem --> Item)
+- Circles (--> PathItem --> Item)
+- Groups (--> Item)
+
+1. **Bounding box** First of all, we have introduced a custom bounding box, which is different for different types of items. The bounding box can have several handles interacting with the selection tool.  
+2. **Animations** Every item 
+
+
+
 

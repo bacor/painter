@@ -38,6 +38,8 @@ module.exports = function(grunt) {
           'dist/js/painter.js': [
             'src/painter.js',
             'src/history.js',
+            'src/artefact.js',
+            'src/actions.js',
             'src/*.class.js',
             'src/helpers.js',
             'src/animations.js',

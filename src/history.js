@@ -10,25 +10,14 @@
  *
  * Actions for animations are a bit tricky, as one has to track the
  * complete `item.animation` object. All this is solved in animations.js.
- *
- * This object is defined in Module style, see
- * https://addyosmani.com/resources/essentialjsdesignpatterns/book/#revealingmodulepatternjavascript
  */
-P.History = (function() {
-	
-	var states = [{}],
-			
-			/**
-			 * Index of the current state
-			 * @type {Number}
-			 */
-			index = 0,
-			
-			/**
-			 * The maximum number of states stored.
-			 * @type {Number}
-			 */
-			maxStates = 20;
+P._HistoryClass = paper.Base.extend({
+
+	initialize: function() {
+		this.states = [{}];
+		this.index = 0;
+		this.maxStates = 20;
+	},
 
 	/**
 	 * Register a state to the history
@@ -40,16 +29,16 @@ P.History = (function() {
 	 * the action undone by `undo`. Again, it takes no arguments.
 	 * @return {None}
 	 */
-	var registerState = function(undo, redo) {
-		states = states.slice(0, index+1);
-		states.push({redo: redo, undo: undo });
-		index += 1;
+	registerState: function(undo, redo) {
+		this.states = this.states.slice(0, this.index+1);
+		this.states.push({redo: redo, undo: undo });
+		this.index += 1;
 
-		if(states.length > maxStates) {
-			states = states.slice(states.length - maxStates);
-			index = states.length - 1;
+		if(this.states.length > this.maxStates) {
+			this.states = states.slice(this.states.length - this.maxStates);
+			this.index = this.states.length - 1;
 		}
-	}
+	},
 
 	/**
 	 * Redo the last action
@@ -57,30 +46,22 @@ P.History = (function() {
 	 * Moves the index one step forward in the history, if possible.
 	 * @return 
 	 */
-	var redo = function() {
-		if(index >= states.length-1) return false;
-		index += 1;
-		states[index].redo();
-	}
+	redo: function() {
+		if(this.index >= this.states.length-1) return false;
+		this.index += 1;
+		this.states[this.index].redo();
+	},
 
 	/**
 	 * Undo the last action
 	 * @return {None} 
 	 */
-	var undo = function() {
-		if(index == 0) return false;
-		states[index].undo();
-		index -= 1;
+	undo: function() {
+		if(this.index == 0) return false;
+		this.states[this.index].undo();
+		this.index -= 1;
 	}
+})
 
-	/**
-	 * Reveal to P.History
-	 */
-	return {
-		registerState: registerState,
-		undo: undo,
-		redo: redo,
-		states: states
-	};
-
-})();
+// Instantiate
+P.History = new P._HistoryClass();

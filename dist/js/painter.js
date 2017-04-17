@@ -2,41 +2,262 @@
  * Painter.js
  */
 
-// Probably want to get rid of this and use 
-// the paper namespace everywhere
-paper.install(window);
-
 /**
  * Painter, encapsulates everything!
  * @type {Object}
  */
-var P = {};
+var P = {
 
-// var PainterRectangle = function(args) {
-// // if(!(this instanceof PainterRectangle)) return new PainterRectangle(arguments);
-// 	console.log('asdfasdfs', args)
-// 	var rectangle = new Path.Rectangle([20,30,100,140]);
+	mainColor: '#78C3D0',
 
-// 	return rectangle
-// }
-// 
+	/**
+	 * Select an item or multiple items.
+	 *
+	 * The item is not selected using the Paper.js's default `item.selected = true`. 
+	 * Rather, we draw a custom bounding box around the item, allowing a bit
+	 * more flexibility (e.g. different bounding boxes for different types of
+	 * items). To test if an item has been selected using our custom selection
+	 * method, the test function `isSelected` can be used.
+	 * @param  {mixed} items An item or multiple items
+	 * @return {None}
+	 */
+	select: function(artefact) {
+		if(artefact instanceof Array) return artefact.map(P.select);
+		return artefact.select();
+	},
+
+	/**
+	 * Deselect an item
+	 *
+	 * This removes the bounding box and resets styling specific to selected
+	 * items.
+	 * @param  {item} item 
+	 * @return {None}
+	 */
+	deselect: function(artefact) {
+		if(artefact instanceof Array) return artefact.map(P.deselect);
+		return artefact.deselect();
+	},
+
+	/**
+	 * Deselects all the currently selected items.
+	 *
+	 * Again, we don't use the in-built selection mechanism, but rely on our own
+	 * bounding boxes. Only items with bounding boxes are deselected, the function
+	 * does not care about the value of `item.selected`.
+	 * @param  {array} items 
+	 * @return {None}
+	 */
+	deselectAll: function() {
+		return P.getArtefacts().mmap('deselect');
+	},
+
+	/**
+	 * Selects only this item
+	 * @param  {item} item The only item to select
+	 * @return {None}
+	 */
+	selectOnly: function(artefacts) {
+		P.deselectAll();
+		return P.select(artefacts);
+	},
+
+	getArtefacts: function() {
+		return Object.values(P.artefacts);
+	},
+
+	/**
+	 * Return all selected items
+	 * @param  {Function} match The match function, defaults to isSelected
+	 * @return {Array}       Selected items
+	 */
+	getSelected: function() {
+		return P.getArtefacts().filter(function(artefact) {
+			return artefact.isSelected();
+		})
+	},
+
+	/*****************************************************/
+
+	/**
+	 * Test if the item is a handle of a bounding box.
+	 * @param  {Item}  item 
+	 * @return {Boolean}
+	 */
+	isHandle: function(item) {
+		if(!item.name) return false;
+		return item.name.startsWith('handle');
+	},
+
+	/**
+	 * Test if an item is in a group
+	 * @param  {Item} 		item 
+	 * @return {Boolean}
+	 */
+	inGroup: function(item) {
+		if(item.parent) return item.parent.className == 'Group';
+		return false;
+	},
+
+	isArtefact: function(obj, strict=false) {
+		if(obj instanceof P.Artefact) return true;
+		if(!strict && obj.data && obj.data._artefact) 
+			return P.isArtefact(obj.data._artefact);
+		return false;
+	},
+
+	/*****************************************************/
+
+	getArtefact: function(item) {
+		if(item.name == 'shadow') {
+			return item.parent.data._artefact;
+		}
+
+		if(P.inGroup(item)) {
+			var outerGroup = P.getOuterGroup(item);
+			return P.getArtefact(outerGroup);
+		}
+
+		else if(item.data._artefact && P.isArtefact(item.data._artefact)) {
+			return item.data._artefact;
+		}
+
+		else{
+			return false
+		}
+	},
+
+	/**
+	 * Find the higest group in which the item is contained
+	 * @param  {Item} 	item 
+	 * @return {Group}  The outermost group containing `item`
+	 */
+	getOuterGroup: function(item) {
+		if(P.inGroup(item.parent)) return P.getOuterGroup(item.parent);
+		return item.parent
+	},
+
+	/*****************************************************/
+
+	getColor: function(i, num_colors, noise=.4, css=true) {
+		var noise = Math.random() * noise - .5*noise
+		var hue = ( (i+noise) / num_colors * 360 ) % 360
+		if(hue < 0) hue = 360 + hue;
+		var color = {
+			hue: Math.round(hue),
+			saturation: 75,
+			brightness: 60
+		}
+		if(css) return "hsl(" + color.hue+', '+color.saturation+'%, '+color.brightness+'%)';
+		else return color
+	},
+
+	getActiveSwatch: function() {
+		var index = $('.swatch.active').data('colorIndex');
+		var numSwatches = $('.swatch.active').data('numSwatches');
+		return P.getColor(index, numSwatches)
+	},
+
+};
 
 
-paper.Item.inject({
-	
+// Method Map
+Array.prototype.mmap = function(name, args) {
+	return this.map(function(element) {
+		return element[name].apply(element, args);
+	});
+}
+;/**
+ * History
+ *
+ * Registers actions and implements undo/redo functionality. Actions 
+ * are registered by providing two functions, `undo` and `redo`, that
+ * take no other arguments (i.e., they are thunks). When registering 
+ * these functions, care has to be taken that the right variables are
+ * copied and scoped appropriately so that later actions do not change
+ * the references in the `un/redo` functions. 
+ *
+ * Actions for animations are a bit tricky, as one has to track the
+ * complete `item.animation` object. All this is solved in animations.js.
+ */
+P._HistoryClass = paper.Base.extend({
+
+	initialize: function() {
+		this.states = [{}];
+		this.index = 0;
+		this.maxStates = 20;
+	},
+
+	/**
+	 * Register a state to the history
+	 * 
+	 * @param  {Function} undo An function that when called undoes the
+	 * action. The function should take no arguments and take care of
+	 * scoping and copying relevant variables itself.
+	 * @param  {Function} redo A redo function that when called redoes
+	 * the action undone by `undo`. Again, it takes no arguments.
+	 * @return {None}
+	 */
+	registerState: function(undo, redo) {
+		this.states = this.states.slice(0, this.index+1);
+		this.states.push({redo: redo, undo: undo });
+		this.index += 1;
+
+		if(this.states.length > this.maxStates) {
+			this.states = states.slice(this.states.length - this.maxStates);
+			this.index = this.states.length - 1;
+		}
+	},
+
+	/**
+	 * Redo the last action
+	 *
+	 * Moves the index one step forward in the history, if possible.
+	 * @return 
+	 */
+	redo: function() {
+		if(this.index >= this.states.length-1) return false;
+		this.index += 1;
+		this.states[this.index].redo();
+	},
+
+	/**
+	 * Undo the last action
+	 * @return {None} 
+	 */
+	undo: function() {
+		if(this.index == 0) return false;
+		this.states[this.index].undo();
+		this.index -= 1;
+	}
+})
+
+// Instantiate
+P.History = new P._HistoryClass();
+;
+P.artefacts = {}
+
+P.Artefact = paper.Base.extend({
+	_class: 'Artefact',
+
+	initialize: function(item) {
+		this.item = item;
+		this.item.data._artefact = this;
+		this.animation = undefined;
+		this.shadow = undefined;
+		this.selected = false;
+
+		// Register artefact by id
+		P.artefacts[item.id] = this
+	},
+
 	/**
 	 * Show the bounding box of the current item
 	 * @return {Item|Boolean} The current item or false if it is not an Artefact
 	 */
 	showBoundingBox: function() {
-		if(!this.isArtefact()) return false;
-		if(this.bbox) {
-			this.bbox.visible = true;
-		} else {
-			this.bbox = getBoundingBox(this);
-			this.bbox.item = this;
-			this.insertBelow(this.bbox);
-		}
+		if(!this.bbox) this.drawBoundingBox();
+		this.bbox.visible = true;
 		return this;
 	},
 
@@ -52,32 +273,66 @@ paper.Item.inject({
 	removeBoundingBox: function() {
 		this.hideBoundingBox();
 		if(this.bbox) this.bbox.remove();
-	},
-
-	/**
-	 * (Re)draws the bounding box
-	 * @return {Item}
-	 */
-	redrawBoundingBox: function() {
-		if(this.bbox) this.bbox.remove();
 		this.bbox = undefined;
-		return this.showBoundingBox();
+		return this;
+	},
+
+	drawBoundingBox: function() {
+		if(!this._drawBoundingBox) {
+			console.log('ERROR!')
+			return
+		}
+		
+		// Clean up
+		this.removeBoundingBox();
+
+		var parts = this._drawBoundingBox();
+		this.shadow = parts.shadow;
+		this.shadow.fillColor = P.mainColor;
+		this.shadow.opacity = 0.1;
+		this.shadow.name = 'shadow'
+		delete this.shadow.data._artefact
+		
+		var border = parts.border;
+		border.name = 'border';
+		border.strokeColor = P.mainColor;
+
+		var children = [parts.border].concat(parts.handles).concat([this.shadow]);
+		this.bbox = new paper.Group(children);
+		this.bbox.parent = this.item.parent;
+		this.bbox.pivot = this.shadow.bounds.center;
+
+		// TODO: this.bbox.data._item?
+		this.bbox.data._artefact = this;
+		this.bbox.name = 'bbox';
+
+		this.item.insertBelow(this.bbox);
 	},
 
 	/**
-	 * Test if this is a bounding box
-	 * @return {Boolean} True if this item is a bounding box
+	 * Generate a handle object
+	 * @param  {Point} position The position for the handle
+	 * @return {Path}
 	 */
-	isBoundingBox: function() {
-		return this.type == 'boundingBox';
-	},
+	_getHandle: function(position) { 
+		var handle = new paper.Path.Circle({
+			center: position, 
+			radius: 4,
+			strokeColor: P.mainColor,
+			fillColor: 'white'
+		})
 
-	/**
-	 * Test if this is an artefact
-	 * @return {Boolean} True if this item is an artefact
-	 */
-	isArtefact: function() {
-		return this._artefact === true;
+		handle.on('mouseenter', function() {
+			this.fillColor = P.mainColor
+		})
+
+		handle.on('mouseleave', function() {
+			this.fillColor = 'white'
+		})
+
+		handle.name = 'handle'
+
+		return handle
 	},
 
 	/**
@@ -85,7 +340,7 @@ paper.Item.inject({
 	 * @return {Boolean} True if this item is selected
 	 */
 	isSelected: function() {
-		return this.bbox != undefined && this.bbox.visible == true;
+		return this.selected == true;
 	},
 
 	/**
@@ -94,10 +349,11 @@ paper.Item.inject({
 	 * @return {Item} The current item
 	 */
 	select: function() {
-		if(this.isSelected()) return true;
-		this.showBoundingBox();
-		if(this.hasAnimation()) 
-			this.getAnimation().drawHandles();
+		if(!this.isSelected()) {
+			this.showBoundingBox();
+			if(this.hasAnimation()) this.getAnimation().drawHandles();
+			this.selected = true;
+		}
 		return this;
 	},
 
@@ -109,10 +365,11 @@ paper.Item.inject({
 	 */
 	deselect: function() {
 		this.hideBoundingBox();
-		this.strokeColor = undefined;
-		this.dashArray = undefined;
+		this.item.strokeColor = undefined;
+		this.item.dashArray = undefined;
 		if(this.hasAnimation())
 			this.getAnimation().removeHandles();
+		this.selected = false;
 		return this;
 	},
 
@@ -125,15 +382,13 @@ paper.Item.inject({
 	 * @return {Animation}         The animation object
 	 */
 	animate: function(type, properties) {
-		
 		if(this.hasAnimation()) {
-			var anim = this.getAnimation();
-			anim.remove();
-			delete anim
+			this.animation.remove();
 		}
 
-		this.data.animation = new P.Animation(this, type, properties);
-		return this.getAnimation();
+		var anim = new P.Animation(this, type, properties);
+		this.anim = anim;
+		return this.anim;
 	},
 
 	/**
@@ -143,19 +398,28 @@ paper.Item.inject({
 	 * or `false` if no animation exists.
 	 */
 	getAnimation: function() {
-		return this.data.animation ? this.data.animation : false;
+		return this.anim;
+		// return this.animation;
 	},
 
 	hasAnimation: function(type=false) {
-		var anim = this.getAnimation();
-		if(!anim) return false;
-		if(anim.type == undefined) return false; // remove?
-		if(type) return anim.type == type;
+		if(!this.getAnimation()) return false;
+		if(type) return this.getAnimation().type == type;
 		return true;
 	},
 
 	isAnimating: function() {
 		return this.hasAnimation() ? this.getAnimation().isActive() : false;
+	},
+
+	getShadowBounds: function(transform=false) {
+		return this.shadow ? this.shadow.bounds : false;
+	},
+
+	transform: function(matrix) {
+		this.item.transform(matrix);
+		if(this.bbox) this.bbox.transform(matrix);
+		if(this.hasAnimation()) this.getAnimation().transform(matrix);
 	},
 
 	/**
@@ -171,620 +435,389 @@ paper.Item.inject({
 	 * @return {Item} The current item
 	 */
 	move: function(delta) {
-
-		// Move the item
-		this.position = this.position.add(delta);
-
-		// Bounding box, only if it exists
-		if(this.bbox) this.bbox.position = this.bbox.position.add(delta);
-
-		// if(isGroup(this)) {
-		// 	this.children.map(function(item){ 
-		// 		item.redrawBoundingBox(); 
-		// 		item.hideBoundingBox();
-		// 	});
-		// }
-		
-		// Move the animation. We just apply a specific type of transformation:
-		// a translation. The rest should be handled by the animation.
-		if(this.hasAnimation()) {
-			var matrix = new Matrix().translate(delta);
-			this.getAnimation().transform(matrix);
-
-			// Todo: history
-			// if(item.animation && item.animation._prevAnimation) {
-			// 	item.animation._prevAnimation = jQuery.extend(true, {}, item.animation);
-			// }
-		}
-
-
-
+		var matrix = new Matrix().translate(delta);
+		this.transform(matrix);
 		return this;
 	},
 
-	getShadowBounds: function() {
-		if(!isGroup(this)) {
-			return this.bbox ? this.bbox.children['shadow'].bounds : false;
+	destroy: function() {
+		this.deselect();
+		if(this.bbox) {
+			this.bbox.remove();
+			delete this.bbox;
+		}
+		if(this.hasAnimation()) {
+			this.getAnimation().remove();
+			delete this.getAnimation();
 		}
 
-		// For groups we combine all shadow bounds. In that case, the bound
-		// does not change when children are animated.
+		// Remove the item the very end!
+		this.item.remove();
+		delete P.artefacts[this.id];
+	},
+
+	restore: function() {
+		project.activeLayer.addChild(this.item);
+		if(this.hasAnimation()) this.getAnimation().start;
+		P.artefacts[this.id] = this;
+		return this;
+	},
+
+	clone: function(copy=false) {
+
+		// Construct new copy
+		var Class = this.className ? P.Artefact[this.className] : P.Artefact;
+		var copy = copy || new Class(this.item.clone());
+
+		// Clone bounding box
+		copy.bbox = this.bbox.clone();
+		copy.bbox.name = 'bbox';
+		copy.bbox.data._artefact = copy;
+
+		// Update names of children of bbox
+		for(var i=0; i<copy.bbox.children.length; i++){
+			var child = copy.bbox.children[i];
+			if(child.name) child.name = child.name.replace(' 1', '')
+		}
+		copy.shadow = copy.bbox.children['shadow'];
+		copy.shadow.getBounds()
+
+		// Clone animation
+		if(this.hasAnimation()) {
+			var anim = this.getAnimation();
+			var props = anim.cloneProperties();
+			copy.animate(anim.type, props);
+			copy.getAnimation().start();
+		}
+
+		// Select and return
+		copy.selected = false;
+		this.deselect();
+		copy.select();
+
+		console.log('copy', copy)
+		return copy;
+	},
+
+	isRectangle: function() {
+		return this instanceof P.Artefact.Rectangle;
+	},
+
+	isCircle: function() {
+		return this instanceof P.Artefact.Circle;
+	}
+
+})
+
+P.Artefact.Rectangle = P.Artefact.extend({
+	_class: 'Rectangle',
+
+	initialize: function(args) {
+		var item;
+		if(args instanceof paper.Item) {
+			item = args;
+		} else{
+			item = new paper.Path.Rectangle(args);
+		}
+		P.Artefact.apply(this, [item]);
+	},
+
+	_drawBoundingBox: function() {
+		var handles = [];
+		var shadow = this.item.clone();
+
+		// The border of the bounding box (expanded slightly)
+		var border = new paper.Path.Rectangle(shadow.bounds.expand(12))
+
+		// Name the segments
+		var self = this;
+		var names = ['bottomLeft', 'topLeft', 'topRight', 'bottomRight'];
+		var handles = this.item.segments.map(function(segment){
+
+			// Find the name of this segment
+			var name = names.filter(function(name) { 
+				var position = shadow.bounds[name];
+				return segment.point.equals(position);
+			})[0];
+			
+			// Create the handle
+			var position = border.bounds[name];
+			var handle = self._getHandle(position);
+			handle.name = 'handle:' + name;
+			segment.name = name;
+			
+			return handle
+		});
+
+		return {
+			shadow: shadow,
+			handles: handles,
+			border: border
+		}
+	},
+
+	manipulate: function(event, handle) {
+		if(this.isAnimating()) return false;
+
+		var index, segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
+
+		// Get segment corresponding to the handle, and segments adjacent to that
+		index = handle.parent.children.indexOf(handle) - 1;
+		segment = this.item.segments[index];
+		adjacents = this._getAdjacentSegments(segment);
+		sameX = adjacents.sameX;
+		sameY = adjacents.sameY;
+		
+		// Move segments
+		// To do: this is still a bit buggy... You sometimes get crosses, or the
+		// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
+		newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x));
+		newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y));
+		deltaX = (newWidth <= 3) ? 0 : event.delta.x;
+		deltaY = (newHeight <= 3) ? 0 : event.delta.y;
+		sameX.point   = sameX.point.add([deltaX, 0]);
+		sameY.point   = sameY.point.add([0, deltaY]);
+		segment.point = segment.point.add([deltaX, deltaY]);
+
+		// Update bounding box
+		this.drawBoundingBox();
+
+		// Color selected handle
+		// Todo: doesn't work when flipping a rectangle, but at least the code is
+		// simple and readable again.
+		var newHandle = this.bbox.children[handle.name];
+		newHandle.fillColor = P.mainColor;
+	},
+
+
+	/**
+	* Get the adjacent segments of a given segment on a rectangle
+	*
+	* @param  {Segment} segment 
+	* @return {object}         An object `{ sameX: sameXSegment, sameY: sameYSegment }`.
+	*/
+	_getAdjacentSegments: function(segment) {
+		var adjacents = {
+			'bottomRight': 	{ sameX: 'topRight', 		sameY: 'bottomLeft'},
+			'bottomLeft': 	{ sameX: 'topLeft', 		sameY: 'bottomRight'},
+			'topLeft': 			{ sameX: 'bottomLeft', 	sameY: 'topRight'},
+			'topRight': 		{ sameX: 'bottomRight', sameY: 'topLeft'},
+		}[segment.name];
+		
+		// Store all segments by name
+		var segmentsByName = {}
+		for(var i=0; i<segment.path.segments.length; i++) {
+			var segm = segment.path.segments[i];
+			segmentsByName[segm.name] = segm;
+		}
+		
+		return { 
+			sameX: segmentsByName[adjacents.sameX],
+			sameY: segmentsByName[adjacents.sameY],
+		}
+	}
+
+});
+
+P.Artefact.Circle = P.Artefact.extend({
+	_class: 'Circle',
+
+	initialize: function(args) {
+		var item;
+		if(args instanceof paper.Item) {
+			item = args;
+		} else {
+			item = new paper.Path.Circle(arguments[0], arguments[1] );
+		}
+		P.Artefact.apply(this, [item])
+	},
+
+	_drawBoundingBox: function() {
+		var shadow = this.item.clone();
+		var radius = (this.item.bounds.width + 12) / 2
+		var center = this.item.position 
+		var border = new paper.Path.Circle(this.item.position, radius)
+		var handle = this._getHandle([center.x + radius, center.y])
+		return {
+			shadow: shadow,
+			handles: [handle],
+			border: border
+		};
+	},
+
+	manipulate: function(event, handle) {
+		if(this.isAnimating()) return false;
+		var item = this.item;
+		var center = item.position,
+					radius = item.bounds.width,
+					newRadius = event.point.subtract(center).length * 2 - 6,
+					scaleFactor = newRadius/radius;
+			item.scale(scaleFactor);
+			this.drawBoundingBox();
+
+			// Color the selected handle
+			var newHandle = this.bbox.children[1];
+			newHandle.fillColor = P.mainColor;
+	}
+
+})
+
+P.Artefact.Group = P.Artefact.extend({
+	_class: 'Group',
+
+	initialize: function(artefacts) {
+		
+		var items = artefacts.map(function(a) { return a.item });
+		var group = new paper.Group(items);
+		P.Artefact.apply(this, [group]);
+
+		this.children = artefacts;
+		this.item.transformContent = false;
+		var bounds = this.getShadowBounds(0);
+		group.pivot = new paper.Point(bounds.center);
+
+		// Select only the group!
+		this.children.mmap('deselect');
+	},
+
+	clone: function clone() {
+		this.deselect();
+		var clonedChildren = this.children.mmap('clone').mmap('deselect')
+		var	copy = new P.Artefact.Group(clonedChildren);
+		clone.base.call(this, copy);
+		copy.item.transform(this.item.matrix)
+		return copy
+	},
+
+	getShadowBounds: function(depth=1) {
+		// Get the shadow bounds only up to a certain depth
+		if(this.shadow && depth == 0){
+			return this.shadow.bounds
+		}
+
+		// For groups we combine all shadow bounds
 		var bounds;
 		for(var i=0; i<this.children.length;i++){
-			var child = this.children[i];
-			if(child.isArtefact()) {
-				var childBounds = child.getShadowBounds();
-
-				// Transform the child bounds by the groups transformation matrix
-				var topLeft = childBounds.topLeft.transform(this.matrix);
-				var bottomRight = childBounds.bottomRight.transform(this.matrix);
-				childBounds = new Rectangle(topLeft, bottomRight);
-
-				// Extend the bounds by the child's bounds
-				bounds = bounds ? bounds.unite(childBounds) : childBounds;
-			}
+			var child = this.children[i];	
+			var childBounds = child.getShadowBounds(depth-1);
+			bounds = bounds ? bounds.unite(childBounds) : childBounds;
 		}
 		return bounds
 	},
 
-	getShadow: function() {
-		return this.bbox.children['shadow'];
-	},
-
-	transformAll: function(matrix) {
-		this.transform(matrix);
-		if(this.bbox) this.bbox.transform(matrix);
-		if(this.hasAnimation()) this.getAnimation().transform(matrix);
-	}
-
-});
-;/**
- * History
- *
- * Registers actions and implements undo/redo functionality. Actions 
- * are registered by providing two functions, `undo` and `redo`, that
- * take no other arguments (i.e., they are thunks). When registering 
- * these functions, care has to be taken that the right variables are
- * copied and scoped appropriately so that later actions do not change
- * the references in the `un/redo` functions. 
- *
- * Actions for animations are a bit tricky, as one has to track the
- * complete `item.animation` object. All this is solved in animations.js.
- *
- * This object is defined in Module style, see
- * https://addyosmani.com/resources/essentialjsdesignpatterns/book/#revealingmodulepatternjavascript
- */
-P.History = (function() {
-	
-	var states = [{}],
-			
-			/**
-			 * Index of the current state
-			 * @type {Number}
-			 */
-			index = 0,
-			
-			/**
-			 * The maximum number of states stored.
-			 * @type {Number}
-			 */
-			maxStates = 20;
-
-	/**
-	 * Register a state to the history
-	 * 
-	 * @param  {Function} undo An function that when called undoes the
-	 * action. The function should take no arguments and take care of
-	 * scoping and copying relevant variables itself.
-	 * @param  {Function} redo A redo function that when called redoes
-	 * the action undone by `undo`. Again, it takes no arguments.
-	 * @return {None}
-	 */
-	var registerState = function(undo, redo) {
-		states = states.slice(0, index+1);
-		states.push({redo: redo, undo: undo });
-		index += 1;
-
-		if(states.length > maxStates) {
-			states = states.slice(states.length - maxStates);
-			index = states.length - 1;
-		}
-	}
-
-	/**
-	 * Redo the last action
-	 *
-	 * Moves the index one step forward in the history, if possible.
-	 * @return 
-	 */
-	var redo = function() {
-		if(index >= states.length-1) return false;
-		index += 1;
-		states[index].redo();
-	}
-
-	/**
-	 * Undo the last action
-	 * @return {None} 
-	 */
-	var undo = function() {
-		if(index == 0) return false;
-		states[index].undo();
-		index -= 1;
-	}
-
-	/**
-	 * Reveal to P.History
-	 */
-	return {
-		registerState: registerState,
-		undo: undo,
-		redo: redo,
-		states: states
-	};
-
-})();
-;;
-/**
- * helpers.js
- *
- * This file contains various helpers
- */
-
-function setupRectangle(item) {}
-
-function setupItem(item) {
-	item.animation = undefined;
-	item._artefact = true;
-}
-
-/********************************************************/
-
-/**
- * Generate a handle object
- * @param  {Point} position The position for the handle
- * @return {Path}
- */
-function getHandle(position) { 
-	var handle = new Path.Circle({
-		center: position, 
-		radius: 4,
-		strokeColor: mainColor,
-		fillColor: 'white'
-	})
-
-	handle.on('mouseenter', function() {
-		this.fillColor = mainColor
-	})
-
-	handle.on('mouseleave', function() {
-		this.fillColor = 'white'
-	})
-
-	handle.type = 'handle'
-
-	return handle
-}
-
-/**
- * Generate a bounding box around an item
- *
- * The item can be a circular/rectangular path, a group or a Rectangle.
- * The function draws a bounding box around the item, with some handles. 
- * Depending on the type of item, the bounding box is different: circles
- * have a circular bounding box, all other items a rectangular one. The 
- * handles are also different in both cases.	
- * @param  {mixed} item 
- * @return {Group}
- */
-function getBoundingBox(item) {
-	var parts = [], shadow;
-
-	// Rectangles, groups or an array of multiple items 
-	// all get a rectangular bounding box
-	if(!isCircular(item)) {
-
+	_drawBoundingBox: function() {
 		// The item's shadow
-		if(isGroup(item)) var bounds = item.getShadowBounds();
-		shadow = isGroup(item) ? new Path.Rectangle(bounds) : item.clone();
+		var bounds = this.getShadowBounds();
+		var shadow = new paper.Path.Rectangle(bounds);
+		shadow.transform(this.item.matrix)
 
 		// The border of the bounding box (expanded slightly)
-		var border = new Path.Rectangle(shadow.bounds.expand(12))
-		border.strokeColor = mainColor
-		border.selectable = false;
-		if(isGroup(item)) border.dashArray = [5,2];
-		parts.push(border)
+		var border = new paper.Path.Rectangle(shadow.bounds.expand(12))
+		border.dashArray = [5,2];
+		
+		// Handles
+		var self = this;
+		var handles = border.segments.map(function(segment) {
+			return self._getHandle(segment.point);
+		})
 
-		// Add the handles. Order should be the same as in the item.
-		var segments = shadow.segments
-		for(var i=0; i<segments.length; i++) {
-			var positionName = getPositionName(segments[i])
-					position = border.bounds[positionName],
-					handle = getHandle(position);
-			handle.selectable = true;
-			handle.type = 'handle:' + positionName
-			parts.push(handle)
-		}
+		return {
+			shadow: shadow,
+			handles: handles,
+			border: border
+		} 
+	},
+
+	manipulate: function(event, handle) {
+		if(this.isAnimating()) return false;
+		
+		var bounds = this.item.bounds,
+				center = this.item.position,
+				width = bounds.width,
+				height = bounds.height,
+				diag = Math.sqrt(width*width + height*height),
+				newDiag = event.point.subtract(center).length * 2 - 6,
+				scaleFactor = newDiag/diag;
+
+		this.item.scale(scaleFactor);
+
+		// Update the selection box
+		this.drawBoundingBox();
+
+		// Color selected handle
+		if(this.bbox.children[handle.name])
+			this.bbox.children[handle.name].fillColor = P.mainColor;
+	},
+
+	ungroup: function() {
+		// Reinstert parent items
+		var childItems = this.children.map(function(child){ return child.item });
+		var parent = this.item.parent ? this.item.parent : project.activeLayer;
+		parent.insertChildren(this.item.index, childItems);
+
+		// Stop the animation, to get the actual transformation of the group
+		if(this.hasAnimation()) this.animation.stop();
+		var matrix = this.item.matrix;
+		this.children.map(function(child) { 
+			
+			// The children of groups are not transformed untill
+			// we ungroup them!
+			child.bbox.visible=true
+			child.transform(matrix);
+
+			// Reset the bounding box
+			if(child.isAnimating()) {
+				child.animation.stop();
+				child.drawBoundingBox();
+				child.animation.start();
+			} else {
+				child.drawBoundingBox();	
+			}
+			
+		});
+		
+		// Remove and reset
+		this.destroy(false);
+		return this.children;
+	},
+
+	destroy: function destroy(destroyChildren=false) {
+		if(destroyChildren) this.children.mmap('destroy');
+		return destroy.base.call(this);
+	}
+});
+P.deleteSelection = function(artefacts) {
+	var artefacts = artefacts || P.getSelected();
+
+	var undo = function() {
+		artefacts.mmap('restore').mmap('select');
 	}
 
-	// Circles get a circular bounding box
-	if(isCircular(item)) {
-		shadow = item.clone();
-		var radius = (item.bounds.width + 12) / 2
-		console.log(item)
-		var center = item.position 
-		var border = new Path.Circle(item.position, radius)
-		border.strokeColor = mainColor
-		border.selectable = false;
-
-		var handle = getHandle([center.x + radius, center.y])
-		handle.selectable = true;
-		parts.push(border,handle);
-	}
-
-	// Style shadow
-	shadow.fillColor = mainColor;
-	shadow.opacity = 0.1;
-	shadow.selectable = false;
-	shadow.sendToBack();
-	shadow.type = 'shadow'
-	shadow.name = 'shadow'
-	parts.push(shadow)
-
-	// Build the bounding box!
-	var bbox = new Group(parts);
-	bbox.parent = item.parent;
-	bbox.pivot = shadow.bounds.center//[0,0];
-	group.transformContent = false;
-	bbox.type = 'boundingBox';
-	return bbox;
-}
-
-// function getShadowBounds(item){
-// 	if(!item.bbox) return false;
-// 	return item.bbox.children['shadow'].bounds
-// }
-
-/**
- * Returns the proper bounds of elements, ignoring animations
- *
- * When an item is animated, the bounds typically change. We typically
- * don't care about that, and want to know the bounds before animation.
- * The bounding box contains a so called *shadow* element that has the
- * right size. This function returns that size or --- in the case of 
- * groups --- combines the shadow sizes of all children. This yields a 
- * bound that does not change when items are animated
- * @param  {item} item
- * @return {Rectangle}      The proper bounds
- */
-function getBounds(item){
-	return item.getShadowBounds();
-	// if(!isGroup(item)) return getShadowBounds(item);
-
-	// // For groups we combine all shadow bounds. In that case, the bound
-	// // does not change when children are animated.
-	// var bounds;
-	// for(var i=0; i<item.children.length;i++){
-	// 	var child = item.children[i]
-	// 	if(child.isArtefact()) {
-	// 		childBounds = getBounds(child)
-	// 		bounds = bounds ? bounds.unite(childBounds) : childBounds;
-	// 	}
-	// }
-
-	// Apply possible group transformations
-	// var _tmp = new Path.Rectangle(bounds);
-	// bounds = _tmp.transform(item.matrix).bounds
-	// _tmp.remove()
-	// return bounds
-}
-
-/**
- * Select an item or multiple items.
- *
- * The item is not selected using the Paper.js's default `item.selected = true`. 
- * Rather, we draw a custom bounding box around the item, allowing a bit
- * more flexibility (e.g. different bounding boxes for different types of
- * items). To test if an item has been selected using our custom selection
- * method, the test function `isSelected` can be used.
- * @param  {mixed} items An item or multiple items
- * @return {None}
- */
-function select(item) {
-	if(item instanceof Array) return item.map(select);
-	item.select();
-}
-
-/**
- * Deselect an item
- *
- * This removes the bounding box and resets styling specific to selected
- * items.
- * @param  {item} item 
- * @return {None}
- */
-function deselect(item) {
-	if(item instanceof Array) return item.map(deselect);
-	item.deselect()
-}
-
-/**
- * Deselects all the currently selected items.
- *
- * Again, we don't use the in-built selection mechanism, but rely on our own
- * bounding boxes. Only items with bounding boxes are deselected, the function
- * does not care about the value of `item.selected`.
- * @param  {array} items 
- * @return {None}
- */
-function deselectAll(items) {
-	var items = getSelected();
-
-	for(var i=0; i<items.length;i++) {
-		deselect(items[i])
-	}
-}
-
-/**
- * Selects only this item
- * @param  {item} item The only item to select
- * @return {None}
- */
-function selectOnly(item) {
-	deselectAll();
-	select(item);
-}
-
-/**
- * Return all selected items
- * @param  {Function} match The match function, defaults to isSelected
- * @return {Array}       Selected items
- */
-function getSelected() {
-	return project.getItems({
-		match: function(i) { return i.isSelected() }
-	})
-}
-
-/********************************************************/
-
-/**
- * Test if an item is rectangular. 
- *
- * Note that a rectangular is *not* a `Rectangle`. Rather, it is a `Path`
- * with a rectangular shape. We determine this using the `type` property
- * which is set for every item generated through the painter.
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isRectangular(item) {
-	return item.className == 'Path' && item.type == 'rectangle'
-}
-
-/**
- * Test if an item is circular.
- *
- * Just as for `isRectangular`, the function returns true if the item is 
- * a path with a circular shape, i.e., if it is a `Path.Circle`.
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isCircular(item) {
-	return item.className == 'Path' && item.type == 'circle'
-}
-
-/**
- * Test if the item is a handle of a bounding box.
- * @param  {Item}  item 
- * @return {Boolean}
- */
-function isHandle(item) {
-	if(item.type == undefined) {
-		return inGroup(item) ? isHandle(item.parent) : false;
-	}
-	return item.type.startsWith('handle');
-}
-
-function isAnimationHandle(item) {
-	if(item.type == undefined) {
-		return inGroup(item) ? isAnimationHandle(item.parent) : false;
-	}
-	return item.type == 'handle:animation';
-}
-
-/**
- * Test if an object is a segment of a path.
- * @param  {mixed}  item 
- * @return {Boolean}
- */
-function isSegment(item) {
-	return item.className == 'Segment';
-}
-
-/**
- * Test if the item is a group
- * @param  {Item}  item 
- * @return {Boolean} 
- */
-function isGroup(item) {
-	if(!item) return false;
-	return item.className == 'Group'
-}
-
-/**
- * Test if an item is in a group
- * @param  {Item} 		item 
- * @return {Boolean}
- */
-function inGroup(item) {
-	if(item.parent)
-		return isGroup(item.parent);
-	return false;
-}
-
-/********************************************************/
-
-/**
- * Get the adjacent segments of a given segment on a rectangle
- *
- * The adjacent segments are the two segments (corner points) that have either the
- * same x-coordinate, or the same y-coordinate. This makes most sense on a rectangular
- * path, where the adjacent egdes are the two neighbouring corners. 	
- * @param  {Segment} segment 
- * @return {object}         An object `{ sameX: sameXSegment, sameY: sameYSegment }`.
- */
-function getAdjacentSegments(segment, tol=1) {
-	var segments = segment.path.segments,
-			sameX, sameY, cur;
-	for(var i=0; i<segments.length; i++) {
-		if(segments[i] == segment) continue;
-		if(Math.abs(segments[i].point.x - segment.point.x) < tol) sameX = segments[i];
-		if(Math.abs(segments[i].point.y - segment.point.y) < tol) sameY = segments[i];
-	}
-	return {sameX: sameX, sameY: sameY };
-}
-
-/**
- * Get the name of the position of a handle or segment w.r.t. its rectangle.
- * 
- * The name of the position is one of `bottomLeft, topLeft, topRight, bottomRight`.
- * The input can be either a handle (Path) or a segment (Segment).			
- * @param  {mixed} item 
- * @return {string}
- */
-function getPositionName(item) {
-	if(isHandle(item)) {
-		return item.type.split(':')[1];
+	var redo = function() {
+		artefacts.mmap('destroy');
 	}
 	
-	if(isSegment(item)) {
-		var rectangle = item.path.bounds;
-		positions = ['bottomLeft', 'topLeft', 'topRight', 'bottomRight']
-		for(var i =0; i<positions.length; i++) {
-			if(item.point.equals(rectangle[positions[i]])) return positions[i];
-		}
-	}
+	P.History.registerState(undo, redo);
+
+	redo();
 }
 
-/**
- * Get the index of the handle or segment w.r.t. the corners of the rectangle.
- *
- * The rectangle has of a segments. This function retrieves the index of a segment
- * corresponding to the input to this function. So if you input a handle, you get the
- * index of the segment of the rectangle, corresponding to the handle.
- * @param  {mixed} item 
- * @return {integer}      
- */
-function getPositionIndex(item) {
-	if(isHandle(item)) {
-		return item.parent.children.indexOf(item) - 1;
+P.group = function(items) {
+
+	var undo = function() {
+		// To do: this breaks up the history chain since we no 
+		// longer refer to the same group...
+		artefact.ungroup().mmap('select');
 	}
 
-	if(isSegment(item)) {
-		return item.path.segments.indexOf(item);
-	}
-}
-
-/**
- * Get a segment on a rectangle by the name of its position
- * @param  {string} name      One of `bottomLeft, topLeft, topRight, bottomRight`
- * @param  {Path} rectangle  	A rectangular path
- * @return {Segment}          
- */
-function getSegmentByName(name, rectangle) {
-	var bounds = rectangle.bounds,
-			position = bounds[name];
-
-	for(var i =0; i<rectangle.segments.length; i++) {
-		var segment = rectangle.segments[i];
-		if(position.equals(segment.point)) return segment;
-	}
-}
-
-/**
- * Get the segment based on its index.
- * 
- * See `getPositionIndex` for details about the index.
- * @param  {int} index    	Index of the segment  
- * @param  {Path} rectangle Rectangular path
- * @return {Segment}           
- */
-function getSegmentByIndex(index, rectangle) {
-	return rectangle.segments[index]
-}
-
-/**
- * Get the segment corresponding to a handle
- * @param  {Path} handle Handle in a bounding box
- * @param  {Path} item   A rectangular path on which the segment lies
- * @return {Segment}     
- */
-function getSegmentByHandle(handle, item) {
-	var index = getPositionIndex(handle),
-			segment = getSegmentByIndex(index, item);
-	return segment
-}
-
-/**
- * Get a handle on a boundingBox by its name
- * @param  {string} name        
- * @param  {Group} boundingBox  
- * @return {Path}             
- */
-function getHandleByName(name, boundingBox) {
-	var handles = boundingBox.children.slice(1);
-	for(var i=0; i<handles.length; i++){
-		if(getPositionName(handles[i]) == name) return handles[i];
-	}
-}
-
-/**
- * Find the higest group in which the item is contained
- * @param  {Item} 	item 
- * @return {Group}  The outermost group containing `item`
- */
-function getOuterGroup(item) {
-	if(inGroup(item.parent)) return getOuterGroup(item.parent);
-	return item.parent
-}
-
-/********************************************************/
-
-function getCenter(item) {
-	return item.bbox.children['shadow'].bounds.center;
-}
-
-/********************************************************/
-
-function group(theItems, _pushState=true) {
-
-	var theGroup = new Group(theItems);
-	theGroup.type = 'group'
-	setupItem(theGroup);
-	theGroup.transformContent = false;
-
-	var bounds = theGroup.getShadowBounds()
-	theGroup.pivot = new Point(bounds.center);
-
-	selectOnly(theGroup);
-	// startAnimation(theItems, false, true)
-
-	if(_pushState) {
-		var undo = function() {
-			ungroup(theGroup, false)
-		}
-
-		var redo = function() {
-			// To do: this breaks up the history chain since we no 
-			// longer refer to the same group...
-			theGroup = group(theItems, false)
-		}
-
-		P.History.registerState(undo, redo)		
+	var redo = function() {
+		return artefact = new P.Artefact.Group(items).select();
 	}
 
-	return theGroup;
+	P.History.registerState(undo, redo)		
 
+	// Perform the action
+	return redo();
 }
 
 /**
@@ -792,134 +825,66 @@ function group(theItems, _pushState=true) {
  * @param  {Group} group 
  * @return {Array}       Children
  */
-function ungroup(theGroup, _pushState=true) {
+P.ungroup = function(theGroup) {
 	if(theGroup instanceof Array) return theGroup.map(ungroup);
-	if(!isGroup(theGroup)) return;
+	if(!theGroup.ungroup) return false;
+	var children;
 
-	var theItems = theGroup.removeChildren().filter(function(i){ return i.isArtefact() });
-	var parent = theGroup.parent ? theGroup.parent : project.activeLayer;
-	parent.insertChildren(theGroup.index, theItems);
-
-	// Stop the animation, to get the actual transformation of the group
-	if(theGroup.hasAnimation()) theGroup.getAnimation().stop();
-	theItems.map(function(item) { item.transformAll(theGroup.matrix) });
-	
-	// Remove and reset
-	theGroup.destroy();
-
-	if(_pushState) {
-		var undo = function() {
-			group(theItems, false);
-		}
-		var redo = function() {
-			theItems = ungroup(theGroup, false)
-		}
-		P.History.registerState(undo, redo)
-	}
-	return theItems
-}
-
-function deleteSelection() {
-	var items = getSelected();
-	for(var i=0; i<items.length;i++) {
-		deselect(items[i])
-		items[i].remove()
+	var redo = function() {
+		children = theGroup.ungroup();
+		return children.mmap('select');
 	}
 
 	var undo = function() {
-		items.map(function(i){ project.activeLayer.addChild(i) })
-		select(items)
+		theGroup = new P.Artefact.Group(children);
 	}
 
+	P.History.registerState(undo, redo);
+	
+	// Perform the action
+	return redo();
+}
+
+P.cloneSelection = function(move=[0,0]) {
+	var artefacts = P.getSelected();
+	var clones = artefacts.mmap('clone').mmap('move', [move]);
+	P.selectOnly(clones);
+
+	var undo = function() {
+		clones.mmap('destroy');
+	}
 	var redo = function() {
-		items.map(function(i){
-			deselect(i)
-			i.remove();
+		clones.mmap('restore').mmap('select');
+	}
+	P.History.registerState(undo, redo)
+
+	return clones;
+}
+
+
+P.changeColorSelection = function() {
+	var swatch = P.getActiveSwatch(),
+			artefacts = P.getSelected(),
+			origColors;
+	
+	var redo = function() {
+		origColors = artefacts.map(function(artefact) {
+			var origColor = artefact.item.fillColor;
+			artefact.item.fillColor = swatch;
+			return origColor;
+		});
+	}
+
+	var undo = function() {
+		artefacts.map(function(artefact) {
+			var idx = artefacts.indexOf(artefact);
+			artefact.item.fillColor = origColors[idx];
 		});
 	}
 	
-	P.History.registerState(undo, redo)
-}
+	P.History.registerState(undo, redo);
 
-/********************************************************/
-
-/**
- * Clones an item
- *
- * This doesn't work perfectly yet as not all properties are transferred
- * In particular, children of a group don't have the proper names.
- * This could all be solved by moving all custom attributes to the
- * `Item.data` attribute.
- * 
- * @param  {[type]} item [description]
- * @param  {Array}  move [description]
- * @param  {[type]} 0]   [description]
- * @return {[type]}      [description]
- */
-function clone(item, move=[0,0]) {
-	var copy = item.clone();
-	copy.parent = item.parent;
-	copy.type = item.type;
-	copy.position = copy.position.add(move);
-
-	// Animate the item!
-	if(item.hasAnimation()) {
-		var type = item.animation.type,
-				props = item.animation.properties;
-		var onClone = animations[type].onClone || function() {};
-		var newProps = jQuery.extend(true, {}, props);
-		select(copy);
-		copy.animate(type, newProps);
-		if(item.isAnimating()) copy.getAnimation().start();
-	}
-
-	return copy;
-}
-
-function cloneSelection(move=[0,0]) {
-	var items = getSelected();
-	var copiedItems = items.map(function(i) {return clone(i, move)});
-	selectOnly(copiedItems);
-
-	var undo = function() {
-		deselect(copiedItems)
-		copiedItems.map(function(i){ i.remove() })
-	}
-	var redo = function() {
-		copiedItems.map(function(i){ i.insertAbove(items[0]) })
-	}
-	P.History.registerState(undo, redo)
-
-	return copiedItems;
-}
-
-/********************************************************/
-
-function getColor(i, num_colors, noise=.4, css=true) {
-	var noise = Math.random() * noise - .5*noise
-	var hue = ( (i+noise) / num_colors * 360 ) % 360
-	if(hue < 0) hue = 360 + hue;
-	var color = {
-		hue: Math.round(hue),
-		saturation: 75,
-		brightness: 60
-	}
-	if(css) return "hsl(" + color.hue+', '+color.saturation+'%, '+color.brightness+'%)';
-	else return color
-}
-
-function getActiveSwatch() {
-	var index = $('.swatch.active').data('colorIndex');
-	var numSwatches = $('.swatch.active').data('numSwatches');
-	return getColor(index, numSwatches)
-}
-
-function changeColorSelection() {
-	var items = getSelected();
-	for(var i=0; i<items.length; i++){
-		var item = items[i];
-		item.fillColor = getActiveSwatch();
-	}
+	redo();
 };/**
  * All registered animations
  * @type {Object}
@@ -930,7 +895,7 @@ P.animations = {}
  * @name Animation
  * @class
  */
-P.Animation = Base.extend(/** @lends Animation */{
+P.Animation = paper.Base.extend(/** @lends Animation */{
 
 	/**
 	 * The type of this animation, e.g. rotate or 'bounce'
@@ -959,24 +924,23 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 * @param  {Object} properties Default properties.
 	 * @return {Animation}
 	 */
-	initialize: function(item, type, properties) {
-		this.item = item;
+	initialize: function(artefact, type, properties) {
+		this.artefact = artefact;
+		this.item = artefact.item;
+		this.item.data._animation = this;
 		this.type = type;
 		this.properties = jQuery.extend(true, {}, properties);
-		
-		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
-		
-		// Load all animation-specific methods.
+		// // if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
+
+		// // Load all animation-specific methods.
 		var methods = ['onInit', 'onStart', 'onPause', 'onStop', 'onFrame', 
 		'onTransform', 'onDrawHandles', 'onUpdate'];
 		for(var i=0; i<methods.length; i++) {
 			var method = methods[i];
 			this['_'+method] = P.animations[this.type][method] || function() {};
 		}
-		
-		this._onInit(this.item, this.properties);
+		this._onInit(this.artefact, this.properties);
 		this.drawHandles();
-		return this;
 	},
 
 	/**
@@ -986,13 +950,14 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 */
 	drawHandles: function() {
 		// Clean up old animations
-		this.removeHandles();
+		this.removeHandles(this);
 
 		// Draw handles
-		this.handles = this._onDrawHandles(this.item, this.properties);
-		this.handles.parent = this.item.bbox;
-		this.handles.type = 'handle:animation';
-		return this.handles;
+		var handles = this._onDrawHandles(this.artefact, this.properties);
+		handles.parent = this.artefact.bbox;
+		handles.name = 'handle:animation';
+		this.handles = handles;
+		return handles;
 	},
 
 	/**
@@ -1000,8 +965,11 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 * 
 	 * @return {Animation}
 	 */
-	removeHandles: function() {
-		if(this.handles) this.handles.remove();
+	removeHandles: function(self) {
+		if(this.handles != undefined) {
+			this.handles.remove();
+			this.handles = undefined;
+		}		
 		return this;
 	},
 
@@ -1018,12 +986,12 @@ P.Animation = Base.extend(/** @lends Animation */{
 	update: function(argument) {
 		var properties;
 		if(argument instanceof paper.Event) {
-			properties = this._onUpdate(this.item, this.properties, argument);
+			properties = this._onUpdate(this.artefact, this.properties, argument);
 		} else {
 			properties = argument;
 		}
 
-		this.properties = $.extend(this.properties, properties);
+		this.properties = jQuery.extend(this.properties, properties);
 		this.drawHandles();
 		return this.properties;
 	},
@@ -1038,13 +1006,14 @@ P.Animation = Base.extend(/** @lends Animation */{
 		// 	startAnimation(item.children, type, false);
 		
 		this.active = true;
-		this._onStart(this.item, this.properties);
+		this._onStart(this.artefact, this.properties);
 
 		// Start the animation
+		var artefact = this.artefact;
+		var anim = this;
 		this.item.onFrame = function(event) {
-			var anim = this.getAnimation();
-			anim._onFrame(this, anim.properties, event);
-			if(this.isSelected()) anim.drawHandles();
+			anim._onFrame(artefact, anim.properties, event);
+			// if(artefact.isSelected()) anim.drawHandles();
 		}
 
 		return this;
@@ -1057,7 +1026,7 @@ P.Animation = Base.extend(/** @lends Animation */{
 	pause: function() {
 		this.active = false;
 		this.item.onFrame = undefined;
-		this._onPause(this.item, this.properties);
+		this._onPause(this.artefact, this.properties);
 		return this;
 	},
 
@@ -1071,10 +1040,7 @@ P.Animation = Base.extend(/** @lends Animation */{
 
 		// Stop animation
 		this.pause();
-		this._onStop(this.item, this.properties);
-
-		// Update bounding box etc.
-		this.item.redrawBoundingBox();
+		this._onStop(this.artefact, this.properties);
 		return this;
 	},
 
@@ -1095,7 +1061,7 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 * @return {Animation}        [description]
 	 */
 	transform: function(matrix) {
-		this._onTransform(this.item, this.properties, matrix);
+		this._onTransform(this.artefact, this.properties, matrix);
 		return this;
 	},
 
@@ -1106,7 +1072,18 @@ P.Animation = Base.extend(/** @lends Animation */{
 	 */
 	isActive: function() {
 		return this.active == true;
+	},
+
+	cloneProperties: function() {
+		return jQuery.extend(true, {}, this.properties);
 	}
+	// clone: function(artefact) {
+	// 	var artefact = artefact || this.artefact;
+	// 	var properties = jQuery.extend(true, {}, this.properties);
+	// 	var type = '' + this.type;
+	// 	var copy = new P.Animation(artefact, type, properties);
+	// 	return copy
+	// }
 })
 
 /**
@@ -1135,47 +1112,47 @@ P.Animation = Base.extend(/** @lends Animation */{
  * @param  {Object} defaultProperties Default properties
  * @return {Object} The animation                   
  */
-P.registerAnimation = function(type, animation, defaultProperties) {
-
+P.registerAnimation = function(type, newAnimation, defaultProperties) {
+	
 	// Set up the animation tool
-	if(!animation.tool) animation.tool = new Tool();
+	if(!newAnimation.tool) newAnimation.tool = new paper.Tool();
 
 	// The current item on which the tool works.
-	var item;
+	var artefact;
 
 	// On Mouse Down
 	var _onMouseDown = function(event) {
-		item = getSelected()[0]
-		if(item == undefined) {
+		artefact = P.getSelected()[0]
+		if(artefact == undefined) {
 			hitResult = project.hitTest(event.point, {
-				fill: true, tolerance: 5
+				fill: true, 
+				tolerance: 5,
 			})
-			
 			if(!hitResult) return false;
-			item = hitResult.item			
+			artefact = P.getArtefact(hitResult.item)
 		}
-		selectOnly(item);
-
-		// Set up animation
-		var anim = item.animate(type, defaultProperties);
-
+		P.selectOnly(artefact);
+		
+		// Animate.
+		artefact.animate(type, defaultProperties);
+		
 		// if(!item.animation) item.animation = {};
 		// if(!item.animation._prevAnimation) item.animation._prevAnimation = {};
 		
 		// Update the properties.
-		anim.update(event);
+		artefact.getAnimation().update(event);
 	}
 
 	// Mouse drag event
 	var _onMouseDrag = function(event) {
-		if(!item) return;
-		item.getAnimation().update(event);
+		if(!artefact) return;
+		artefact.getAnimation().update(event);
 	}
 
 	// Mouse up event
 	var _onMouseUp = function(event) {
-		if(!item) return;
-		item.getAnimation().start();
+		if(!artefact) return;
+		artefact.getAnimation().start();
 		
 		// var item = currentItem;
 		// var prevAnimation = jQuery.extend(true, {}, item.animation._prevAnimation);
@@ -1207,14 +1184,14 @@ P.registerAnimation = function(type, animation, defaultProperties) {
 	}
 
 	// Store methods if none exist
-	animation.tool.onMouseDrag = animation.tool.onMouseDown || _onMouseDown;
-	animation.tool.onMouseDrag = animation.tool.onMouseDrag || _onMouseDrag;
-	animation.tool.onMouseUp = animation.tool.mouseUp || _onMouseUp;
+	newAnimation.tool.onMouseDown = newAnimation.tool.onMouseDown || _onMouseDown;
+	newAnimation.tool.onMouseDrag = newAnimation.tool.onMouseDrag || _onMouseDrag;
+	newAnimation.tool.onMouseUp = newAnimation.tool.mouseUp || _onMouseUp;
 
 	// Store!
-	P.animations[type] = animation;
+	P.animations[type] = newAnimation;
 
-	return animation;
+	return newAnimation;
 };/**
  * Register the bounce animation
  * @return {null}
@@ -1230,42 +1207,42 @@ P.registerAnimation = function(type, animation, defaultProperties) {
 	var bounce = {}
 
 	// Animation iself: frame updates
-	bounce.onFrame = function(item, props, event) {
+	bounce.onFrame = function(artefact, props, event) {
 		props.position += .01
 		var trajectory = props.startPoint.subtract(props.endPoint)
 		var relPos = (Math.sin((props.position + .5) * Math.PI) + 1) / 2;
 		var newPoint = trajectory.multiply(relPos).add(props.endPoint);
-		var delta = newPoint.subtract(item.position);
+		var delta = newPoint.subtract(artefact.item.position);
 		
 		// Move it!
-		item.position = item.position.add(delta)
+		artefact.item.position = artefact.item.position.add(delta)
 	}
 
 	// Reset
-	bounce.onStop = function(item, props) {
-		item.position = props.startPoint.add(props.position)
+	bounce.onStop = function(artefact, props) {
+		artefact.item.position = props.startPoint.add(props.position)
 		props.position = 0;
 	}
 
 	// Draws the handles
-	bounce.onDrawHandles = function(item, props) {
+	bounce.onDrawHandles = function(artefact, props) {
 		var line, dot1, dot2, handles;
-		
-		line = new Path.Line(props.startPoint, props.endPoint)
-		line.strokeColor = mainColor;
+
+		line = new paper.Path.Line(props.startPoint, props.endPoint)
+		line.strokeColor = P.mainColor;
 		line.strokeWidth = 1;
 		
-		dot1 = new Path.Circle(props.startPoint, 3)
-		dot1.fillColor = mainColor;
+		dot1 = new paper.Path.Circle(props.startPoint, 3)
+		dot1.fillColor = P.mainColor;
 
 		dot2 = dot1.clone();
 		dot2.position = props.endPoint;
 
-		handles = new Group([line, dot1, dot2]);
+		handles = new paper.Group([line, dot1, dot2]);
 		return handles;
 	}
 
-	bounce.onTransform = function(item, props, matrix) {
+	bounce.onTransform = function(artefact, props, matrix) {
 		props.startPoint = props.startPoint.transform(matrix)
 		props.endPoint = props.endPoint.transform(matrix)
 	}
@@ -1275,8 +1252,10 @@ P.registerAnimation = function(type, animation, defaultProperties) {
 		return props;
 	}
 
-	bounce.onUpdate = function(item, props, event) {
-		props.startPoint = getCenter(item);
+	bounce.onUpdate = function(artefact, props, event) {
+		var center = artefact.getShadowBounds().center;
+		center = center.transform(artefact.item.matrix);
+		props.startPoint = center//artefact.getCenter(false);
 		props.endPoint = new Point(event.point);
 	}
 
@@ -1290,25 +1269,26 @@ P.registerAnimation = function(type, animation, defaultProperties) {
  * Draws circles.
  */
 
-circleTool = new Tool()
-var circle;
+circleTool = new paper.Tool()
+var circle, radius, center;
 
 circleTool.onMouseDown = function(event) {
-	deselectAll()
-	circle = new Path.Circle({
+	P.deselectAll()
+	circle = new paper.Path.Circle({
 		center: event.point, 
 		radius: 0,
-		fillColor: getActiveSwatch()
+		fillColor: P.getActiveSwatch()
 	});
 }
 
 circleTool.onMouseDrag = function(event) {
 	var color = circle.fillColor;
 	var diff = event.point.subtract(event.downPoint)
-	var radius = diff.length / 2
+	radius = diff.length / 2
+	center = diff.divide(2).add(event.downPoint)
 	circle.remove();
 	circle = new Path.Circle({
-		center: diff.divide(2).add(event.downPoint),
+		center: center,
 		radius: radius,
 		opacity: .9,
 		fillColor: color
@@ -1316,166 +1296,88 @@ circleTool.onMouseDrag = function(event) {
 }
 
 circleTool.onMouseUp = function(event) {
-	circle.type = 'circle'
-	setupItem(circle);
 
-	// scope
-	var circ = circle;
-	var undo = function() {
-		deselect(circ)
-		circ.remove()
-	}
-
-	var redo = function() {
-		project.activeLayer.addChild(circ);
-	}
-
+	// Initialize artefact
+	var artefact = new P.Artefact.Circle(center, radius);
+	artefact.item.fillColor = circle.fillColor
+	circle.remove();
+	
+	// History
+	var undo = function() { artefact.destroy(); }
+	var redo = function() { artefact.restore(); }
 	P.History.registerState(undo, redo)
 };
-cloneTool = new Tool();
+cloneTool = new paper.Tool();
 
 var currentItems;
 cloneTool.onMouseDown = function(event) {
-	currentItems = getSelected();
+	currentItems = P.getSelected();
 	currentItems = cloneSelection();
-	selectOnly(currentItems)
 }
 
 cloneTool.onMouseDrag = function(event) {
-	moveItem(currentItems, event.delta)
+	currentItems.mmap('move', [event.delta])
 }
 
-cloneTool.onMouseUp = function() {};dragTool = new Tool();
-var currentItems;
+cloneTool.onMouseUp = function() {};dragTool = new paper.Tool();
 
-
-dragTool.onMouseDown = function(event) {}
-
-dragTool.onMouseDrag = function(event) {
-	currentItems.map(function(item) {
-		item.move(event.delta)
+dragTool.onMouseDrag = function(event, artefacts) {
+	artefacts.map(function(artefact) {
+		artefact.move(event.delta);
 	})
 }
 
-dragTool.onMouseUp = function(event) {
+dragTool.onMouseUp = function(event, artefacts) {
 
-	var undoDelta = new Point(event.downPoint.subtract(event.point))
-	var redoDelta = new Point(event.point.subtract(event.downPoint))
+	var undoDelta = new paper.Point(event.downPoint.subtract(event.point))
+	var redoDelta = new paper.Point(event.point.subtract(event.downPoint))
 
 	if(redoDelta.length > 1) {
-		var items = currentItems;
+		var artefacts;
 		
 		var undo = function() {
-			moveItem(items, undoDelta);
+			artefacts.map(function(artefact) {
+				artefact.move(undoDelta);
+			})
 		}
 		
 		var redo = function() {
-			moveItem(items, redoDelta)
+			artefacts.map(function(artefact) {
+				artefact.move(redoDelta);
+			})
 		}
 		
 		P.History.registerState(undo, redo);
 	}
-};manipulateTool = new Tool();
+};/**
+ * @todo support for history redo/undo
+ * @type {paper.Tool}
+ */
+manipulateTool = new paper.Tool();
 
-var currentItems, handle;
-
-manipulateTool.onSwitch = function(event) {
-	var item = currentItems[0];
-	handle = item;
-	currentItems = [item.parent.item];
+manipulateTool.onMouseDown = function(event, artefacts, handle) {
 }
 
-manipulateTool.onMouseDrag = function(event) {
-	if(currentItems.length == 1) {
-			var item = currentItems[0];
-
-			// Rectangle!
-			if( isRectangular(item) ) {
-				var segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
-
-				// Get segment corresponding to the handle, and segments adjacent to that
-				segment = getSegmentByHandle(handle, item);
-				adjacents = getAdjacentSegments(segment);
-				sameX = adjacents.sameX;
-				sameY = adjacents.sameY;
-				
-				// Move segments
-				// To do: this is still a bit buggy... You sometimes get crosses, or the
-				// rectangle is essentially removed. Could the problem be in getAdjacentSegments ?
-				newWidth  = Math.abs(segment.point.x - (sameY.point.x + event.delta.x));
-				newHeight = Math.abs(segment.point.y - (sameX.point.y + event.delta.y));
-				deltaX = (newWidth <= 3) ? 0 : event.delta.x;
-				deltaY = (newHeight <= 3) ? 0 : event.delta.y;
-				sameX.point   = sameX.point.add([deltaX, 0]);
-				sameY.point   = sameY.point.add([0, deltaY]);
-				segment.point = segment.point.add([deltaX, deltaY]);
-
-				// Update bounding box
-				item.redrawBoundingBox();
-
-				// Color selected handle
-				var newHandleName = getPositionName(segment);
-				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor;
-			}
-
-			// Circles are just scaled
-			if( isCircular(item) ) {
-				// To do: you can move the handle along with the mouse, 
-				// that'd be nice!
-				var center = item.position,
-						radius = item.bounds.width,
-						newRadius = event.point.subtract(center).length * 2 - 6,
-						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor);
-				item.redrawBoundingBox();
-
-				// Color the selected handle
-				var newHandle = item.bbox.children[1];
-				newHandle.fillColor = mainColor;
-			}
-
-			// Groups behave very much like circles: they are just scaled.
-			// Their radius is different, however.
-			if( isGroup(item) ) {
-				var center = item.position,
-						width = item.bounds.width,
-						height = item.bounds.height,
-						radius = Math.sqrt(width*width + height*height), // Diagonal
-						newRadius = event.point.subtract(center).length * 2 - 6,
-						scaleFactor = newRadius/radius;
-				item.scale(scaleFactor);
-				item.bbox.children['shadow'].scale(scaleFactor);
-
-				// Update the selection box
-				item.redrawBoundingBox();
-
-				// item.children.map(function(child) {
-				// 	child.redrawBoundingBox(); 
-				// })
-
-				// Color selected handle
-				var newHandleName = getPositionName(handle);
-				var	newHandle = getHandleByName(newHandleName, item.bbox);
-				newHandle.fillColor = mainColor;
-			}
-		}
+manipulateTool.onMouseDrag = function(event, artefacts, handle) {	
+	var artefact = artefacts[0];
+	artefact.manipulate(event, handle);
 }
 
-manipulateTool.onMouseUp = function(event) {};/**
+manipulateTool.onMouseUp = function(event, artefacts, handle) {
+
+};/**
  * Rectangle tool
  * 
  * Draws rectangles
  */
 
 
-rectTool = new Tool();
+rectTool = new paper.Tool();
 var rectangle;
 
 rectTool.onMouseDown = function(event) {
 	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	setupRectangle(rectangle)
-	rectangle.fillColor = getActiveSwatch();
+	rectangle.fillColor = P.getActiveSwatch();
 }
 
 rectTool.onMouseDrag = function(event) {
@@ -1487,22 +1389,12 @@ rectTool.onMouseDrag = function(event) {
 }
 
 rectTool.onMouseUp = function() {
-	rectangle.type = 'rectangle';
-	setupItem(rectangle);
+	var artefact = new P.Artefact.Rectangle(rectangle)
 
-	// Scope!
-	var rect = rectangle;
-
-	var undo = function() {
-		deselect(rect);
-		rect.remove();
-	}
-
-	var redo = function() {
-		project.activeLayer.addChild(rect);
-	}
-
-	P.History.registerState(undo, redo);
+	// History
+	var undo = function() { artefact.destroy(); }
+	var redo = function() { artefact.restore(); }
+	P.History.registerState(undo, redo)
 };/**
  * Register the rotate animation 
  *
@@ -1514,23 +1406,23 @@ rectTool.onMouseUp = function() {
 	rotate = {}
 
 	// Animation iself: frame updates
-	rotate.onFrame = function(item, props, event) {
-		item.rotate(props.speed, props.center);
+	rotate.onFrame = function(artefact, props, event) {
+		artefact.item.rotate(props.speed, props.center);
 		props.degree = ((props.degree || 0) + props.speed) % 360
 	}
 
 	// Reset
-	rotate.onStop = function(item, props) {
+	rotate.onStop = function(artefact, props) {
 
 		// Rotate the item back to its original position
 		var deg = - props.degree
-		item.rotate(deg, props.center)
+		artefact.item.rotate(deg, props.center)
 		props.degree = 0;
 
 		// The path might not be exactly rectangular anymore due to the 
 		// rotation. Rounding the coordinates solves the problem.
-		if(isRectangular(item)) {
-			item.segments.map(function(segment) {
+		if(artefact.isRectangle()) {
+			artefact.item.segments.map(function(segment) {
 				segment.point.x = Math.round(segment.point.x)
 				segment.point.y = Math.round(segment.point.y)
 			})
@@ -1538,31 +1430,31 @@ rectTool.onMouseUp = function() {
 	}
 
 	// Draws the handles
-	rotate.onDrawHandles = function(item, props) {
-		var border, tl, br, middle, line, dot, handles;
+	rotate.onDrawHandles = function(artefact, props) {
+		var line, dot, handles;
 
 		// Determine the middle of the bounding box: average of two opposite corners
-		corners = item.bbox.children[0].segments;
-		middle = corners[0].point.add(corners[2].point).divide(2)
+		corners = artefact.bbox.children['border'].segments;
+		middle = corners[0].point.add(corners[2].point).divide(2);
 		
-		line = new Path.Line(middle, props.center)
-		line.strokeColor = mainColor;
+		line = new paper.Path.Line(middle, props.center)
+		line.strokeColor = P.mainColor;
 		line.strokeWidth = 1;
 		
-		dot = new Path.Circle(props.center, 3)
-		dot.fillColor = mainColor;
+		dot = new paper.Path.Circle(props.center, 3)
+		dot.fillColor = P.mainColor;
 		dot.position = props.center;
 
-		handles = new Group([line, dot]);
+		handles = new paper.Group([line, dot]);
 		return handles;
 	}
 
 	// Transform the center point
-	rotate.onTransform = function(item, props, matrix) {
+	rotate.onTransform = function(artefact, props, matrix) {
 		props.center = props.center.transform(matrix)
 	}
 
-	rotate.onUpdate = function(item, props, event) {
+	rotate.onUpdate = function(artefact, props, event) {
 		props.center = new Point(event.point);
 	}
 
@@ -1579,26 +1471,47 @@ rectTool.onMouseUp = function() {
  * largely through the mode the selector is in.
  */
 
-selectTool = new Tool()
-var currentItems = [];
+selectTool = new paper.Tool()
 
-function switchTool(newTool, event) {
-	selectOnly(currentItems);
+function switchTool(newTool, event, artefacts, target) {
 
 	// Update the new tool, this is a bit hacky though.
 	newTool._downPoint = event.downPoint;
 	newTool._point = event.downPoint;
 	newTool._downCount += 1; // Not strictly necessary
 
+	// Store the current artefacts
+	newTool._artefacts = artefacts;
+	newTool._target = target;
+
+	// Mouse Down
+	var _onMouseDown = newTool.onMouseDown || function() {};
+	newTool.onMouseDown = function(event) {
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		return _onMouseDown(event, artifacts, target);
+	}
+
+	// Mouse Drag
+	var _onMouseDrag = newTool.onMouseDrag || function() {}
+	newTool.onMouseDrag = function(event) {
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		return _onMouseDrag(event, artifacts, target);
+	}
+
 	// Reactivate selection tool afterwards!
-	var _onMouseUp = newTool.onMouseUp
+	var _onMouseUp = newTool.onMouseUp || function() {};
 	newTool.onMouseUp = function(event) {
-		_onMouseUp(event)
+		var artifacts = event.tool._artefacts,
+				target = event.tool._target;
+		_onMouseUp(event, artifacts, target);
 		selectTool.activate()
 	}
+
 	// Update the event
 	event.tool = newTool;
-
+	
 	// Activate!
 	newTool.activate()
 	if(newTool.onSwitch) {
@@ -1611,97 +1524,107 @@ function switchTool(newTool, event) {
 selectTool.onMouseDown = function(event) {
 	
 	// Test if we hit an item
-	hitResult = project.hitTest(event.point, {
+	var hitResult = project.hitTest(event.point, {
 		fill: true,
 		tolerance: 5
 	})
 
-	// Get currently selected items
-	currentItems = getSelected()
+	// We hit noting!
+	if(!hitResult) {
+		P.deselectAll();
+		switchTool(selectionTool, event, []);
+	}
+	
+	// We hit a handle --> edit selection
+	else if(P.isHandle(hitResult.item)) {
+		if(hitResult.item.name.endsWith('animation')) return;
+		var artefacts = [P.getArtefact(hitResult.item)]
+		switchTool(manipulateTool, event, artefacts, hitResult.item);
+	}
 
-	// We hit something!
-	if(hitResult) {
-		var item = hitResult.item
+	// Hit an item
+	else {
 
-		// Shadow --> select actual item
-		if(item.type == 'shadow') item = item.parent.item;
+		// Note: this also fetches the artefact of a shadow
+		var hit = P.getArtefact(hitResult.item);
+		var artefacts = P.getSelected();
 
-		// Anmination handles shouldn't do anything
-		if(isAnimationHandle(item)) return;
-			
-		// We hit a handle --> edit selection
-		if(isHandle(item)) {
-			currentItems = [item];
-			switchTool(manipulateTool, event);
+		if(Key.isDown('shift')) {
+
+			// Already selected: remove from selection
+			if(hit.isSelected()) {
+				var index = artefacts.indexOf(hit);
+				artefacts.splice(index, 1);
+			} 
+
+			// Not selected yet: add to selection
+			else {
+				artefacts.push(hit);	
+			}
+
+		}
+		
+		// If you click outside the selection with no modifiers, select the hit.
+		else if(!hit.isSelected()) {
+			artefacts = [hit]
 		}
 
-		// We hit an object --> drag
-		else if(item.type) {
-			mode = 'dragging'
+		// Update selection
+		P.selectOnly(artefacts);
 
-			// Select the group if the item we hit is in a group
-			if(inGroup(item)) item = getOuterGroup(item);
-			
-			// If the shift key is pressed, just add the item to the selection.
-			if(Key.isDown('shift')) {
-				currentItems.push(item);	
-			}
-
-			// If you click outside the selection, deselect the current selection
-			// and select the thing you clicked on.
-			else if(!item.isSelected()) {
-				currentItems = [item]
-			}
-			
-			var newTool = Key.isDown('alt') ? cloneTool : dragTool;
-			switchTool(newTool, event)
-
-		} else return;
-	} 
-
-	// Nothing was hit; start a selection instead
-	else {
-		currentItems = []
-		switchTool(selectionTool, event)
+		// Switch
+		var newTool = Key.isDown('alt') ? cloneTool : dragTool;
+		switchTool(newTool, event, artefacts)
 	}
 };
-selectionTool = new Tool();
+selectionTool = new paper.Tool();
 
 var selectRect;
 
-selectionTool.onMouseDown = function(event) {
-	currentItems = [];
-	selectRect = new Path.Rectangle(event.point, new Size(0,0));
+selectionTool.onMouseDown = function(event, artefacts) {
+	selectRect = new paper.Path.Rectangle(event.point, new Size(0,0));
 }
 
-selectionTool.onMouseDrag = function(event) {
+selectionTool.onMouseDrag = function(event, artefacts) {
 	if(selectRect)
 		selectRect.remove();
-	selectRect = new Path.Rectangle(event.downPoint, event.point);
+	selectRect = new paper.Path.Rectangle(event.downPoint, event.point);
 	selectRect.strokeColor = "#333"
 	selectRect.dashArray = [2,3]
-	selectRect.strokeWidth = 1}
+	selectRect.strokeWidth = 1
+}
 
-selectionTool.onMouseUp = function(event) {
+selectionTool.onMouseUp = function(event, artefacts) {
 	// Remove the selection region
 	if(selectRect) selectRect.remove();
 
 	// Find all items in the selection area
-	rect = new Rectangle(event.downPoint, event.point)
+	rect = new paper.Rectangle(event.downPoint, event.point)
 	var items = project.activeLayer.getItems({ 
 		overlapping: rect,
-		match: function(item) { 
-			return item.isArtefact()
+		match: function(item) {
+			return item.data._artefact != undefined
 		}
 	});
-	console.log(items)
 
 	// If we put this in the match, it doesn't work?
-	items = items.filter(function(item) { return !inGroup(item) })
-	console.log(items)
+	// Reimplement?
+	items = items.filter(function(item) { 
 
-	// And select!
-	select(items);
+		var isBBox = item.name == 'bbox';
+		var inGroup = (item.parent.className == 'Group' 
+			|| item.data._artefact.item.parent.className == 'Group');
+		var isGroup = item.data._artefact.className == 'Group';
+		
+		// Cannot select anything in a group
+		if(inGroup) return false;
+
+		// Otherwise, only select BBox if it is a group.
+		return !isBBox || (isBBox && isGroup);
+	})
+
+	var artefacts = items.map(P.getArtefact);
+	P.select(artefacts);
 };/**
  * Painter.js
  */
@@ -1712,9 +1635,6 @@ paper.install(window);
  * Painter, encapsulates everything!
  * @type {Object}
  */
-// var P = {};
-
-var mainColor = '#78C3D0';
 
 
 $(window).ready(function() {
@@ -1728,7 +1648,7 @@ $(window).ready(function() {
 	function onKeyDown(event) {
 
 		if(event.key == 'backspace' || event.key == 'd') {
-			deleteSelection()
+			P.deleteSelection()
 		}
 
 		else if(event.key == 'space') {
@@ -1749,11 +1669,11 @@ $(window).ready(function() {
 		}
 
 		else if(event.key =='g') {
-			group(getSelected())
+			P.group(P.getSelected())
 		}
 
 		else if(event.key =='u') {
-			ungroup(getSelected())
+			P.ungroup(P.getSelected())
 		}
 
 		else if(event.key == 'r') {
@@ -1791,39 +1711,54 @@ $(window).ready(function() {
 	rotationTool.onKeyDown = onKeyDown;
 	bounceTool.onKeyDown = onKeyDown;
 
-	// Demo
-	r = new Path.Rectangle([20,30,100,140])
-	r.fillColor = getColor(0, 7)
-	// r.selected = true
-	r.type = 'rectangle'
-	setupRectangle(r)
-	setupItem(r)
+	r = new P.Artefact.Rectangle([20,30,100,140])
+	r.item.fillColor = P.getColor(0, 7);
+	r.select()
 
-	c = new Path.Circle([300,100], 40)
-	c.fillColor = getColor(1, 7)
-	// c.selected = true
-	c.type = 'circle'
-	setupItem(c)
-	select(c)
-	select(r)
-	group(getSelected())
-	deselectAll()
+	s = new P.Artefact.Rectangle([200,30,100,140])
+	s.item.fillColor = P.getColor(2, 7);
+
+	c = new P.Artefact.Circle([300,300], 40)
+	c.item.fillColor = P.getColor(1, 7);
+
+	// var anim = r.animate('bounce', { speed: 2, position: 0 });
+	// // console.log(r, anim)
+	// anim.update({ startPoint: new Point([0,0]), endPoint: new Point([200,200])})
+	// r.getAnimation().start()
+	// console.log(r)
+	// // Demo
+	// r = new Path.Rectangle([20,30,100,140])
+	// r.fillColor = getColor(0, 7)
+	// // r.selected = true
+	// r.type = 'rectangle'
+	// setupRectangle(r)
+	// setupItem(r)
+
+	// c = new Path.Circle([300,100], 40)
+	// c.fillColor = getColor(1, 7)
+	// // c.selected = true
+	// c.type = 'circle'
+	// setupItem(c)
+	// select(c)
+	// select(r)
+	// group(P.getSelected())
+	// deselectAll()
 
 
 		// Demo
-	r = new Path.Rectangle([200,200,100,140])
-	r.fillColor = getColor(3, 7)
-	// r.selected = true
-	r.type = 'rectangle'
-	setupItem(r)
-setupRectangle(r)
-	c = new Path.Circle([500,300], 40)
-	c.fillColor = getColor(4, 7)
-	// c.selected = true
-	c.type = 'circle'
-	setupItem(c)
-	// select(c)
-	select(r)
+// 	r = new Path.Rectangle([200,200,100,140])
+// 	r.fillColor = getColor(3, 7)
+// 	// r.selected = true
+// 	r.type = 'rectangle'
+// 	setupItem(r)
+// setupRectangle(r)
+// 	c = new Path.Circle([500,300], 40)
+// 	c.fillColor = getColor(4, 7)
+// 	// c.selected = true
+// 	c.type = 'circle'
+// 	setupItem(c)
+// 	// select(c)
+// 	select(r)
 
 	// rotate(c, new Point([100,100]))
 	// rotate()
@@ -1848,29 +1783,33 @@ setupRectangle(r)
 	}).click()
 
 	$('a.tool[data-tool=group]').on('click', function() {
-		group(getSelected())
+		P.group(P.getSelected())
 	})
 
 	$('a.tool[data-tool=ungroup]').on('click', function() {
-		ungroup(getSelected())
+		P.ungroup(P.getSelected())
 	})
 
 	$('a.tool[data-tool=delete]').on('click', function() {
-		deleteSelection()
+		P.deleteSelection()
 	})
 
 	$('a.tool[data-tool=clone]').on('click', function() {
-		cloneSelection([20,20])
+		P.cloneSelection([20,20])
 	})
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
 		if($(this).data('state') == 'play') {
-			startAnimation(getSelected());
+			P.getSelected().map(function(artefact){
+				if(artefact.hasAnimation()) artefact.animation.start();
+			});
 			$(this).find('span').html('pause <code>space</code>')
 			$(this).data('state', 'pause')
 
 		} else {
-			stopAnimation(getSelected());
+			P.getSelected().map(function(artefact){
+				if(artefact.hasAnimation()) artefact.animation.pause();
+			});
 			$(this).find('span').html('play <code>space</code>')
 			$(this).data('state', 'play')
 		}
@@ -1889,7 +1828,9 @@ setupRectangle(r)
 	})//.click()
 
 	$('a.tool[data-tool=reset]').on('click', function() {
-		resetAnimation(getSelected(), 'rotate');
+		P.getSelected().map(function(artefact) { 
+			if(artefact.hasAnimation()) artefact.animation.stop() 
+		})
 	})
 
 	// Add all swatches
@@ -1898,7 +1839,7 @@ setupRectangle(r)
 	for(var i=0; i<numSwatches; i++) {
 
 		// Get color without noise
-		var color = getColor(i, numSwatches, 0);
+		var color = P.getColor(i, numSwatches, 0);
 
 		// Add swatch handle
 		var $swatch = $('<a class="swatch">' + (i+1) + '</a>')
@@ -1909,7 +1850,7 @@ setupRectangle(r)
 					.on('click', function() {
 						$('.swatch').removeClass('active');
 						$(this).addClass('active');
-						changeColorSelection();
+						P.changeColorSelection();
 					})
 		if(i == 0) $swatch.addClass('active');
 	}

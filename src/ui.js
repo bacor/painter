@@ -8,9 +8,6 @@ paper.install(window);
  * Painter, encapsulates everything!
  * @type {Object}
  */
-// var P = {};
-
-var mainColor = '#78C3D0';
 
 
 $(window).ready(function() {
@@ -24,7 +21,7 @@ $(window).ready(function() {
 	function onKeyDown(event) {
 
 		if(event.key == 'backspace' || event.key == 'd') {
-			deleteSelection()
+			P.deleteSelection()
 		}
 
 		else if(event.key == 'space') {
@@ -45,11 +42,11 @@ $(window).ready(function() {
 		}
 
 		else if(event.key =='g') {
-			group(getSelected())
+			P.group(P.getSelected())
 		}
 
 		else if(event.key =='u') {
-			ungroup(getSelected())
+			P.ungroup(P.getSelected())
 		}
 
 		else if(event.key == 'r') {
@@ -87,39 +84,54 @@ $(window).ready(function() {
 	rotationTool.onKeyDown = onKeyDown;
 	bounceTool.onKeyDown = onKeyDown;
 
-	// Demo
-	r = new Path.Rectangle([20,30,100,140])
-	r.fillColor = getColor(0, 7)
-	// r.selected = true
-	r.type = 'rectangle'
-	setupRectangle(r)
-	setupItem(r)
+	r = new P.Artefact.Rectangle([20,30,100,140])
+	r.item.fillColor = P.getColor(0, 7);
+	r.select()
 
-	c = new Path.Circle([300,100], 40)
-	c.fillColor = getColor(1, 7)
-	// c.selected = true
-	c.type = 'circle'
-	setupItem(c)
-	select(c)
-	select(r)
-	group(getSelected())
-	deselectAll()
+	s = new P.Artefact.Rectangle([200,30,100,140])
+	s.item.fillColor = P.getColor(2, 7);
+
+	c = new P.Artefact.Circle([300,300], 40)
+	c.item.fillColor = P.getColor(1, 7);
+
+	// var anim = r.animate('bounce', { speed: 2, position: 0 });
+	// // console.log(r, anim)
+	// anim.update({ startPoint: new Point([0,0]), endPoint: new Point([200,200])})
+	// r.getAnimation().start()
+	// console.log(r)
+	// // Demo
+	// r = new Path.Rectangle([20,30,100,140])
+	// r.fillColor = getColor(0, 7)
+	// // r.selected = true
+	// r.type = 'rectangle'
+	// setupRectangle(r)
+	// setupItem(r)
+
+	// c = new Path.Circle([300,100], 40)
+	// c.fillColor = getColor(1, 7)
+	// // c.selected = true
+	// c.type = 'circle'
+	// setupItem(c)
+	// select(c)
+	// select(r)
+	// group(P.getSelected())
+	// deselectAll()
 
 
 		// Demo
-	r = new Path.Rectangle([200,200,100,140])
-	r.fillColor = getColor(3, 7)
-	// r.selected = true
-	r.type = 'rectangle'
-	setupItem(r)
-setupRectangle(r)
-	c = new Path.Circle([500,300], 40)
-	c.fillColor = getColor(4, 7)
-	// c.selected = true
-	c.type = 'circle'
-	setupItem(c)
-	// select(c)
-	select(r)
+// 	r = new Path.Rectangle([200,200,100,140])
+// 	r.fillColor = getColor(3, 7)
+// 	// r.selected = true
+// 	r.type = 'rectangle'
+// 	setupItem(r)
+// setupRectangle(r)
+// 	c = new Path.Circle([500,300], 40)
+// 	c.fillColor = getColor(4, 7)
+// 	// c.selected = true
+// 	c.type = 'circle'
+// 	setupItem(c)
+// 	// select(c)
+// 	select(r)
 
 	// rotate(c, new Point([100,100]))
 	// rotate()
@@ -144,29 +156,33 @@ setupRectangle(r)
 	}).click()
 
 	$('a.tool[data-tool=group]').on('click', function() {
-		group(getSelected())
+		P.group(P.getSelected())
 	})
 
 	$('a.tool[data-tool=ungroup]').on('click', function() {
-		ungroup(getSelected())
+		P.ungroup(P.getSelected())
 	})
 
 	$('a.tool[data-tool=delete]').on('click', function() {
-		deleteSelection()
+		P.deleteSelection()
 	})
 
 	$('a.tool[data-tool=clone]').on('click', function() {
-		cloneSelection([20,20])
+		P.cloneSelection([20,20])
 	})
 
 	$('a.tool[data-tool=playpause]').on('click', function() {
 		if($(this).data('state') == 'play') {
-			startAnimation(getSelected());
+			P.getSelected().map(function(artefact){
+				if(artefact.hasAnimation()) artefact.animation.start();
+			});
 			$(this).find('span').html('pause <code>space</code>')
 			$(this).data('state', 'pause')
 
 		} else {
-			stopAnimation(getSelected());
+			P.getSelected().map(function(artefact){
+				if(artefact.hasAnimation()) artefact.animation.pause();
+			});
 			$(this).find('span').html('play <code>space</code>')
 			$(this).data('state', 'play')
 		}
@@ -185,7 +201,9 @@ setupRectangle(r)
 	})//.click()
 
 	$('a.tool[data-tool=reset]').on('click', function() {
-		resetAnimation(getSelected(), 'rotate');
+		P.getSelected().map(function(artefact) { 
+			if(artefact.hasAnimation()) artefact.animation.stop() 
+		})
 	})
 
 	// Add all swatches
@@ -194,7 +212,7 @@ setupRectangle(r)
 	for(var i=0; i<numSwatches; i++) {
 
 		// Get color without noise
-		var color = getColor(i, numSwatches, 0);
+		var color = P.getColor(i, numSwatches, 0);
 
 		// Add swatch handle
 		var $swatch = $('<a class="swatch">' + (i+1) + '</a>')
@@ -205,7 +223,7 @@ setupRectangle(r)
 					.on('click', function() {
 						$('.swatch').removeClass('active');
 						$(this).addClass('active');
-						changeColorSelection();
+						P.changeColorSelection();
 					})
 		if(i == 0) $swatch.addClass('active');
 	}
