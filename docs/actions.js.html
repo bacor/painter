@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width">
+	<title>DocStrap Source: actions.js</title>
+
+	<!--[if lt IE 9]>
+	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+	<link type="text/css" rel="stylesheet" href="styles/sunlight.default.css">
+
+	<link type="text/css" rel="stylesheet" href="styles/site.cosmo.css">
+
+</head>
+
+<body>
+
+<div class="navbar navbar-default navbar-fixed-top navbar-inverse">
+<div class="container">
+	<div class="navbar-header">
+		<a class="navbar-brand" href="index.html">DocStrap</a>
+		<button class="navbar-toggle" type="button" data-toggle="collapse" data-target="#topNavigation">
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+        </button>
+	</div>
+	<div class="navbar-collapse collapse" id="topNavigation">
+		<ul class="nav navbar-nav">
+			
+			<li class="dropdown">
+				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="P.html">P</a></li><li><a href="P.actions.html">P.actions</a></li><li><a href="P.animations.html">P.animations</a></li><li><a href="P.tools.html">P.tools</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="P.Animation.html">P.Animation</a></li><li><a href="P.Artefact.html">P.Artefact</a></li><li><a href="P.Artefact.Circle.html">P.Artefact.Circle</a></li><li><a href="P.Artefact.Group.html">P.Artefact.Group</a></li><li><a href="P.Artefact.Rectangle.html">P.Artefact.Rectangle</a></li><li><a href="P.History.html">P.History</a></li>
+				</ul>
+			</li>
+			
+			<li class="dropdown">
+				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
+				<ul class="dropdown-menu ">
+					<li><a href="global.html#mfilter">mfilter</a></li><li><a href="global.html#mmap">mmap</a></li>
+				</ul>
+			</li>
+			
+		</ul>
+        
+            <div class="col-sm-3 col-md-3">
+                <form class="navbar-form" role="search">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search" name="q" id="search-input">
+                        <div class="input-group-btn">
+                            <button class="btn btn-default" id="search-submit"><i class="glyphicon glyphicon-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        
+	</div>
+
+</div>
+</div>
+
+
+<div class="container" id="toc-content">
+<div class="row">
+
+	
+	<div class="col-md-12">
+	
+		<div id="main">
+			
+
+		<h1 class="page-title">Source: actions.js</h1>
+    
+<section>
+    <article>
+        <pre
+            class="sunlight-highlight-javascript linenums">/**
+ * Registered actions. Actions are functions that operate on one or multiple
+ * artefacts. They are registered via {@link P.registerAction} and stored in 
+ * {@link P.actions}.
+ * 
+ * @namespace  P.actions
+ */
+
+/**
+ * Register an action, i.e. a function wich operates on one or more artefacts,
+ * such as deletion, cloning, grouping, ungrouping, etc. Actions are typically 
+ * triggered via the user interface. Registered actions can be accessed at 
+ * {@link P.actions} as `P.action.name` where `name` is the name of the action. 
+ * Technically, an action is just a function taking an array of {@link Artefact} 
+ * objects as its first input, and possibly other arguments:
+ *
+ * @example
+ * var myAction = function(artefacts, other, arguments) {
+ *   // Do something
+ * }
+ * P.registerAction('myAction', myAction);
+ *
+ * // Much later: perform the action
+ * P.actions.myAction(P.getSelected(), 'some', 'arguments');
+ * 
+ * @param  {String} name   Unique name of the action
+ * @param  {Function} action The action: a function that takes an array of 
+ * artefacts as its first argument.
+ */
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
+}
+
+// Define all actions, but encapsulate in a module in order not to pollute the
+// global scope.
+(function() {
+	/**
+	 * Delete the artefacts
+	 * 
+	 * @param  {Artefact[]} artefacts
+	 * @memberOf P.actions
+	 * @function delete
+	 * @instance
+	 */
+	var del = function(artefacts) {
+
+		var undo = function() {
+			artefacts.mmap('restore').mmap('select');
+		}
+
+		var redo = function() {
+			artefacts.mmap('destroy');
+		}
+		
+		P.history.registerState(undo, redo);
+
+		redo();
+	}
+	P.registerAction('delete', del);
+
+
+	/**
+	 * Group an array of artefacts
+	 *
+	 * @todo The undo operation breaks the history...
+	 * @param  {Artefact[]} artefacts The artefacts to group.
+	 * @return {Artefact.Group}
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var group = function(artefacts) {
+
+		var undo = function() {
+			// To do: this breaks up the history chain since we no 
+			// longer refer to the same group...
+			artefact.ungroup().mmap('select');
+		}
+
+		var redo = function() {
+			return artefact = new P.Artefact.Group(artefacts).select();
+		}
+
+		P.history.registerState(undo, redo)		
+
+		// Perform the action
+		return redo();
+	}
+
+	P.registerAction('group', group);
+
+	/**
+	 * Ungroup an {@link Artefact.Group}. 
+	 * 
+	 * Note that there is no ungrouping procedure in  Paper.js 
+	 * ([see here](https://github.com/paperjs/paper.js/issues/1026)),
+	 * so we implement our own ungrouping operation.
+	 * 
+	 * @param  {Artefact.Group} 
+	 * @return {Artefact[]} An array of children artefacts
+	 * @memberOf P
+	 * @instance
+	 */
+	var ungroup = function(theGroup) {
+		if(theGroup instanceof Array) return theGroup.map(ungroup);
+		if(!theGroup.ungroup) return false;
+		var children;
+
+		var redo = function() {
+			children = theGroup.ungroup();
+			return children.mmap('select');
+		}
+
+		var undo = function() {
+			theGroup = new P.Artefact.Group(children);
+		}
+
+		P.history.registerState(undo, redo);
+		
+		// Perform the action
+		return redo();
+	}
+
+	P.registerAction('ungroup', ungroup);
+
+	/**
+	 * Clone the currently selected artefacts
+	 * 
+	 * @param  {Artefact[]} artefacts	asdf	
+	 * @param  {Array|paper.Point} [move=[0,0]] Move the clones by this distance.
+	 * Defaults to no movement (`[0,0]`).
+	 * @return {Artefacts[]} The cloned artefacts
+	 * @memberOf P
+	 * @instance
+	 */
+	var clone = function(artefacts, move) {
+		var move = move || [0,0];
+		var clones = artefacts.mmap('clone').mmap('move', [move]);
+		P.selectOnly(clones);
+
+		var undo = function() {
+			clones.mmap('destroy');
+		}
+		var redo = function() {
+			clones.mmap('restore').mmap('select');
+		}
+		P.history.registerState(undo, redo)
+
+		return clones;
+	}
+
+	P.registerAction('clone', clone);
+
+	/**
+	 * Change the color of the artefacts
+	 * 	
+	 * @param {Artefact[]} artefacts
+	 * @param {String} [swatch=null] The swatch to use. Defaults to the
+	 * active swatch.
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var changeColor = function(artefacts, swatch) {
+		var swatch = swatch || P.getActiveSwatch();
+		var origColors;
+		
+		var redo = function() {
+			origColors = artefacts.map(function(artefact) {
+				var origColor = artefact.item.fillColor;
+				artefact.item.fillColor = swatch;
+				return origColor;
+			});
+		}
+
+		var undo = function() {
+			artefacts.map(function(artefact) {
+				var idx = artefacts.indexOf(artefact);
+				artefact.item.fillColor = origColors[idx];
+			});
+		}
+		
+		P.history.registerState(undo, redo);
+
+		redo();
+	}
+	P.registerAction('changeColor', changeColor);
+
+
+	/**
+	 * Play (or start) the artefacts that have an animation.
+	 * 	
+	 * @param  {Artefact[]} artefacts 
+	 * @return {Artefact[]} those of the passed artefacts that have an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var play = function(artefacts) {
+		return artefacts.mfilter('hasAnimation').map(function(artefact) {
+				return artefact.getAnimation().start();
+		})
+	}
+	P.registerAction('play', play);
+
+	/**
+	 * Pause the animated artefacts
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var pause = function(artefacts) {
+		return artefacts.mfilter('hasAnimation').map(function(artefact) {
+				return artefact.getAnimation().pause();
+		})
+	}
+	P.registerAction('pause', pause);
+
+	/**
+	 * Stop the animated artefacts
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var stop = function(artefacts) {
+		return artefacts.mfilter('hasAnimation').map(function(artefact) {
+				return artefact.getAnimation().stop();
+		})
+	}
+	P.registerAction('stop', stop);
+
+	/**
+	 * Play or pause the animation. The first artefact is used as a reference:
+	 * it this is animating, all animations (of the artefacts passed to the
+	 * function) will be paused, otherwise all will be started.
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var playPause = function(artefacts) {
+		var artefacts = artefacts.mfilter('hasAnimation');
+		if(artefacts[0].isAnimating()) {
+			return pause(artefacts)
+		} else {
+			return play(artefacts);
+		}
+	}
+	P.registerAction('playPause', playPause);
+
+	/**
+	 * Bring the artefacts to the front
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} 
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var bringToFront = function(artefacts) {
+		var indices;
+
+		var redo = function() {
+			indices = artefacts.map(function(artefact) {
+				return artefact.item.index
+			});
+			return artefacts.mmap('bringToFront');
+		}
+
+		var undo = function() {
+			for(var i=0; i&lt;artefacts.length; i++) {
+				var artefact = artefacts[i];
+				artefact.item.parent.insertChild(indices[i], artefact.item);
+			}
+		}
+
+		P.history.registerState(undo, redo);
+
+		return redo();
+	}
+	P.registerAction('bringToFront', bringToFront);
+
+	/**
+	 * Send artefacts to the back
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]}
+	 * @memberOf P.actions
+	 * @instance
+	 */
+	var sendToBack = function(artefacts) {
+		var indices;
+
+		var redo = function() {
+			indices = artefacts.map(function(artefact) {
+				return artefact.item.index
+			});
+			return artefacts.mmap('sendToBack');
+		}
+
+		var undo = function() {
+			for(var i=0; i&lt;artefacts.length; i++) {
+				var artefact = artefacts[i];
+				artefact.item.parent.insertChild(indices[i], artefact.item);
+			}
+		}
+
+		P.history.registerState(undo, redo);
+
+		return redo();
+	}
+	P.registerAction('sendToBack', sendToBack);
+
+})();
+
+</pre>
+    </article>
+</section>
+
+
+
+
+
+		</div>
+	</div>
+
+	<div class="clearfix"></div>
+
+	
+
+</div>
+</div>
+
+
+    <div class="modal fade" id="searchResults">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">Search results</h4>
+          </div>
+          <div class="modal-body"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div>
+
+
+<footer>
+
+
+	<span class="copyright">
+	DocStrap Copyright © 2012-2015 The contributors to the JSDoc3 and DocStrap projects.
+	</span>
+
+<span class="jsdoc-message">
+	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a>
+	
+		on Tue Apr 18th 2017
+	
+	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
+</span>
+</footer>
+
+<script src="scripts/docstrap.lib.js"></script>
+<script src="scripts/toc.js"></script>
+
+    <script type="text/javascript" src="scripts/fulltext-search-ui.js"></script>
+
+
+<script>
+$( function () {
+	$( "[id*='$']" ).each( function () {
+		var $this = $( this );
+
+		$this.attr( "id", $this.attr( "id" ).replace( "$", "__" ) );
+	} );
+
+	$( ".tutorial-section pre, .readme-section pre, pre.prettyprint.source" ).each( function () {
+		var $this = $( this );
+
+		var example = $this.find( "code" );
+		exampleText = example.html();
+		var lang = /{@lang (.*?)}/.exec( exampleText );
+		if ( lang && lang[1] ) {
+			exampleText = exampleText.replace( lang[0], "" );
+			example.html( exampleText );
+			lang = lang[1];
+		} else {
+			var langClassMatch = example.parent()[0].className.match(/lang\-(\S+)/);
+			lang = langClassMatch ? langClassMatch[1] : "javascript";
+		}
+
+		if ( lang ) {
+
+			$this
+			.addClass( "sunlight-highlight-" + lang )
+			.addClass( "linenums" )
+			.html( example.html() );
+
+		}
+	} );
+
+	Sunlight.highlightAll( {
+		lineNumbers : true,
+		showMenu : true,
+		enableDoclinks : true
+	} );
+
+	$.catchAnchorLinks( {
+        navbarOffset: 10
+	} );
+	$( "#toc" ).toc( {
+		anchorName  : function ( i, heading, prefix ) {
+			return $( heading ).attr( "id" ) || ( prefix + i );
+		},
+		selectors   : "#toc-content h1,#toc-content h2,#toc-content h3,#toc-content h4",
+		showAndHide : false,
+		smoothScrolling: true
+	} );
+
+	$( "#main span[id^='toc']" ).addClass( "toc-shim" );
+	$( '.dropdown-toggle' ).dropdown();
+
+    $( "table" ).each( function () {
+      var $this = $( this );
+      $this.addClass('table');
+    } );
+
+} );
+</script>
+
+
+
+<!--Navigation and Symbol Display-->
+
+
+<!--Google Analytics-->
+
+
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            SearcherDisplay.init();
+        });
+    </script>
+
+
+</body>
+</html>
