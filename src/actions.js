@@ -6,30 +6,6 @@
  * @namespace  P.actions
  */
 
-/**
- * Register an action, i.e. a function wich operates on one or more artefacts,
- * such as deletion, cloning, grouping, ungrouping, etc. Actions are typically 
- * triggered via the user interface. Registered actions can be accessed at 
- * {@link P.actions} as `P.action.name` where `name` is the name of the action. 
- * Technically, an action is just a function taking an array of {@link Artefact} 
- * objects as its first input, and possibly other arguments:
- *
- * @example
- * var myAction = function(artefacts, other, arguments) {
- *   // Do something
- * }
- * P.registerAction('myAction', myAction);
- *
- * // Much later: perform the action
- * P.actions.myAction(P.getSelected(), 'some', 'arguments');
- * 
- * @param  {String} name   Unique name of the action
- * @param  {Function} action The action: a function that takes an array of 
- * artefacts as its first argument.
- */
-P.registerAction = function(name, action) {
-	P.actions[name] = action;
-}
 
 // Define all actions, but encapsulate in a module in order not to pollute the
 // global scope.
