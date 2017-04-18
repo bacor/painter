@@ -2,7 +2,7 @@
  * Painter.js
  */
 
-var demoContent = true//false;
+var demoContent = false;
 
 $(window).ready(function() {
 
