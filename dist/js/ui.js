@@ -2,7 +2,7 @@
  * Painter.js
  */
 
-var demoContent = false;
+var demoContent = true//false;
 
 $(window).ready(function() {
 
@@ -21,7 +21,9 @@ $(window).ready(function() {
 		'n': 'action:clone',
 		'z': 'action:undo:control',
 		'y': 'action:redo:control',
-		'space': 'action:playPause'
+		'space': 'action:playPause',
+		']': 'action:bringToFront',
+		'[': 'action:sendToBack',
 	}
 
 	function onKeyDown(event) {
@@ -135,6 +137,7 @@ $(window).ready(function() {
 		setTimeout(updateInterface, 10)
 	}
 	updateInterface()
+	activateTool('select');
 
 	// Demo content
 	if(demoContent) {

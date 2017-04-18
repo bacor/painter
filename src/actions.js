@@ -156,7 +156,6 @@
 				return artefact.getAnimation().start();
 		})
 	}
-
 	P.registerAction('play', play);
 
 	var pause = function(artefacts) {
@@ -164,7 +163,6 @@
 				return artefact.getAnimation().pause();
 		})
 	}
-
 	P.registerAction('pause', pause);
 
 	var stop = function(artefacts) {
@@ -172,7 +170,6 @@
 				return artefact.getAnimation().stop();
 		})
 	}
-
 	P.registerAction('stop', stop);
 
 	var playPause = function(artefacts) {
@@ -185,5 +182,51 @@
 	}
 	P.registerAction('playPause', playPause);
 
+	var bringToFront = function(artefacts) {
+		var indices;
+
+		var redo = function() {
+			indices = artefacts.map(function(artefact) {
+				return artefact.item.index
+			});
+			return artefacts.mmap('bringToFront');
+		}
+
+		var undo = function() {
+			for(var i=0; i<artefacts.length; i++) {
+				var artefact = artefacts[i];
+				artefact.item.parent.insertChild(indices[i], artefact.item);
+			}
+		}
+
+		P.history.registerState(undo, redo);
+
+		return redo();
+	}
+	P.registerAction('bringToFront', bringToFront);
+
+
+	var sendToBack = function(artefacts) {
+		var indices;
+
+		var redo = function() {
+			indices = artefacts.map(function(artefact) {
+				return artefact.item.index
+			});
+			return artefacts.mmap('sendToBack');
+		}
+
+		var undo = function() {
+			for(var i=0; i<artefacts.length; i++) {
+				var artefact = artefacts[i];
+				artefact.item.parent.insertChild(indices[i], artefact.item);
+			}
+		}
+
+		P.history.registerState(undo, redo);
+
+		return redo();
+	}
+	P.registerAction('sendToBack', sendToBack);
 
 })();

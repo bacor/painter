@@ -401,7 +401,15 @@ P.Artefact = paper.Base.extend(/** @lends Artefact */{
 	 * @return {}
 	 * @instance
 	 */
-	manipulate: function(event, handle) {}
+	manipulate: function(event, handle) {},
+
+	bringToFront: function() {
+		this.item.bringToFront();
+	},
+
+	sendToBack: function() {
+		this.item.sendToBack();
+	}
 
 })
 
