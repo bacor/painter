@@ -58,7 +58,7 @@
 	}
 
 	rotate.onUpdate = function(artefact, props, event) {
-		props.center = new Point(event.point);
+		props.center = new paper.Point(event.point);
 	}
 
 	// Register!

@@ -289,7 +289,7 @@ P.Artefact = paper.Base.extend(/** @lends Artefact */{
 	 * @instance
 	 */
 	move: function(delta) {
-		var matrix = new Matrix().translate(delta);
+		var matrix = new paper.Matrix().translate(delta);
 		this.transform(matrix);
 		return this;
 	},

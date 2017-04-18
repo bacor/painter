@@ -237,7 +237,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	
 	// Set up the animation tool
-	if(!newAnimation.tool) newAnimation.tool = new paper.Tool();
+	var animTool = newAnimation.tool || new paper.Tool();
 
 	// The current item on which the tool works.
 	var artefact;
@@ -247,7 +247,7 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	var _onMouseDown = function(event) {
 		artefact = P.getSelected()[0]
 		if(artefact == undefined) {
-			hitResult = project.hitTest(event.point, {
+			hitResult = paper.project.hitTest(event.point, {
 				fill: true, 
 				tolerance: 5,
 			})
@@ -297,12 +297,15 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	}
 
 	// Store methods if none exist
-	newAnimation.tool.onMouseDown = newAnimation.tool.onMouseDown || _onMouseDown;
-	newAnimation.tool.onMouseDrag = newAnimation.tool.onMouseDrag || _onMouseDrag;
-	newAnimation.tool.onMouseUp = newAnimation.tool.mouseUp || _onMouseUp;
-
-	// Store!
+	animTool.onMouseDown = animTool.onMouseDown || _onMouseDown;
+	animTool.onMouseDrag = animTool.onMouseDrag || _onMouseDrag;
+	animTool.onMouseUp = animTool.mouseUp || _onMouseUp;
+	
+	// Register tool and animation
+	newAnimation.tool = animTool;
+	P.registerTool(type, animTool);
 	P.animations[type] = newAnimation;
+
 
 	return newAnimation;
 }

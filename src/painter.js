@@ -18,6 +18,10 @@ var P = {
 	 */
 	mainColor: '#78C3D0',
 
+	tools: {},
+
+	actions: {},
+
 	/**
 	 * Select an artefact or multiple artefacts.
 	 * 
@@ -233,4 +237,19 @@ Array.prototype.mmap = function(name, args) {
 	return this.map(function(element) {
 		return element[name].apply(element, args);
 	});
+}
+
+
+Array.prototype.mfilter = function(name, args) {
+	return this.filter(function(element) {
+		return element[name].apply(element, args);
+	});
+}
+
+P.registerTool = function(name, tool) {
+	P.tools[name] = tool;
+}
+
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
 }

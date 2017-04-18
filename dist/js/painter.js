@@ -18,6 +18,10 @@ var P = {
 	 */
 	mainColor: '#78C3D0',
 
+	tools: {},
+
+	actions: {},
+
 	/**
 	 * Select an artefact or multiple artefacts.
 	 * 
@@ -234,6 +238,21 @@ Array.prototype.mmap = function(name, args) {
 		return element[name].apply(element, args);
 	});
 }
+
+
+Array.prototype.mfilter = function(name, args) {
+	return this.filter(function(element) {
+		return element[name].apply(element, args);
+	});
+}
+
+P.registerTool = function(name, tool) {
+	P.tools[name] = tool;
+}
+
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
+}
 ;/**
  * History
  *
@@ -298,6 +317,14 @@ P.History = paper.Base.extend(/** @lends History */{
 		if(this.index == 0) return false;
 		this.states[this.index].undo();
 		this.index -= 1;
+	},
+
+	canUndo: function() {
+		return this.index > 0
+	},
+
+	canRedo: function() {
+		return this.index < this.states.length - 1
 	}
 })
 
@@ -307,6 +334,10 @@ P.History = paper.Base.extend(/** @lends History */{
  * @type {P.HistoryClass}
  */
 P.history = new P.History();
+
+// Register actions
+P.registerAction('undo', function() { P.history.undo() });
+P.registerAction('redo', function() { P.history.redo() })
 ;/**
  * An object tracking all artefacts. Artefacts are registered by the id of
  * the item. To get an array, just use `Object.values(P.artefacts)` or call
@@ -598,7 +629,7 @@ P.Artefact = paper.Base.extend(/** @lends Artefact */{
 	 * @instance
 	 */
 	move: function(delta) {
-		var matrix = new Matrix().translate(delta);
+		var matrix = new paper.Matrix().translate(delta);
 		this.transform(matrix);
 		return this;
 	},
@@ -1057,145 +1088,194 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 		destroy.base.call(this);
 	}
 });
-/**
- * Delete the artefacts
- * 
- * @param  {Artefact[]} artefacts
- * @memberOf P
- * @instance
- */
-P.delete = function(artefacts) {
+(function() {
+	/**
+	 * Delete the artefacts
+	 * 
+	 * @param  {Artefact[]} artefacts
+	 * @memberOf P
+	 * @instance
+	 */
+	var del = function(artefacts) {
 
-	var undo = function() {
-		artefacts.mmap('restore').mmap('select');
+		var undo = function() {
+			artefacts.mmap('restore').mmap('select');
+		}
+
+		var redo = function() {
+			artefacts.mmap('destroy');
+		}
+		
+		P.history.registerState(undo, redo);
+
+		redo();
+	}
+	P.registerAction('delete', del);
+
+
+	/**
+	 * Group an array of artefacts
+	 *
+	 * @todo The undo operation breaks the history...
+	 * @param  {Artefact[]} artefacts The artefacts to group.
+	 * @return {Artefact.Group}
+	 * @memberOf P
+	 * @instance
+	 */
+	var group = function(artefacts) {
+
+		var undo = function() {
+			// To do: this breaks up the history chain since we no 
+			// longer refer to the same group...
+			artefact.ungroup().mmap('select');
+		}
+
+		var redo = function() {
+			return artefact = new P.Artefact.Group(artefacts).select();
+		}
+
+		P.history.registerState(undo, redo)		
+
+		// Perform the action
+		return redo();
 	}
 
-	var redo = function() {
-		artefacts.mmap('destroy');
-	}
-	
-	P.history.registerState(undo, redo);
+	P.registerAction('group', group);
 
-	redo();
-}
+	/**
+	 * Ungroup an {@link Artefact.Group}. 
+	 * 
+	 * Note that there is no ungrouping procedure in  Paper.js 
+	 * ([see here](https://github.com/paperjs/paper.js/issues/1026)),
+	 * so we implement our own ungrouping operation.
+	 * 
+	 * @param  {Artefact.Group} 
+	 * @return {Artefact[]} An array of children artefacts
+	 * @memberOf P
+	 * @instance
+	 */
+	var ungroup = function(theGroup) {
+		if(theGroup instanceof Array) return theGroup.map(ungroup);
+		if(!theGroup.ungroup) return false;
+		var children;
 
-/**
- * Group an array of artefacts
- *
- * @todo The undo operation breaks the history...
- * @param  {Artefact[]} artefacts The artefacts to group.
- * @return {Artefact.Group}
- * @memberOf P
- * @instance
- */
-P.group = function(artefacts) {
+		var redo = function() {
+			children = theGroup.ungroup();
+			return children.mmap('select');
+		}
 
-	var undo = function() {
-		// To do: this breaks up the history chain since we no 
-		// longer refer to the same group...
-		artefact.ungroup().mmap('select');
-	}
+		var undo = function() {
+			theGroup = new P.Artefact.Group(children);
+		}
 
-	var redo = function() {
-		return artefact = new P.Artefact.Group(artefacts).select();
-	}
-
-	P.history.registerState(undo, redo)		
-
-	// Perform the action
-	return redo();
-}
-
-/**
- * Ungroup an {@link Artefact.Group}. 
- * 
- * Note that there is no ungrouping procedure in  Paper.js 
- * ([see here](https://github.com/paperjs/paper.js/issues/1026)),
- * so we implement our own ungrouping operation.
- * 
- * @param  {Artefact.Group} 
- * @return {Artefact[]} An array of children artefacts
- * @memberOf P
- * @instance
- */
-P.ungroup = function(theGroup) {
-	if(theGroup instanceof Array) return theGroup.map(P.ungroup);
-	if(!theGroup.ungroup) return false;
-	var children;
-
-	var redo = function() {
-		children = theGroup.ungroup();
-		return children.mmap('select');
+		P.history.registerState(undo, redo);
+		
+		// Perform the action
+		return redo();
 	}
 
-	var undo = function() {
-		theGroup = new P.Artefact.Group(children);
+	P.registerAction('ungroup', ungroup);
+
+	/**
+	 * Clone the currently selected artefacts
+	 * 
+	 * @param  {Artefact[]} artefacts	asdf	
+	 * @param  {Array|paper.Point} [move=[0,0]] Move the clones by this distance.
+	 * Defaults to no movement (`[0,0]`).
+	 * @return {Artefacts[]} The cloned artefacts
+	 * @memberOf P
+	 * @instance
+	 */
+	var clone = function(artefacts, move) {
+		var move = move || [0,0];
+		var clones = artefacts.mmap('clone').mmap('move', [move]);
+		P.selectOnly(clones);
+
+		var undo = function() {
+			clones.mmap('destroy');
+		}
+		var redo = function() {
+			clones.mmap('restore').mmap('select');
+		}
+		P.history.registerState(undo, redo)
+
+		return clones;
 	}
 
-	P.history.registerState(undo, redo);
-	
-	// Perform the action
-	return redo();
-}
+	P.registerAction('clone', clone);
 
-/**
- * Clone the currently selected artefacts
- * 
- * @param  {Artefact[]} artefacts	asdf	
- * @param  {Array|paper.Point} [move=[0,0]] Move the clones by this distance.
- * Defaults to no movement (`[0,0]`).
- * @return {Artefacts[]} The cloned artefacts
- * @memberOf P
- * @instance
- */
-P.clone = function(artefacts, move) {
-	var move = move || [0,0];
-	var clones = artefacts.mmap('clone').mmap('move', [move]);
-	P.selectOnly(clones);
+	/**
+	 * Change the color of the artefacts
+	 * 	
+	 * @param {Artefact[]} artefacts
+	 * @param {String} [swatch=null] The swatch to use. Defaults to the
+	 * active swatch.
+	 * @memberOf P
+	 * @instance
+	 */
+	var changeColor = function(artefacts, swatch) {
+		var swatch = swatch || P.getActiveSwatch();
+		var origColors;
+		
+		var redo = function() {
+			origColors = artefacts.map(function(artefact) {
+				var origColor = artefact.item.fillColor;
+				artefact.item.fillColor = swatch;
+				return origColor;
+			});
+		}
 
-	var undo = function() {
-		clones.mmap('destroy');
-	}
-	var redo = function() {
-		clones.mmap('restore').mmap('select');
-	}
-	P.history.registerState(undo, redo)
+		var undo = function() {
+			artefacts.map(function(artefact) {
+				var idx = artefacts.indexOf(artefact);
+				artefact.item.fillColor = origColors[idx];
+			});
+		}
+		
+		P.history.registerState(undo, redo);
 
-	return clones;
-}
-
-/**
- * Change the color of the artefacts
- * 	
- * @param {Artefact[]} artefacts
- * @param {String} [swatch=null] The swatch to use. Defaults to the
- * active swatch.
- * @memberOf P
- * @instance
- */
-P.changeColor = function(artefacts, swatch) {
-	var swatch = swatch || P.getActiveSwatch();
-	var origColors;
-	
-	var redo = function() {
-		origColors = artefacts.map(function(artefact) {
-			var origColor = artefact.item.fillColor;
-			artefact.item.fillColor = swatch;
-			return origColor;
-		});
+		redo();
 	}
 
-	var undo = function() {
-		artefacts.map(function(artefact) {
-			var idx = artefacts.indexOf(artefact);
-			artefact.item.fillColor = origColors[idx];
-		});
-	}
-	
-	P.history.registerState(undo, redo);
+	P.registerAction('changeColor', changeColor);
 
-	redo();
-};/**
+
+	var play = function(artefacts) {
+		return artefacts.mfilter('hasAnimation').map(function(artefact) {
+				return artefact.getAnimation().start();
+		})
+	}
+
+	P.registerAction('play', play);
+
+	var pause = function(artefacts) {
+		return artefacts.mfilter('hasAnimation').map(function(artefact) {
+				return artefact.getAnimation().pause();
+		})
+	}
+
+	P.registerAction('pause', pause);
+
+	var stop = function(artefacts) {
+		return artefacts.mfilter('hasAnimation').map(function(artefact) {
+				return artefact.getAnimation().stop();
+		})
+	}
+
+	P.registerAction('stop', stop);
+
+	var playPause = function(artefacts) {
+		var artefacts = artefacts.mfilter('hasAnimation');
+		if(artefacts[0].isAnimating()) {
+			return pause(artefacts)
+		} else {
+			return play(artefacts);
+		}
+	}
+	P.registerAction('playPause', playPause);
+
+
+})();;/**
  * All registered animations
  * @type {Object}
  */
@@ -1434,7 +1514,7 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	
 	// Set up the animation tool
-	if(!newAnimation.tool) newAnimation.tool = new paper.Tool();
+	var animTool = newAnimation.tool || new paper.Tool();
 
 	// The current item on which the tool works.
 	var artefact;
@@ -1444,7 +1524,7 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	var _onMouseDown = function(event) {
 		artefact = P.getSelected()[0]
 		if(artefact == undefined) {
-			hitResult = project.hitTest(event.point, {
+			hitResult = paper.project.hitTest(event.point, {
 				fill: true, 
 				tolerance: 5,
 			})
@@ -1494,12 +1574,15 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	}
 
 	// Store methods if none exist
-	newAnimation.tool.onMouseDown = newAnimation.tool.onMouseDown || _onMouseDown;
-	newAnimation.tool.onMouseDrag = newAnimation.tool.onMouseDrag || _onMouseDrag;
-	newAnimation.tool.onMouseUp = newAnimation.tool.mouseUp || _onMouseUp;
-
-	// Store!
+	animTool.onMouseDown = animTool.onMouseDown || _onMouseDown;
+	animTool.onMouseDrag = animTool.onMouseDrag || _onMouseDrag;
+	animTool.onMouseUp = animTool.mouseUp || _onMouseUp;
+	
+	// Register tool and animation
+	newAnimation.tool = animTool;
+	P.registerTool(type, animTool);
 	P.animations[type] = newAnimation;
+
 
 	return newAnimation;
 };/**
@@ -1566,7 +1649,7 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 		var center = artefact.getShadowBounds().center;
 		center = center.transform(artefact.item.matrix);
 		props.startPoint = center//artefact.getCenter(false);
-		props.endPoint = new Point(event.point);
+		props.endPoint = new paper.Point(event.point);
 	}
 
 	// Register the animation
@@ -1578,133 +1661,152 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
  *
  * Draws circles.
  */
+(function(){
+	var circleTool = new paper.Tool()
+	var circle, radius, center;
 
-circleTool = new paper.Tool()
-var circle, radius, center;
-
-circleTool.onMouseDown = function(event) {
-	P.deselectAll()
-	circle = new paper.Path.Circle({
-		center: event.point, 
-		radius: 0,
-		fillColor: P.getActiveSwatch()
-	});
-}
-
-circleTool.onMouseDrag = function(event) {
-	var color = circle.fillColor;
-	var diff = event.point.subtract(event.downPoint)
-	radius = diff.length / 2
-	center = diff.divide(2).add(event.downPoint)
-	circle.remove();
-	circle = new Path.Circle({
-		center: center,
-		radius: radius,
-		opacity: .9,
-		fillColor: color
-	});
-}
-
-circleTool.onMouseUp = function(event) {
-
-	// Initialize artefact
-	var artefact = new P.Artefact.Circle(center, radius);
-	artefact.item.fillColor = circle.fillColor
-	circle.remove();
-	
-	// History
-	var undo = function() { artefact.destroy(); }
-	var redo = function() { artefact.restore(); }
-	P.history.registerState(undo, redo)
-};
-cloneTool = new paper.Tool();
-
-var currentItems;
-cloneTool.onMouseDown = function(event) {
-	currentItems = P.clone(P.getSelected());
-}
-
-cloneTool.onMouseDrag = function(event) {
-	currentItems.mmap('move', [event.delta])
-}
-
-cloneTool.onMouseUp = function() {};dragTool = new paper.Tool();
-
-dragTool.onMouseDrag = function(event, artefacts) {
-	artefacts.map(function(artefact) {
-		artefact.move(event.delta);
-	})
-}
-
-dragTool.onMouseUp = function(event, artefacts) {
-
-	var undoDelta = new paper.Point(event.downPoint.subtract(event.point))
-	var redoDelta = new paper.Point(event.point.subtract(event.downPoint))
-
-	if(redoDelta.length > 1) {
-		var artefacts;
-		
-		var undo = function() {
-			artefacts.map(function(artefact) {
-				artefact.move(undoDelta);
-			})
-		}
-		
-		var redo = function() {
-			artefacts.map(function(artefact) {
-				artefact.move(redoDelta);
-			})
-		}
-		
-		P.history.registerState(undo, redo);
+	circleTool.onMouseDown = function(event) {
+		P.deselectAll()
+		circle = new paper.Path.Circle({
+			center: event.point, 
+			radius: 0,
+			fillColor: P.getActiveSwatch()
+		});
 	}
-};/**
+
+	circleTool.onMouseDrag = function(event) {
+		var color = circle.fillColor;
+		var diff = event.point.subtract(event.downPoint)
+		radius = diff.length / 2
+		center = diff.divide(2).add(event.downPoint)
+		circle.remove();
+		circle = new paper.Path.Circle({
+			center: center,
+			radius: radius,
+			opacity: .9,
+			fillColor: color
+		});
+	}
+
+	circleTool.onMouseUp = function(event) {
+
+		// Initialize artefact
+		var artefact = new P.Artefact.Circle(center, radius);
+		artefact.item.fillColor = circle.fillColor
+		circle.remove();
+		
+		// History
+		var undo = function() { artefact.destroy(); }
+		var redo = function() { artefact.restore(); }
+		P.history.registerState(undo, redo)
+	}
+
+	P.registerTool('circle', circleTool);
+})();
+(function() {
+	var cloneTool = new paper.Tool();
+
+	var currentItems;
+	cloneTool.onMouseDown = function(event) {
+		currentItems = P.clone(P.getSelected());
+	}
+
+	cloneTool.onMouseDrag = function(event) {
+		currentItems.mmap('move', [event.delta])
+	}
+
+	cloneTool.onMouseUp = function() {}
+
+	P.registerTool('clone', cloneTool);
+	
+})();
+(function() {
+	var dragTool = new paper.Tool();
+
+	dragTool.onMouseDrag = function(event, artefacts) {
+		artefacts.map(function(artefact) {
+			artefact.move(event.delta);
+		})
+	}
+
+	dragTool.onMouseUp = function(event, artefacts) {
+
+		var undoDelta = new paper.Point(event.downPoint.subtract(event.point))
+		var redoDelta = new paper.Point(event.point.subtract(event.downPoint))
+
+		if(redoDelta.length > 1) {
+			var artefacts;
+			
+			var undo = function() {
+				artefacts.map(function(artefact) {
+					artefact.move(undoDelta);
+				})
+			}
+			
+			var redo = function() {
+				artefacts.map(function(artefact) {
+					artefact.move(redoDelta);
+				})
+			}
+			
+			P.history.registerState(undo, redo);
+		}
+	}
+
+	P.registerTool('drag', dragTool);
+})();/**
  * @todo support for history redo/undo
  * @type {paper.Tool}
  */
-manipulateTool = new paper.Tool();
+(function() {
+	var manipulateTool = new paper.Tool();
 
-manipulateTool.onMouseDown = function(event, artefacts, handle) {
-}
+	manipulateTool.onMouseDown = function(event, artefacts, handle) {
+	}
 
-manipulateTool.onMouseDrag = function(event, artefacts, handle) {	
-	var artefact = artefacts[0];
-	artefact.manipulate(event, handle);
-}
+	manipulateTool.onMouseDrag = function(event, artefacts, handle) {	
+		var artefact = artefacts[0];
+		artefact.manipulate(event, handle);
+	}
 
-manipulateTool.onMouseUp = function(event, artefacts, handle) {
+	manipulateTool.onMouseUp = function(event, artefacts, handle) {
+	}
 
-};/**
+	P.registerTool('manipulate', manipulateTool)
+})();/**
  * Rectangle tool
  * 
  * Draws rectangles
  */
 
+(function(){
+	var rectTool = new paper.Tool();
+	var rectangle;
 
-rectTool = new paper.Tool();
-var rectangle;
+	rectTool.onMouseDown = function(event) {
+		rectangle = new paper.Path.Rectangle(event.point, new paper.Size(0,0));
+		rectangle.fillColor = P.getActiveSwatch();
+	}
 
-rectTool.onMouseDown = function(event) {
-	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	rectangle.fillColor = P.getActiveSwatch();
-}
+	rectTool.onMouseDrag = function(event) {
+		color = rectangle.fillColor;
+		rectangle.remove();
+		rectangle = new paper.Path.Rectangle(event.downPoint, event.point);
+		rectangle.fillColor = color;
+		rectangle.opacity = .9;
+	}
 
-rectTool.onMouseDrag = function(event) {
-	color = rectangle.fillColor;
-	rectangle.remove();
-	rectangle = new Path.Rectangle(event.downPoint, event.point);
-	rectangle.fillColor = color;
-	rectangle.opacity = .9;
-}
+	rectTool.onMouseUp = function() {
+		var artefact = new P.Artefact.Rectangle(rectangle)
 
-rectTool.onMouseUp = function() {
-	var artefact = new P.Artefact.Rectangle(rectangle)
+		// History
+		var undo = function() { artefact.destroy(); }
+		var redo = function() { artefact.restore(); }
+		P.history.registerState(undo, redo)
+	}
 
-	// History
-	var undo = function() { artefact.destroy(); }
-	var redo = function() { artefact.restore(); }
-	P.history.registerState(undo, redo)
-};/**
+	P.registerTool('rectangle', rectTool);
+})();/**
  * Register the rotate animation 
  *
  * @return {null}
@@ -1764,406 +1866,182 @@ rectTool.onMouseUp = function() {
 	}
 
 	rotate.onUpdate = function(artefact, props, event) {
-		props.center = new Point(event.point);
+		props.center = new paper.Point(event.point);
 	}
 
 	// Register!
 	P.registerAnimation('rotate', rotate, { speed: 2 })
 
-})();
-/**
- * Selection tool
- *
- * The default and most important tool that selects, drags and edits items.
- * Depending on where the user clicks, the selection tool enters a different
- * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
- * largely through the mode the selector is in.
- */
+})();(function(){
+	/**
+	 * Selection tool
+	 *
+	 * The default and most important tool that selects, drags and edits items.
+	 * Depending on where the user clicks, the selection tool enters a different
+	 * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
+	 * largely through the mode the selector is in.
+	 */
+	var selectTool = new paper.Tool()
 
-selectTool = new paper.Tool()
+	function switchTool(newTool, event, artefacts, target) {
 
-function switchTool(newTool, event, artefacts, target) {
+		// Update the new tool, this is a bit hacky though.
+		newTool._downPoint = event.downPoint;
+		newTool._point = event.downPoint;
+		newTool._downCount += 1; // Not strictly necessary
 
-	// Update the new tool, this is a bit hacky though.
-	newTool._downPoint = event.downPoint;
-	newTool._point = event.downPoint;
-	newTool._downCount += 1; // Not strictly necessary
+		// Store the current artefacts
+		newTool._artefacts = artefacts;
+		newTool._target = target;
 
-	// Store the current artefacts
-	newTool._artefacts = artefacts;
-	newTool._target = target;
-
-	// Mouse Down
-	var _onMouseDown = newTool.onMouseDown || function() {};
-	newTool.onMouseDown = function(event) {
-		var artifacts = event.tool._artefacts,
-				target = event.tool._target;
-		return _onMouseDown(event, artifacts, target);
-	}
-
-	// Mouse Drag
-	var _onMouseDrag = newTool.onMouseDrag || function() {}
-	newTool.onMouseDrag = function(event) {
-		var artifacts = event.tool._artefacts,
-				target = event.tool._target;
-		return _onMouseDrag(event, artifacts, target);
-	}
-
-	// Reactivate selection tool afterwards!
-	var _onMouseUp = newTool.onMouseUp || function() {};
-	newTool.onMouseUp = function(event) {
-		var artifacts = event.tool._artefacts,
-				target = event.tool._target;
-		_onMouseUp(event, artifacts, target);
-		selectTool.activate()
-	}
-
-	// Update the event
-	event.tool = newTool;
-	
-	// Activate!
-	newTool.activate()
-	if(newTool.onSwitch) {
-		newTool.onSwitch(event)
-	} else {
-		newTool.emit('mousedown', event)
-	} 
-}
-
-selectTool.onMouseDown = function(event) {
-	
-	// Test if we hit an item
-	var hitResult = project.hitTest(event.point, {
-		fill: true,
-		tolerance: 5
-	})
-
-	// We hit noting!
-	if(!hitResult) {
-		P.deselectAll();
-		switchTool(selectionTool, event, []);
-	}
-	
-	// We hit a handle --> edit selection
-	else if(P.isHandle(hitResult.item)) {
-		if(hitResult.item.name.endsWith('animation')) return;
-		var artefacts = [P.getArtefact(hitResult.item)]
-		switchTool(manipulateTool, event, artefacts, hitResult.item);
-	}
-
-	// Hit an item
-	else {
-
-		// Note: this also fetches the artefact of a shadow
-		var hit = P.getArtefact(hitResult.item);
-		var artefacts = P.getSelected();
-
-		if(Key.isDown('shift')) {
-
-			// Already selected: remove from selection
-			if(hit.isSelected()) {
-				var index = artefacts.indexOf(hit);
-				artefacts.splice(index, 1);
-			} 
-
-			// Not selected yet: add to selection
-			else {
-				artefacts.push(hit);	
-			}
-
+		// Mouse Down
+		var _onMouseDown = newTool.onMouseDown || function() {};
+		newTool.onMouseDown = function(event) {
+			var artifacts = event.tool._artefacts,
+					target = event.tool._target;
+			return _onMouseDown(event, artifacts, target);
 		}
+
+		// Mouse Drag
+		var _onMouseDrag = newTool.onMouseDrag || function() {}
+		newTool.onMouseDrag = function(event) {
+			var artifacts = event.tool._artefacts,
+					target = event.tool._target;
+			return _onMouseDrag(event, artifacts, target);
+		}
+
+		// Reactivate selection tool afterwards!
+		var _onMouseUp = newTool.onMouseUp || function() {};
+		newTool.onMouseUp = function(event) {
+			var artifacts = event.tool._artefacts,
+					target = event.tool._target;
+			_onMouseUp(event, artifacts, target);
+			selectTool.activate()
+		}
+
+		// Update the event
+		event.tool = newTool;
 		
-		// If you click outside the selection with no modifiers, select the hit.
-		else if(!hit.isSelected()) {
-			artefacts = [hit]
-		}
-
-		// Update selection
-		P.selectOnly(artefacts);
-
-		// Switch
-		var newTool = Key.isDown('alt') ? cloneTool : dragTool;
-		switchTool(newTool, event, artefacts)
-	}
-};
-selectionTool = new paper.Tool();
-
-var selectRect;
-
-selectionTool.onMouseDown = function(event, artefacts) {
-	selectRect = new paper.Path.Rectangle(event.point, new Size(0,0));
-}
-
-selectionTool.onMouseDrag = function(event, artefacts) {
-	if(selectRect)
-		selectRect.remove();
-	selectRect = new paper.Path.Rectangle(event.downPoint, event.point);
-	selectRect.strokeColor = "#333"
-	selectRect.dashArray = [2,3]
-	selectRect.strokeWidth = 1
-}
-
-selectionTool.onMouseUp = function(event, artefacts) {
-	// Remove the selection region
-	if(selectRect) selectRect.remove();
-
-	// Find all items in the selection area
-	rect = new paper.Rectangle(event.downPoint, event.point)
-	var items = project.activeLayer.getItems({ 
-		overlapping: rect,
-		match: function(item) {
-			return item.data._artefact != undefined
-		}
-	});
-
-	// If we put this in the match, it doesn't work?
-	// Reimplement?
-	items = items.filter(function(item) { 
-
-		var isBBox = item.name == 'bbox';
-		var inGroup = (item.parent.className == 'Group' 
-			|| item.data._artefact.item.parent.className == 'Group');
-		var isGroup = item.data._artefact.className == 'Group';
-		
-		// Cannot select anything in a group
-		if(inGroup) return false;
-
-		// Otherwise, only select BBox if it is a group.
-		return !isBBox || (isBBox && isGroup);
-	})
-
-	var artefacts = items.map(P.getArtefact);
-	P.select(artefacts);
-};/**
- * Painter.js
- */
-
-paper.install(window);
-
-/**
- * Painter, encapsulates everything!
- * @type {Object}
- */
-
-
-$(window).ready(function() {
-
-	paper.setup('canvas');
-
-	// Hmmmm....
-	bounceTool = P.animations.bounce.tool
-	rotationTool = P.animations.rotate.tool
-	
-	function onKeyDown(event) {
-
-		if(event.key == 'backspace' || event.key == 'd') {
-			P.delete(P.getSelected())
-		}
-
-		else if(event.key == 'space') {
-			$('a.tool[data-tool=playpause]').click();
-		}
-
-		else if(event.key == 'z') {
-			if(Key.isDown('control')) {
-				P.History.undo()
-			}
-			else {
-				$('a.tool[data-tool=reset]').click();
-			}
-		}
-
-		else if(event.key =='y' && Key.isDown('control')) {
-			P.History.redo()
-		}
-
-		else if(event.key =='g') {
-			P.group(P.getSelected())
-		}
-
-		else if(event.key =='u') {
-			P.ungroup(P.getSelected())
-		}
-
-		else if(event.key == 'r') {
-			$('a.tool[data-tool=rotate]').click();
-		}
-
-		else if(event.key == 'v') {
-			$('a.tool[data-tool=select]').click();
-		}
-
-		else if(event.key == 'c') {
-			$('a.tool[data-tool=circle]').click();
-		}
-
-		else if(event.key == 's') {
-			$('a.tool[data-tool=rectangle]').click();
-		}
-
-		else if(event.key == 'b') {
-			$('a.tool[data-tool=bounce]').click();	
-		}
-
-		else if(!isNaN(parseInt(event.key))) {
-			var key = parseInt(event.key);
-			$('.swatch').each(function(i, el){
-				var index = $(el).data('colorIndex')
-				if(index+1 == key) $(el).click();
-			})
-		}
-	}
-
-	rectTool.onKeyDown = onKeyDown;
-	circleTool.onKeyDown = onKeyDown;
-	selectTool.onKeyDown = onKeyDown;
-	rotationTool.onKeyDown = onKeyDown;
-	bounceTool.onKeyDown = onKeyDown;
-
-	r = new P.Artefact.Rectangle([20,30,100,140])
-	r.item.fillColor = P.getColor(0, 7);
-	r.select()
-
-	s = new P.Artefact.Rectangle([200,30,100,140])
-	s.item.fillColor = P.getColor(2, 7);
-
-	c = new P.Artefact.Circle([300,300], 40)
-	c.item.fillColor = P.getColor(1, 7);
-
-	// var anim = r.animate('bounce', { speed: 2, position: 0 });
-	// // console.log(r, anim)
-	// anim.update({ startPoint: new Point([0,0]), endPoint: new Point([200,200])})
-	// r.getAnimation().start()
-	// console.log(r)
-	// // Demo
-	// r = new Path.Rectangle([20,30,100,140])
-	// r.fillColor = getColor(0, 7)
-	// // r.selected = true
-	// r.type = 'rectangle'
-	// setupRectangle(r)
-	// setupItem(r)
-
-	// c = new Path.Circle([300,100], 40)
-	// c.fillColor = getColor(1, 7)
-	// // c.selected = true
-	// c.type = 'circle'
-	// setupItem(c)
-	// select(c)
-	// select(r)
-	// group(P.getSelected())
-	// deselectAll()
-
-
-		// Demo
-// 	r = new Path.Rectangle([200,200,100,140])
-// 	r.fillColor = getColor(3, 7)
-// 	// r.selected = true
-// 	r.type = 'rectangle'
-// 	setupItem(r)
-// setupRectangle(r)
-// 	c = new Path.Circle([500,300], 40)
-// 	c.fillColor = getColor(4, 7)
-// 	// c.selected = true
-// 	c.type = 'circle'
-// 	setupItem(c)
-// 	// select(c)
-// 	select(r)
-
-	// rotate(c, new Point([100,100]))
-	// rotate()
-
-
-	$('a.tool[data-tool=rectangle]').on('click', function() {
-		rectTool.activate()
-		$('a.tool').removeClass('active')
-		$(this).addClass('active')
-	})
-
-	$('a.tool[data-tool=circle]').on('click', function() {
-		circleTool.activate()
-		$('a.tool').removeClass('active')
-		$(this).addClass('active')
-	})
-
-	$('a.tool[data-tool=select]').on('click', function() {
-		selectTool.activate()
-		$('a.tool').removeClass('active')
-		$(this).addClass('active')
-	}).click()
-
-	$('a.tool[data-tool=group]').on('click', function() {
-		P.group(P.getSelected())
-	})
-
-	$('a.tool[data-tool=ungroup]').on('click', function() {
-		P.ungroup(P.getSelected())
-	})
-
-	$('a.tool[data-tool=delete]').on('click', function() {
-		P.deleteSelection()
-	})
-
-	$('a.tool[data-tool=clone]').on('click', function() {
-		P.clone(P.getSelected(), [20,20]);
-	})
-
-	$('a.tool[data-tool=playpause]').on('click', function() {
-		if($(this).data('state') == 'play') {
-			P.getSelected().map(function(artefact){
-				if(artefact.hasAnimation()) artefact.animation.start();
-			});
-			$(this).find('span').html('pause <code>space</code>')
-			$(this).data('state', 'pause')
-
+		// Activate!
+		newTool.activate()
+		if(newTool.onSwitch) {
+			newTool.onSwitch(event)
 		} else {
-			P.getSelected().map(function(artefact){
-				if(artefact.hasAnimation()) artefact.animation.pause();
-			});
-			$(this).find('span').html('play <code>space</code>')
-			$(this).data('state', 'play')
-		}
-	})
-
-	$('a.tool[data-tool=rotate]').on('click', function() {
-		rotationTool.activate()
-		$('a.tool').removeClass('active')
-		$(this).addClass('active')
-	})
-
-	$('a.tool[data-tool=bounce]').on('click', function() {
-		bounceTool.activate()
-		$('a.tool').removeClass('active')
-		$(this).addClass('active')
-	})//.click()
-
-	$('a.tool[data-tool=reset]').on('click', function() {
-		P.getSelected().map(function(artefact) { 
-			if(artefact.hasAnimation()) artefact.animation.stop() 
-		})
-	})
-
-	// Add all swatches
-	var $swatches = $('.swatches'),
-			numSwatches = parseInt($swatches.data('num-swatches'));
-	for(var i=0; i<numSwatches; i++) {
-
-		// Get color without noise
-		var color = P.getColor(i, numSwatches, 0);
-
-		// Add swatch handle
-		var $swatch = $('<a class="swatch">' + (i+1) + '</a>')
-					.css('backgroundColor', color)
-					.data('colorIndex', i)
-					.data('numSwatches', numSwatches)
-					.appendTo($swatches)
-					.on('click', function() {
-						$('.swatch').removeClass('active');
-						$(this).addClass('active');
-						P.changeColor(P.getSelected());
-					})
-		if(i == 0) $swatch.addClass('active');
+			newTool.emit('mousedown', event)
+		} 
 	}
 
+	selectTool.onMouseDown = function(event) {
+		
+		// Test if we hit an item
+		var hitResult = paper.project.hitTest(event.point, {
+			fill: true,
+			tolerance: 5
+		})
 
+		// We hit noting!
+		if(!hitResult) {
+			P.deselectAll();
+			switchTool(P.tools.selection, event, []);
+		}
+		
+		// We hit a handle --> edit selection
+		else if(P.isHandle(hitResult.item)) {
+			if(hitResult.item.name.endsWith('animation')) return;
+			var artefacts = [P.getArtefact(hitResult.item)]
+			switchTool(P.tools.manipulate, event, artefacts, hitResult.item);
+		}
 
-})
+		// Hit an item
+		else {
+
+			// Note: this also fetches the artefact of a shadow
+			var hit = P.getArtefact(hitResult.item);
+			var artefacts = P.getSelected();
+
+			if(paper.Key.isDown('shift')) {
+
+				// Already selected: remove from selection
+				if(hit.isSelected()) {
+					var index = artefacts.indexOf(hit);
+					artefacts.splice(index, 1);
+				} 
+
+				// Not selected yet: add to selection
+				else {
+					artefacts.push(hit);	
+				}
+
+			}
+			
+			// If you click outside the selection with no modifiers, select the hit.
+			else if(!hit.isSelected()) {
+				artefacts = [hit]
+			}
+
+			// Update selection
+			P.selectOnly(artefacts);
+
+			// Switch
+			var newTool = paper.Key.isDown('alt') ? P.tools.clone : P.tools.drag;
+			switchTool(newTool, event, artefacts)
+		}
+	}
+
+	P.registerTool('select', selectTool);
+})();
+(function() {
+
+	var selectionTool = new paper.Tool();
+
+	var selectRect;
+
+	selectionTool.onMouseDown = function(event, artefacts) {
+		selectRect = new paper.Path.Rectangle(event.point, new paper.Size(0,0));
+	}
+
+	selectionTool.onMouseDrag = function(event, artefacts) {
+		if(selectRect)
+			selectRect.remove();
+		selectRect = new paper.Path.Rectangle(event.downPoint, event.point);
+		selectRect.strokeColor = "#333"
+		selectRect.dashArray = [2,3]
+		selectRect.strokeWidth = 1
+	}
+
+	selectionTool.onMouseUp = function(event, artefacts) {
+		// Remove the selection region
+		if(selectRect) selectRect.remove();
+
+		// Find all items in the selection area
+		rect = new paper.Rectangle(event.downPoint, event.point)
+		var items = paper.project.activeLayer.getItems({ 
+			overlapping: rect,
+			match: function(item) {
+				return item.data._artefact != undefined
+			}
+		});
+
+		// If we put this in the match, it doesn't work?
+		// Reimplement?
+		items = items.filter(function(item) { 
+
+			var isBBox = item.name == 'bbox';
+			var inGroup = (item.parent.className == 'Group' 
+				|| item.data._artefact.item.parent.className == 'Group');
+			var isGroup = item.data._artefact.className == 'Group';
+			
+			// Cannot select anything in a group
+			if(inGroup) return false;
+
+			// Otherwise, only select BBox if it is a group.
+			return !isBBox || (isBBox && isGroup);
+		})
+
+		var artefacts = items.map(P.getArtefact);
+		P.select(artefacts);
+	}
+
+	P.registerTool('selection', selectionTool);
+
+})();

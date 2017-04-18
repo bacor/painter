@@ -40,11 +40,9 @@ module.exports = function(grunt) {
             'src/history.js',
             'src/artefact.js',
             'src/actions.js',
-            'src/*.class.js',
             'src/helpers.js',
             'src/animations.js',
-            'src/*.tool.js',
-            'src/ui.js']
+            'src/*.tool.js']
         }
       }
     },

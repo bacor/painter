@@ -62,6 +62,14 @@ P.History = paper.Base.extend(/** @lends History */{
 		if(this.index == 0) return false;
 		this.states[this.index].undo();
 		this.index -= 1;
+	},
+
+	canUndo: function() {
+		return this.index > 0
+	},
+
+	canRedo: function() {
+		return this.index < this.states.length - 1
 	}
 })
 
@@ -71,3 +79,7 @@ P.History = paper.Base.extend(/** @lends History */{
  * @type {P.HistoryClass}
  */
 P.history = new P.History();
+
+// Register actions
+P.registerAction('undo', function() { P.history.undo() });
+P.registerAction('redo', function() { P.history.redo() })

@@ -4,69 +4,96 @@
     <meta charset="utf-8">
     <title>Painter</title>
     <link rel="stylesheet" href="styles/style.css">
-    <link rel="stylesheet" href="styles/flaticon.css">
+    <link rel="stylesheet" href="styles/icons/flaticon.css">
     <script src="js/jquery.min.js"></script>
     <script src="js/paper-full.min.js"></script>
     <script src="js/painter.js"></script>
+    <script src="js/ui.js"></script>
     <link href='https://fonts.googleapis.com/css?family=Ek+Mukta:400,300,200,500,600,700,800' rel='stylesheet' type='text/css'>
   </head>
   <body>
     <div class="painter">
     	<div class="tools">
-        <div class="group">
-      		<a class="tool" data-tool="select">
+        <div class="row">
+      		<a class="tool active" data-tool="select">
             <span>select <code>v</code></span>
       			<i class="flaticon-cursor"></i>
       		</a>
+        </div>
+
+        <div class="row">
       		<a class="tool" data-tool="rectangle">
             <span>rectangle <code>s</code></span>
-      			<i class="flaticon-column"></i>
+      			<i class="flaticon-square"></i>
       		</a>
       		<a class="tool" data-tool="circle">
             <span>circle <code>c</code></span>
-      			<i class="flaticon-circle"></i>
+      			<i class="flaticon-oval"></i>
       		</a>
         </div>
 
-        <div class="group">
-      		<a class="tool" data-tool="group">
-            <span>group <code>g</code></span>
-      			<i class="flaticon-group"></i>
-      		</a>
-
-      		<a class="tool" data-tool="ungroup">
-            <span>ungroup <code>u</code></span>
-      			<i class="flaticon-ungroup"></i>
-      		</a>
-
-          <a class="tool" data-tool="delete">
-            <span>delete <code>bsp/d</code></span> 
-          </a>
-
-          <a class="tool" data-tool="clone">
-            <span>clone <code>alt</code></span>
-          </a>
-        </div>
-
-        <div class="group">
+        <div class="row">
           <a class="tool" data-tool="rotate">
             <span>Rotate <code>r</code></span>
-            <i class="flaticon-spiral"></i>
+            <i class="flaticon-arrows-3"></i>
           </a>
 
-          <a class="tool active" data-tool="bounce">
+          <a class="tool" data-tool="bounce">
             <span>bounce <code>b</code></span>
-            <i class="flaticon-spiral"></i>
+            <i class="flaticon-arrows-2"></i>
+          </a>
+        </div>
+
+        <div class="row">
+          <a class="tool action" data-action="group">
+            <span>group <code>g</code></span>
+            <i class="flaticon-interface-2"></i>
           </a>
 
-          <a class="tool" data-tool="playpause" data-state="pause">
+          <a class="tool action" data-action="ungroup">
+            <span>ungroup <code>u</code></span>
+            <i class="flaticon-interface-3"></i>
+          </a>
+        </div>
+
+        <div class="row">
+          <a class="tool action" data-action="delete">
+            <span>delete <code>bsp/d</code></span>
+            <i class="flaticon-interface-4"></i>
+          </a>
+
+          <a class="tool action" data-action="clone">
+            <span>clone <code>alt</code></span>
+            <i class="flaticon-minisize-browser"></i>
+          </a>
+        </div>
+
+        <div class="row">
+          <a class="tool action" id="play" data-action="play">
+            <span>play <code>space</code></span>
+            <i class="flaticon-arrows"></i>
+          </a>
+
+          <a class="tool action hidden" id="pause" data-action="pause">
             <span>pause <code>space</code></span>
-            <i class="flaticon-group"></i>
+            <i class="flaticon-signs"></i>
           </a>
           
-          <a class="tool" data-tool="reset">
-            <span>reset <code>z</code></span>
-            <i class="flaticon-group"></i>
+          <a class="tool action" id="stop" data-action="stop">
+            <span>stop <code>z</code></span>
+            <i class="flaticon-stop"></i>
+          </a>
+        </div>
+
+        <div class="row">
+          <a class="tool action disabled" id="undo" data-action="undo">
+            <span>undo <code>ctrl+z</code></span>
+            <i class="flaticon-back"></i>
+          </a>
+
+          <a class="tool action disabled" id="redo" data-action="redo">
+            <span>redo <code>ctrl+y</code></span>
+            <i class="flaticon-next"></i>
           </a>
         </div>
 

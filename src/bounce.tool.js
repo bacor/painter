@@ -62,7 +62,7 @@
 		var center = artefact.getShadowBounds().center;
 		center = center.transform(artefact.item.matrix);
 		props.startPoint = center//artefact.getCenter(false);
-		props.endPoint = new Point(event.point);
+		props.endPoint = new paper.Point(event.point);
 	}
 
 	// Register the animation

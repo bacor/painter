@@ -1,13 +1,18 @@
 
-cloneTool = new paper.Tool();
+(function() {
+	var cloneTool = new paper.Tool();
 
-var currentItems;
-cloneTool.onMouseDown = function(event) {
-	currentItems = P.clone(P.getSelected());
-}
+	var currentItems;
+	cloneTool.onMouseDown = function(event) {
+		currentItems = P.clone(P.getSelected());
+	}
 
-cloneTool.onMouseDrag = function(event) {
-	currentItems.mmap('move', [event.delta])
-}
+	cloneTool.onMouseDrag = function(event) {
+		currentItems.mmap('move', [event.delta])
+	}
 
-cloneTool.onMouseUp = function() {}
+	cloneTool.onMouseUp = function() {}
+
+	P.registerTool('clone', cloneTool);
+	
+})()
