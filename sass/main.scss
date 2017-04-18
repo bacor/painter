@@ -24,21 +24,17 @@ div.painter {
     font-size: 10px;
     letter-spacing: 1px;
     text-transform: uppercase;
-    // text-shadow: 0 0 1px rgba(0,0,0,0.2);
 
 	.tools {
 		display: flex;
         flex-direction: column;
         align-items: flex-start;
         margin-top: $margin;
+        padding: 0 10px;
 
         .row {
-            // display: flex;
-            // flex-direction: row;
             margin-bottom: 10px;
             padding-left: .5em;
-            // width: 100%;
-            // mar
         }
 
         a.tool {
@@ -118,6 +114,8 @@ div.painter {
         canvas {
             width: 100%;
             height: 100%;
+            // background-color: transparentize($yellow, .99);
+            // background-image: url("https://www.transparenttextures.com/patterns/groovepaper.png");
         }
 
         .footer {
@@ -146,11 +144,11 @@ div.painter {
         display: inline-block;
         height: 1em;
         width: 1em;
-        padding: 1em;
+        padding: .8em;
         text-align: center;
         border-radius: 100%;
         border: 3px solid transparent;
-        margin: 0 0 .5em .5em;
+        margin: 0 0 .65em .65em;
         position: relative;
         transition: all 200ms ease;
         box-shadow: 0 0 4px rgba(0,0,0,.2);
