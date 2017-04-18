@@ -4,7 +4,7 @@
 
 	var currentItems;
 	cloneTool.onMouseDown = function(event) {
-		currentItems = P.clone(P.getSelected());
+		currentItems = P.actions.clone(P.getSelected());
 	}
 
 	cloneTool.onMouseDrag = function(event) {
