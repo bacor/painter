@@ -323,7 +323,7 @@ P.Artefact = paper.Base.extend(/** @lends Artefact */{
 	 * @instance
 	 */
 	restore: function() {
-		project.activeLayer.addChild(this.item);
+		paper.project.activeLayer.addChild(this.item);
 		if(this.hasAnimation()) this.getAnimation().start;
 		P.artefacts[this.id] = this;
 		return this;
@@ -728,7 +728,7 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	ungroup: function() {
 		// Reinstert parent items
 		var childItems = this.children.map(function(child){ return child.item });
-		var parent = this.item.parent ? this.item.parent : project.activeLayer;
+		var parent = this.item.parent ? this.item.parent : paper.project.activeLayer;
 		parent.insertChildren(this.item.index, childItems);
 
 		// Stop the animation, to get the actual transformation of the group
