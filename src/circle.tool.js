@@ -1,8 +1,10 @@
 
 /**
- * Circle tool
+ * Tool for drawing circles.
  *
- * Draws circles.
+ * @name circle
+ * @memberOf P.tools
+ * @type {paper.Tool}
  */
 (function(){
 	var circleTool = new paper.Tool()

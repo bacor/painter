@@ -1,4 +1,12 @@
-
+/**
+ * Selection tool, activated by {@link P.tools.select} when the user did not
+ * click on any artefact. The tool draws a dotted, rectangular seletion area
+ * and selects all artefacts inside.
+ * 
+ * @name selection
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
 (function() {
 
 	var selectionTool = new paper.Tool();

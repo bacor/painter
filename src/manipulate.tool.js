@@ -1,4 +1,11 @@
 /**
+ * Tool for manipulating artefacts. It is activated by {@link P.tools.select}
+ * when the user hit one of the artefacts handles. When the mouse is then 
+ * dragged, {@link Artefact.manipulate} is called to perform the actual
+ * manipulation.
+ *
+ * @name manipulate
+ * @memberOf P.tools
  * @todo support for history redo/undo
  * @type {paper.Tool}
  */

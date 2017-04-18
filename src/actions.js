@@ -1,10 +1,45 @@
+/**
+ * Registered actions. Actions are functions that operate on one or multiple
+ * artefacts. They are registered via {@link P.registerAction} and stored in 
+ * {@link P.actions}.
+ * 
+ * @namespace  P.actions
+ */
 
+/**
+ * Register an action, i.e. a function wich operates on one or more artefacts,
+ * such as deletion, cloning, grouping, ungrouping, etc. Actions are typically 
+ * triggered via the user interface. Registered actions can be accessed at 
+ * {@link P.actions} as `P.action.name` where `name` is the name of the action. 
+ * Technically, an action is just a function taking an array of {@link Artefact} 
+ * objects as its first input, and possibly other arguments:
+ *
+ * @example
+ * var myAction = function(artefacts, other, arguments) {
+ *   // Do something
+ * }
+ * P.registerAction('myAction', myAction);
+ *
+ * // Much later: perform the action
+ * P.actions.myAction(P.getSelected(), 'some', 'arguments');
+ * 
+ * @param  {String} name   Unique name of the action
+ * @param  {Function} action The action: a function that takes an array of 
+ * artefacts as its first argument.
+ */
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
+}
+
+// Define all actions, but encapsulate in a module in order not to pollute the
+// global scope.
 (function() {
 	/**
 	 * Delete the artefacts
 	 * 
 	 * @param  {Artefact[]} artefacts
-	 * @memberOf P
+	 * @memberOf P.actions
+	 * @function delete
 	 * @instance
 	 */
 	var del = function(artefacts) {
@@ -30,7 +65,7 @@
 	 * @todo The undo operation breaks the history...
 	 * @param  {Artefact[]} artefacts The artefacts to group.
 	 * @return {Artefact.Group}
-	 * @memberOf P
+	 * @memberOf P.actions
 	 * @instance
 	 */
 	var group = function(artefacts) {
@@ -121,7 +156,7 @@
 	 * @param {Artefact[]} artefacts
 	 * @param {String} [swatch=null] The swatch to use. Defaults to the
 	 * active swatch.
-	 * @memberOf P
+	 * @memberOf P.actions
 	 * @instance
 	 */
 	var changeColor = function(artefacts, swatch) {
@@ -147,10 +182,17 @@
 
 		redo();
 	}
-
 	P.registerAction('changeColor', changeColor);
 
 
+	/**
+	 * Play (or start) the artefacts that have an animation.
+	 * 	
+	 * @param  {Artefact[]} artefacts 
+	 * @return {Artefact[]} those of the passed artefacts that have an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var play = function(artefacts) {
 		return artefacts.mfilter('hasAnimation').map(function(artefact) {
 				return artefact.getAnimation().start();
@@ -158,6 +200,14 @@
 	}
 	P.registerAction('play', play);
 
+	/**
+	 * Pause the animated artefacts
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var pause = function(artefacts) {
 		return artefacts.mfilter('hasAnimation').map(function(artefact) {
 				return artefact.getAnimation().pause();
@@ -165,6 +215,14 @@
 	}
 	P.registerAction('pause', pause);
 
+	/**
+	 * Stop the animated artefacts
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var stop = function(artefacts) {
 		return artefacts.mfilter('hasAnimation').map(function(artefact) {
 				return artefact.getAnimation().stop();
@@ -172,6 +230,16 @@
 	}
 	P.registerAction('stop', stop);
 
+	/**
+	 * Play or pause the animation. The first artefact is used as a reference:
+	 * it this is animating, all animations (of the artefacts passed to the
+	 * function) will be paused, otherwise all will be started.
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var playPause = function(artefacts) {
 		var artefacts = artefacts.mfilter('hasAnimation');
 		if(artefacts[0].isAnimating()) {
@@ -182,6 +250,14 @@
 	}
 	P.registerAction('playPause', playPause);
 
+	/**
+	 * Bring the artefacts to the front
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} 
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var bringToFront = function(artefacts) {
 		var indices;
 
@@ -205,7 +281,14 @@
 	}
 	P.registerAction('bringToFront', bringToFront);
 
-
+	/**
+	 * Send artefacts to the back
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]}
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var sendToBack = function(artefacts) {
 		var indices;
 
@@ -230,3 +313,4 @@
 	P.registerAction('sendToBack', sendToBack);
 
 })();
+

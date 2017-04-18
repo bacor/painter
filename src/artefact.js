@@ -11,6 +11,7 @@ P.artefacts = {}
 /**
  * @name Artefact
  * @class The main artefact class
+ * @memberOf P
  */
 P.Artefact = paper.Base.extend(/** @lends Artefact */{
 	
@@ -414,8 +415,9 @@ P.Artefact = paper.Base.extend(/** @lends Artefact */{
 })
 
 /**
- * @name Artefact.Rectangle
+ * @name Rectangle
  * @class A rectangular Artefact. Yes, really just a rectangle.
+ * @memberOf P.Artefact
  */
 P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
 
@@ -547,8 +549,9 @@ P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
 });
 
 /**
- * @name  Artefact.Circle
+ * @name Circle
  * @class  A circular Artefact.
+ * @memberOf P.Artefact
  */
 P.Artefact.Circle = P.Artefact.extend(/** @lends Artefact.Circle */{
 	_class: 'Circle',
@@ -598,9 +601,10 @@ P.Artefact.Circle = P.Artefact.extend(/** @lends Artefact.Circle */{
 })
 
 /**
- * @name Artefact.Group
+ * @name Group
  * @class The group Artefact is an artefact consisting of several others.
  * It is really just a group with some added niceties.
+ * @memberOf P.Artefact
  */
 P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	_class: 'Group',

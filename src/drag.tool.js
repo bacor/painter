@@ -1,4 +1,11 @@
-
+/**
+ * Tool for dragging artefacts. Activated by {@link P.tools.select} when 
+ * the user clicks a selected artefact.
+ * 
+ * @type {paper.Tool}
+ * @name drag
+ * @memberOf P.tools
+ */
 (function() {
 	var dragTool = new paper.Tool();
 

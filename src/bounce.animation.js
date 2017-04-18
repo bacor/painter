@@ -1,6 +1,9 @@
 /**
- * Register the bounce animation
- * @return {null}
+ * An animation for bouncing objects.
+ * 
+ * @name bounce
+ * @memberOf P.animations
+ * @type {Object}
  */
 (function() {
 

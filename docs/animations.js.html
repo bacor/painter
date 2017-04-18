@@ -33,21 +33,21 @@
 			<li class="dropdown">
 				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="P.html">P</a></li>
+					<li><a href="P.html">P</a></li><li><a href="P.actions.html">P.actions</a></li><li><a href="P.animations.html">P.animations</a></li><li><a href="P.tools.html">P.tools</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="Animation.html">Animation</a></li><li><a href="Artefact.html">Artefact</a></li><li><a href="Artefact.Circle.html">Artefact.Circle</a></li><li><a href="Artefact.Group.html">Artefact.Group</a></li><li><a href="Artefact.Rectangle.html">Artefact.Rectangle</a></li><li><a href="History.html">History</a></li>
+					<li><a href="P.Animation.html">P.Animation</a></li><li><a href="P.Artefact.html">P.Artefact</a></li><li><a href="P.Artefact.Circle.html">P.Artefact.Circle</a></li><li><a href="P.Artefact.Group.html">P.Artefact.Group</a></li><li><a href="P.Artefact.Rectangle.html">P.Artefact.Rectangle</a></li><li><a href="P.History.html">P.History</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#mmap">mmap</a></li>
+					<li><a href="global.html#mfilter">mfilter</a></li><li><a href="global.html#mmap">mmap</a></li>
 				</ul>
 			</li>
 			
@@ -85,18 +85,13 @@
     <article>
         <pre
             class="sunlight-highlight-javascript linenums">/**
- * All registered animations
- * @type {Object}
- */
-P.animations = {}
-
-/**
  * @name Animation
  * @class The main animation class
  * @property {Artefact} artefact The artefact being animated
  * @property {String} type The type of animation. This must correspond to a 
  * registered animation such as `bounce` or `rotate`.
  * @property {Object} properties All properties determining the animation.
+ * @memberOf P
  */
 P.Animation = paper.Base.extend(/** @lends Animation */{
 
@@ -291,6 +286,14 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 		}
 	}
 })
+
+/**
+ * Animations registered with {@link P.registerAnimation}. Animation objects
+ * are plain objects containing various methods that allow us to animate 
+ * artefacts; see {@link P.registerAnimation} for details.
+ * 
+ * @namespace P.animations
+ */
 
 /**
  * Register an animation

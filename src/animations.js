@@ -1,16 +1,11 @@
 /**
- * All registered animations
- * @type {Object}
- */
-P.animations = {}
-
-/**
  * @name Animation
  * @class The main animation class
  * @property {Artefact} artefact The artefact being animated
  * @property {String} type The type of animation. This must correspond to a 
  * registered animation such as `bounce` or `rotate`.
  * @property {Object} properties All properties determining the animation.
+ * @memberOf P
  */
 P.Animation = paper.Base.extend(/** @lends Animation */{
 
@@ -205,6 +200,14 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 		}
 	}
 })
+
+/**
+ * Animations registered with {@link P.registerAnimation}. Animation objects
+ * are plain objects containing various methods that allow us to animate 
+ * artefacts; see {@link P.registerAnimation} for details.
+ * 
+ * @namespace P.animations
+ */
 
 /**
  * Register an animation

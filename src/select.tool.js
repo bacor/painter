@@ -1,12 +1,14 @@
+/**
+ * Selection tool. The default and most important tool that selects, drags and 
+ * manipulates items. In fact, it only deals with the `mouseDown` part, and 
+ * depending on the user action activates {@link P.tools.selection}, 
+ * {@link P.tools.drag}, {@link P.tools.manipulate} or {@link P.tools.clone}.
+ *
+ * @name select
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
 (function(){
-	/**
-	 * Selection tool
-	 *
-	 * The default and most important tool that selects, drags and edits items.
-	 * Depending on where the user clicks, the selection tool enters a different
-	 * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
-	 * largely through the mode the selector is in.
-	 */
 	var selectTool = new paper.Tool()
 
 	function switchTool(newTool, event, artefacts, target) {

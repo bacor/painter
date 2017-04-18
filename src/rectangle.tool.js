@@ -1,7 +1,9 @@
 /**
- * Rectangle tool
+ * Tool for drawing rectangles. 
  * 
- * Draws rectangles
+ * @name rectangle
+ * @memberOf P.tools
+ * @type {paper.Tool}
  */
 
 (function(){

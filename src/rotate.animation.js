@@ -1,7 +1,10 @@
 /**
- * Register the rotate animation 
+ * Rotation animation, allows the user to rotate an artefact around
+ * a specified point.
  *
- * @return {null}
+ * @name rotate
+ * @memberOf P.animations
+ * @type {Object}
  */
 (function() {
 	

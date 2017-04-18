@@ -33,21 +33,21 @@
 			<li class="dropdown">
 				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="P.html">P</a></li>
+					<li><a href="P.html">P</a></li><li><a href="P.actions.html">P.actions</a></li><li><a href="P.animations.html">P.animations</a></li><li><a href="P.tools.html">P.tools</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="Animation.html">Animation</a></li><li><a href="Artefact.html">Artefact</a></li><li><a href="Artefact.Circle.html">Artefact.Circle</a></li><li><a href="Artefact.Group.html">Artefact.Group</a></li><li><a href="Artefact.Rectangle.html">Artefact.Rectangle</a></li><li><a href="History.html">History</a></li>
+					<li><a href="P.Animation.html">P.Animation</a></li><li><a href="P.Artefact.html">P.Artefact</a></li><li><a href="P.Artefact.Circle.html">P.Artefact.Circle</a></li><li><a href="P.Artefact.Group.html">P.Artefact.Group</a></li><li><a href="P.Artefact.Rectangle.html">P.Artefact.Rectangle</a></li><li><a href="P.History.html">P.History</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#manipulateTool">manipulateTool</a></li><li><a href="global.html#mmap">mmap</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#selectTool">selectTool</a></li>
+					<li><a href="global.html#mfilter">mfilter</a></li><li><a href="global.html#mmap">mmap</a></li>
 				</ul>
 			</li>
 			
@@ -85,36 +85,41 @@
     <article>
         <pre
             class="sunlight-highlight-javascript linenums">/**
- * Rectangle tool
+ * Tool for drawing rectangles. 
  * 
- * Draws rectangles
+ * @name rectangle
+ * @memberOf P.tools
+ * @type {paper.Tool}
  */
 
+(function(){
+	var rectTool = new paper.Tool();
+	var rectangle;
 
-rectTool = new paper.Tool();
-var rectangle;
+	rectTool.onMouseDown = function(event) {
+		rectangle = new paper.Path.Rectangle(event.point, new paper.Size(0,0));
+		rectangle.fillColor = P.getActiveSwatch();
+	}
 
-rectTool.onMouseDown = function(event) {
-	rectangle = new Path.Rectangle(event.point, new Size(0,0));
-	rectangle.fillColor = P.getActiveSwatch();
-}
+	rectTool.onMouseDrag = function(event) {
+		color = rectangle.fillColor;
+		rectangle.remove();
+		rectangle = new paper.Path.Rectangle(event.downPoint, event.point);
+		rectangle.fillColor = color;
+		rectangle.opacity = .9;
+	}
 
-rectTool.onMouseDrag = function(event) {
-	color = rectangle.fillColor;
-	rectangle.remove();
-	rectangle = new Path.Rectangle(event.downPoint, event.point);
-	rectangle.fillColor = color;
-	rectangle.opacity = .9;
-}
+	rectTool.onMouseUp = function() {
+		var artefact = new P.Artefact.Rectangle(rectangle)
 
-rectTool.onMouseUp = function() {
-	var artefact = new P.Artefact.Rectangle(rectangle)
+		// History
+		var undo = function() { artefact.destroy(); }
+		var redo = function() { artefact.restore(); }
+		P.history.registerState(undo, redo)
+	}
 
-	// History
-	var undo = function() { artefact.destroy(); }
-	var redo = function() { artefact.restore(); }
-	P.history.registerState(undo, redo)
-}</pre>
+	P.registerTool('rectangle', rectTool);
+})()</pre>
     </article>
 </section>
 

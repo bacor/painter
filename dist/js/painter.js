@@ -3,7 +3,9 @@
  */
 
 /**
- * Painter, encapsulates everything!
+ * The Painter object, which encapsulates everything. This is the only
+ * object exposed to the global scope.
+ * 
  * @type {Object}
  * @global
  * @namespace 
@@ -18,8 +20,35 @@ var P = {
 	 */
 	mainColor: '#78C3D0',
 
+	/**
+	 * The animations registry. All registered animations are stored here. By 
+	 * default, two animations, `rotate` and `bounce`, are registered.
+	 * 
+	 * @type {Object}
+	 * @instance
+	 */
+	animations: {},
+
+
+	/**
+	 * Tool registry. By default, the following tools are registered:
+	 * `select`, `drag`, `copy`, `rectangle`, `circle`, `manipulate` and the 
+	 * animation tools `rotate` and `bounce`.
+	 * 
+	 * @type {Object}
+	 * @instance
+	 */
 	tools: {},
 
+
+	/**
+	 * Action registry. By default, the following actions are registered:
+	 * `delete`, `group`, `ungroup`, `clone`, `changeColor`, `play`, `pause`,
+	 * `stop`, `playPause`, `bringToFront`, `sendToBack`.
+	 * 
+	 * @type {Object}
+	 * @instance
+	 */
 	actions: {},
 
 	/**
@@ -203,7 +232,8 @@ var P = {
 	/**
 	 * Get the active swatch
 	 * 
-	 * @return {String}
+	 * @return {String} Color string
+	 * @instance
 	 */
 	getActiveSwatch: function() {
 		var index = $('.swatch.active').data('colorIndex');
@@ -211,6 +241,17 @@ var P = {
 		return P.getColor(index, numSwatches)
 	},
 
+	/**
+	 * Export the drawing to an SVG string. All bounding boxes, animation 
+	 * handles will be removed before exporting. Also, animated objects are
+	 * reset to their original, non-animated position. The animation is stored
+	 * in the data atttribute of the SVG element as a JSON object with the
+	 * `type` and `properties` of the animation. These should allow the svg 
+	 * to later be imported and animated
+	 *
+	 * @return {String} An SVG string
+	 * @instance
+	 */
 	exportSVG: function() {
 
 		// Deselect all
@@ -262,6 +303,9 @@ var P = {
  * Method Map: calls a method of every element in an array. This makes 
  * chaining super easy with arrays of Artefacts, for example.
  * 
+ * This function is plugged into the Array prototype, so every array has this
+ * method.
+ * 
  * @example
  * // Get the currently selected artefacts
  * var artefacts = P.getSelected();
@@ -283,19 +327,44 @@ Array.prototype.mmap = function(name, args) {
 	});
 }
 
-
+/**
+ * Method Filter. Just like {@link mmap}, it filters an array based on the
+ * output of a method called on each of the elements. 
+ *
+ * This function is plugged into the Array prototype, so every array has this
+ * method.
+ *
+ * @example
+ * // Get all selected artefacts with an animation
+ * var artefacts = getSelected().mfilter('hasAnimation')
+ * 
+ * @param  {string} name The name of the method to filter by
+ * @param  {Array} args Optional arguments to pass to the method
+ * @return {Array} The filtered array
+ * @global
+ */
 Array.prototype.mfilter = function(name, args) {
 	return this.filter(function(element) {
 		return element[name].apply(element, args);
 	});
 }
 
+/**
+ * Tools are registed with {@link P.registerTool}.
+ * 
+ * @namespace P.tools
+ */
+
+/**
+ * Register a tool with the application. This allows the application to keep
+ * track of all tools. Registered tools can be accessed via `P.tools.name` 
+ * where `name` is the name of the tool.
+ * 	
+ * @param  {String} name Name of the tool
+ * @param  {paper.Tool} tool The actual tool
+ */
 P.registerTool = function(name, tool) {
 	P.tools[name] = tool;
-}
-
-P.registerAction = function(name, action) {
-	P.actions[name] = action;
 }
 ;/**
  * History
@@ -311,6 +380,7 @@ P.registerAction = function(name, action) {
  * new states.
  *
  * @name History
+ * @memberOf P
  */
 P.History = paper.Base.extend(/** @lends History */{
 
@@ -373,9 +443,11 @@ P.History = paper.Base.extend(/** @lends History */{
 })
 
 /**
- * Instance of the HistoryClass.
+ * Instance of the {@link P.History} class.
  * 
- * @type {P.HistoryClass}
+ * @type {P.History}
+ * @memberOf P
+ * @instance
  */
 P.history = new P.History();
 
@@ -395,6 +467,7 @@ P.artefacts = {}
 /**
  * @name Artefact
  * @class The main artefact class
+ * @memberOf P
  */
 P.Artefact = paper.Base.extend(/** @lends Artefact */{
 	
@@ -798,8 +871,9 @@ P.Artefact = paper.Base.extend(/** @lends Artefact */{
 })
 
 /**
- * @name Artefact.Rectangle
+ * @name Rectangle
  * @class A rectangular Artefact. Yes, really just a rectangle.
+ * @memberOf P.Artefact
  */
 P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
 
@@ -931,8 +1005,9 @@ P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
 });
 
 /**
- * @name  Artefact.Circle
+ * @name Circle
  * @class  A circular Artefact.
+ * @memberOf P.Artefact
  */
 P.Artefact.Circle = P.Artefact.extend(/** @lends Artefact.Circle */{
 	_class: 'Circle',
@@ -982,9 +1057,10 @@ P.Artefact.Circle = P.Artefact.extend(/** @lends Artefact.Circle */{
 })
 
 /**
- * @name Artefact.Group
+ * @name Group
  * @class The group Artefact is an artefact consisting of several others.
  * It is really just a group with some added niceties.
+ * @memberOf P.Artefact
  */
 P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	_class: 'Group',
@@ -1150,13 +1226,48 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 		if(destroyChildren) this.children.mmap('destroy');
 		destroy.base.call(this);
 	}
-});
+});/**
+ * Registered actions. Actions are functions that operate on one or multiple
+ * artefacts. They are registered via {@link P.registerAction} and stored in 
+ * {@link P.actions}.
+ * 
+ * @namespace  P.actions
+ */
+
+/**
+ * Register an action, i.e. a function wich operates on one or more artefacts,
+ * such as deletion, cloning, grouping, ungrouping, etc. Actions are typically 
+ * triggered via the user interface. Registered actions can be accessed at 
+ * {@link P.actions} as `P.action.name` where `name` is the name of the action. 
+ * Technically, an action is just a function taking an array of {@link Artefact} 
+ * objects as its first input, and possibly other arguments:
+ *
+ * @example
+ * var myAction = function(artefacts, other, arguments) {
+ *   // Do something
+ * }
+ * P.registerAction('myAction', myAction);
+ *
+ * // Much later: perform the action
+ * P.actions.myAction(P.getSelected(), 'some', 'arguments');
+ * 
+ * @param  {String} name   Unique name of the action
+ * @param  {Function} action The action: a function that takes an array of 
+ * artefacts as its first argument.
+ */
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
+}
+
+// Define all actions, but encapsulate in a module in order not to pollute the
+// global scope.
 (function() {
 	/**
 	 * Delete the artefacts
 	 * 
 	 * @param  {Artefact[]} artefacts
-	 * @memberOf P
+	 * @memberOf P.actions
+	 * @function delete
 	 * @instance
 	 */
 	var del = function(artefacts) {
@@ -1182,7 +1293,7 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	 * @todo The undo operation breaks the history...
 	 * @param  {Artefact[]} artefacts The artefacts to group.
 	 * @return {Artefact.Group}
-	 * @memberOf P
+	 * @memberOf P.actions
 	 * @instance
 	 */
 	var group = function(artefacts) {
@@ -1273,7 +1384,7 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	 * @param {Artefact[]} artefacts
 	 * @param {String} [swatch=null] The swatch to use. Defaults to the
 	 * active swatch.
-	 * @memberOf P
+	 * @memberOf P.actions
 	 * @instance
 	 */
 	var changeColor = function(artefacts, swatch) {
@@ -1299,10 +1410,17 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 
 		redo();
 	}
-
 	P.registerAction('changeColor', changeColor);
 
 
+	/**
+	 * Play (or start) the artefacts that have an animation.
+	 * 	
+	 * @param  {Artefact[]} artefacts 
+	 * @return {Artefact[]} those of the passed artefacts that have an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var play = function(artefacts) {
 		return artefacts.mfilter('hasAnimation').map(function(artefact) {
 				return artefact.getAnimation().start();
@@ -1310,6 +1428,14 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	}
 	P.registerAction('play', play);
 
+	/**
+	 * Pause the animated artefacts
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var pause = function(artefacts) {
 		return artefacts.mfilter('hasAnimation').map(function(artefact) {
 				return artefact.getAnimation().pause();
@@ -1317,6 +1443,14 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	}
 	P.registerAction('pause', pause);
 
+	/**
+	 * Stop the animated artefacts
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var stop = function(artefacts) {
 		return artefacts.mfilter('hasAnimation').map(function(artefact) {
 				return artefact.getAnimation().stop();
@@ -1324,6 +1458,16 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	}
 	P.registerAction('stop', stop);
 
+	/**
+	 * Play or pause the animation. The first artefact is used as a reference:
+	 * it this is animating, all animations (of the artefacts passed to the
+	 * function) will be paused, otherwise all will be started.
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} Those of the passed artefacts with an animation
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var playPause = function(artefacts) {
 		var artefacts = artefacts.mfilter('hasAnimation');
 		if(artefacts[0].isAnimating()) {
@@ -1334,6 +1478,14 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	}
 	P.registerAction('playPause', playPause);
 
+	/**
+	 * Bring the artefacts to the front
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]} 
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var bringToFront = function(artefacts) {
 		var indices;
 
@@ -1357,7 +1509,14 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	}
 	P.registerAction('bringToFront', bringToFront);
 
-
+	/**
+	 * Send artefacts to the back
+	 * 	
+	 * @param  {Artefact[]} artefacts
+	 * @return {Artefact[]}
+	 * @memberOf P.actions
+	 * @instance
+	 */
 	var sendToBack = function(artefacts) {
 		var indices;
 
@@ -1381,19 +1540,16 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	}
 	P.registerAction('sendToBack', sendToBack);
 
-})();;/**
- * All registered animations
- * @type {Object}
- */
-P.animations = {}
+})();
 
-/**
+;/**
  * @name Animation
  * @class The main animation class
  * @property {Artefact} artefact The artefact being animated
  * @property {String} type The type of animation. This must correspond to a 
  * registered animation such as `bounce` or `rotate`.
  * @property {Object} properties All properties determining the animation.
+ * @memberOf P
  */
 P.Animation = paper.Base.extend(/** @lends Animation */{
 
@@ -1590,6 +1746,14 @@ P.Animation = paper.Base.extend(/** @lends Animation */{
 })
 
 /**
+ * Animations registered with {@link P.registerAnimation}. Animation objects
+ * are plain objects containing various methods that allow us to animate 
+ * artefacts; see {@link P.registerAnimation} for details.
+ * 
+ * @namespace P.animations
+ */
+
+/**
  * Register an animation
  *
  * An animation moves an item periodically based on several parameters which
@@ -1692,8 +1856,11 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 
 	return newAnimation;
 };/**
- * Register the bounce animation
- * @return {null}
+ * An animation for bouncing objects.
+ * 
+ * @name bounce
+ * @memberOf P.animations
+ * @type {Object}
  */
 (function() {
 
@@ -1761,161 +1928,13 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	// Register the animation
 	P.registerAnimation('bounce', bounce, { speed: 2, position: 0 })
 
-})();
-/**
- * Circle tool
+})();/**
+ * Rotation animation, allows the user to rotate an artefact around
+ * a specified point.
  *
- * Draws circles.
- */
-(function(){
-	var circleTool = new paper.Tool()
-	var circle, radius, center;
-
-	circleTool.onMouseDown = function(event) {
-		P.deselectAll()
-		circle = new paper.Path.Circle({
-			center: event.point, 
-			radius: 0,
-			fillColor: P.getActiveSwatch()
-		});
-	}
-
-	circleTool.onMouseDrag = function(event) {
-		var color = circle.fillColor;
-		var diff = event.point.subtract(event.downPoint)
-		radius = diff.length / 2
-		center = diff.divide(2).add(event.downPoint)
-		circle.remove();
-		circle = new paper.Path.Circle({
-			center: center,
-			radius: radius,
-			opacity: .9,
-			fillColor: color
-		});
-	}
-
-	circleTool.onMouseUp = function(event) {
-
-		// Initialize artefact
-		var artefact = new P.Artefact.Circle(center, radius);
-		artefact.item.fillColor = circle.fillColor
-		circle.remove();
-		
-		// History
-		var undo = function() { artefact.destroy(); }
-		var redo = function() { artefact.restore(); }
-		P.history.registerState(undo, redo)
-	}
-
-	P.registerTool('circle', circleTool);
-})();
-(function() {
-	var cloneTool = new paper.Tool();
-
-	var currentItems;
-	cloneTool.onMouseDown = function(event) {
-		currentItems = P.actions.clone(P.getSelected());
-	}
-
-	cloneTool.onMouseDrag = function(event) {
-		currentItems.mmap('move', [event.delta])
-	}
-
-	cloneTool.onMouseUp = function() {}
-
-	P.registerTool('clone', cloneTool);
-	
-})();
-(function() {
-	var dragTool = new paper.Tool();
-
-	dragTool.onMouseDrag = function(event, artefacts) {
-		artefacts.map(function(artefact) {
-			artefact.move(event.delta);
-		})
-	}
-
-	dragTool.onMouseUp = function(event, artefacts) {
-
-		var undoDelta = new paper.Point(event.downPoint.subtract(event.point))
-		var redoDelta = new paper.Point(event.point.subtract(event.downPoint))
-
-		if(redoDelta.length > 1) {
-			var artefacts;
-			
-			var undo = function() {
-				artefacts.map(function(artefact) {
-					artefact.move(undoDelta);
-				})
-			}
-			
-			var redo = function() {
-				artefacts.map(function(artefact) {
-					artefact.move(redoDelta);
-				})
-			}
-			
-			P.history.registerState(undo, redo);
-		}
-	}
-
-	P.registerTool('drag', dragTool);
-})();/**
- * @todo support for history redo/undo
- * @type {paper.Tool}
- */
-(function() {
-	var manipulateTool = new paper.Tool();
-
-	manipulateTool.onMouseDown = function(event, artefacts, handle) {
-	}
-
-	manipulateTool.onMouseDrag = function(event, artefacts, handle) {	
-		var artefact = artefacts[0];
-		artefact.manipulate(event, handle);
-	}
-
-	manipulateTool.onMouseUp = function(event, artefacts, handle) {
-	}
-
-	P.registerTool('manipulate', manipulateTool)
-})();/**
- * Rectangle tool
- * 
- * Draws rectangles
- */
-
-(function(){
-	var rectTool = new paper.Tool();
-	var rectangle;
-
-	rectTool.onMouseDown = function(event) {
-		rectangle = new paper.Path.Rectangle(event.point, new paper.Size(0,0));
-		rectangle.fillColor = P.getActiveSwatch();
-	}
-
-	rectTool.onMouseDrag = function(event) {
-		color = rectangle.fillColor;
-		rectangle.remove();
-		rectangle = new paper.Path.Rectangle(event.downPoint, event.point);
-		rectangle.fillColor = color;
-		rectangle.opacity = .9;
-	}
-
-	rectTool.onMouseUp = function() {
-		var artefact = new P.Artefact.Rectangle(rectangle)
-
-		// History
-		var undo = function() { artefact.destroy(); }
-		var redo = function() { artefact.restore(); }
-		P.history.registerState(undo, redo)
-	}
-
-	P.registerTool('rectangle', rectTool);
-})();/**
- * Register the rotate animation 
- *
- * @return {null}
+ * @name rotate
+ * @memberOf P.animations
+ * @type {Object}
  */
 (function() {
 	
@@ -1978,15 +1997,193 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	// Register!
 	P.registerAnimation('rotate', rotate, { speed: 2 })
 
-})();(function(){
-	/**
-	 * Selection tool
-	 *
-	 * The default and most important tool that selects, drags and edits items.
-	 * Depending on where the user clicks, the selection tool enters a different
-	 * *mode* (one of `selecting, editing, dragging`). The behaviour is determined
-	 * largely through the mode the selector is in.
-	 */
+})();
+/**
+ * Tool for drawing circles.
+ *
+ * @name circle
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
+(function(){
+	var circleTool = new paper.Tool()
+	var circle, radius, center;
+
+	circleTool.onMouseDown = function(event) {
+		P.deselectAll()
+		circle = new paper.Path.Circle({
+			center: event.point, 
+			radius: 0,
+			fillColor: P.getActiveSwatch()
+		});
+	}
+
+	circleTool.onMouseDrag = function(event) {
+		var color = circle.fillColor;
+		var diff = event.point.subtract(event.downPoint)
+		radius = diff.length / 2
+		center = diff.divide(2).add(event.downPoint)
+		circle.remove();
+		circle = new paper.Path.Circle({
+			center: center,
+			radius: radius,
+			opacity: .9,
+			fillColor: color
+		});
+	}
+
+	circleTool.onMouseUp = function(event) {
+
+		// Initialize artefact
+		var artefact = new P.Artefact.Circle(center, radius);
+		artefact.item.fillColor = circle.fillColor
+		circle.remove();
+		
+		// History
+		var undo = function() { artefact.destroy(); }
+		var redo = function() { artefact.restore(); }
+		P.history.registerState(undo, redo)
+	}
+
+	P.registerTool('circle', circleTool);
+})();/**
+ * Clone tool: clones the selected elements. The tool is activated by the 
+ * {@link P.tools.select} tool, when the `alt`-key is pressed down.
+ * 
+ * @name clone
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
+(function() {
+	var cloneTool = new paper.Tool();
+
+	var currentItems;
+	cloneTool.onMouseDown = function(event) {
+		currentItems = P.actions.clone(P.getSelected());
+	}
+
+	cloneTool.onMouseDrag = function(event) {
+		currentItems.mmap('move', [event.delta])
+	}
+
+	cloneTool.onMouseUp = function() {}
+
+	P.registerTool('clone', cloneTool);
+	
+})();/**
+ * Tool for dragging artefacts. Activated by {@link P.tools.select} when 
+ * the user clicks a selected artefact.
+ * 
+ * @type {paper.Tool}
+ * @name drag
+ * @memberOf P.tools
+ */
+(function() {
+	var dragTool = new paper.Tool();
+
+	dragTool.onMouseDrag = function(event, artefacts) {
+		artefacts.map(function(artefact) {
+			artefact.move(event.delta);
+		})
+	}
+
+	dragTool.onMouseUp = function(event, artefacts) {
+
+		var undoDelta = new paper.Point(event.downPoint.subtract(event.point))
+		var redoDelta = new paper.Point(event.point.subtract(event.downPoint))
+
+		if(redoDelta.length > 1) {
+			var artefacts;
+			
+			var undo = function() {
+				artefacts.map(function(artefact) {
+					artefact.move(undoDelta);
+				})
+			}
+			
+			var redo = function() {
+				artefacts.map(function(artefact) {
+					artefact.move(redoDelta);
+				})
+			}
+			
+			P.history.registerState(undo, redo);
+		}
+	}
+
+	P.registerTool('drag', dragTool);
+})();/**
+ * Tool for manipulating artefacts. It is activated by {@link P.tools.select}
+ * when the user hit one of the artefacts handles. When the mouse is then 
+ * dragged, {@link Artefact.manipulate} is called to perform the actual
+ * manipulation.
+ *
+ * @name manipulate
+ * @memberOf P.tools
+ * @todo support for history redo/undo
+ * @type {paper.Tool}
+ */
+(function() {
+	var manipulateTool = new paper.Tool();
+
+	manipulateTool.onMouseDown = function(event, artefacts, handle) {
+	}
+
+	manipulateTool.onMouseDrag = function(event, artefacts, handle) {	
+		var artefact = artefacts[0];
+		artefact.manipulate(event, handle);
+	}
+
+	manipulateTool.onMouseUp = function(event, artefacts, handle) {
+	}
+
+	P.registerTool('manipulate', manipulateTool)
+})();/**
+ * Tool for drawing rectangles. 
+ * 
+ * @name rectangle
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
+
+(function(){
+	var rectTool = new paper.Tool();
+	var rectangle;
+
+	rectTool.onMouseDown = function(event) {
+		rectangle = new paper.Path.Rectangle(event.point, new paper.Size(0,0));
+		rectangle.fillColor = P.getActiveSwatch();
+	}
+
+	rectTool.onMouseDrag = function(event) {
+		color = rectangle.fillColor;
+		rectangle.remove();
+		rectangle = new paper.Path.Rectangle(event.downPoint, event.point);
+		rectangle.fillColor = color;
+		rectangle.opacity = .9;
+	}
+
+	rectTool.onMouseUp = function() {
+		var artefact = new P.Artefact.Rectangle(rectangle)
+
+		// History
+		var undo = function() { artefact.destroy(); }
+		var redo = function() { artefact.restore(); }
+		P.history.registerState(undo, redo)
+	}
+
+	P.registerTool('rectangle', rectTool);
+})();/**
+ * Selection tool. The default and most important tool that selects, drags and 
+ * manipulates items. In fact, it only deals with the `mouseDown` part, and 
+ * depending on the user action activates {@link P.tools.selection}, 
+ * {@link P.tools.drag}, {@link P.tools.manipulate} or {@link P.tools.clone}.
+ *
+ * @name select
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
+(function(){
 	var selectTool = new paper.Tool()
 
 	function switchTool(newTool, event, artefacts, target) {
@@ -2095,7 +2292,15 @@ P.registerAnimation = function(type, newAnimation, defaultProperties) {
 	}
 
 	P.registerTool('select', selectTool);
-})();
+})();/**
+ * Selection tool, activated by {@link P.tools.select} when the user did not
+ * click on any artefact. The tool draws a dotted, rectangular seletion area
+ * and selects all artefacts inside.
+ * 
+ * @name selection
+ * @memberOf P.tools
+ * @type {paper.Tool}
+ */
 (function() {
 
 	var selectionTool = new paper.Tool();

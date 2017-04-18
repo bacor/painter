@@ -42,6 +42,7 @@ module.exports = function(grunt) {
             'src/actions.js',
             'src/helpers.js',
             'src/animations.js',
+            'src/*.animation.js',
             'src/*.tool.js']
         }
       }

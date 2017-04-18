@@ -3,7 +3,9 @@
  */
 
 /**
- * Painter, encapsulates everything!
+ * The Painter object, which encapsulates everything. This is the only
+ * object exposed to the global scope.
+ * 
  * @type {Object}
  * @global
  * @namespace 
@@ -18,8 +20,35 @@ var P = {
 	 */
 	mainColor: '#78C3D0',
 
+	/**
+	 * The animations registry. All registered animations are stored here. By 
+	 * default, two animations, `rotate` and `bounce`, are registered.
+	 * 
+	 * @type {Object}
+	 * @instance
+	 */
+	animations: {},
+
+
+	/**
+	 * Tool registry. By default, the following tools are registered:
+	 * `select`, `drag`, `copy`, `rectangle`, `circle`, `manipulate` and the 
+	 * animation tools `rotate` and `bounce`.
+	 * 
+	 * @type {Object}
+	 * @instance
+	 */
 	tools: {},
 
+
+	/**
+	 * Action registry. By default, the following actions are registered:
+	 * `delete`, `group`, `ungroup`, `clone`, `changeColor`, `play`, `pause`,
+	 * `stop`, `playPause`, `bringToFront`, `sendToBack`.
+	 * 
+	 * @type {Object}
+	 * @instance
+	 */
 	actions: {},
 
 	/**
@@ -203,7 +232,8 @@ var P = {
 	/**
 	 * Get the active swatch
 	 * 
-	 * @return {String}
+	 * @return {String} Color string
+	 * @instance
 	 */
 	getActiveSwatch: function() {
 		var index = $('.swatch.active').data('colorIndex');
@@ -211,6 +241,17 @@ var P = {
 		return P.getColor(index, numSwatches)
 	},
 
+	/**
+	 * Export the drawing to an SVG string. All bounding boxes, animation 
+	 * handles will be removed before exporting. Also, animated objects are
+	 * reset to their original, non-animated position. The animation is stored
+	 * in the data atttribute of the SVG element as a JSON object with the
+	 * `type` and `properties` of the animation. These should allow the svg 
+	 * to later be imported and animated
+	 *
+	 * @return {String} An SVG string
+	 * @instance
+	 */
 	exportSVG: function() {
 
 		// Deselect all
@@ -262,6 +303,9 @@ var P = {
  * Method Map: calls a method of every element in an array. This makes 
  * chaining super easy with arrays of Artefacts, for example.
  * 
+ * This function is plugged into the Array prototype, so every array has this
+ * method.
+ * 
  * @example
  * // Get the currently selected artefacts
  * var artefacts = P.getSelected();
@@ -283,17 +327,42 @@ Array.prototype.mmap = function(name, args) {
 	});
 }
 
-
+/**
+ * Method Filter. Just like {@link mmap}, it filters an array based on the
+ * output of a method called on each of the elements. 
+ *
+ * This function is plugged into the Array prototype, so every array has this
+ * method.
+ *
+ * @example
+ * // Get all selected artefacts with an animation
+ * var artefacts = getSelected().mfilter('hasAnimation')
+ * 
+ * @param  {string} name The name of the method to filter by
+ * @param  {Array} args Optional arguments to pass to the method
+ * @return {Array} The filtered array
+ * @global
+ */
 Array.prototype.mfilter = function(name, args) {
 	return this.filter(function(element) {
 		return element[name].apply(element, args);
 	});
 }
 
+/**
+ * Tools are registed with {@link P.registerTool}.
+ * 
+ * @namespace P.tools
+ */
+
+/**
+ * Register a tool with the application. This allows the application to keep
+ * track of all tools. Registered tools can be accessed via `P.tools.name` 
+ * where `name` is the name of the tool.
+ * 	
+ * @param  {String} name Name of the tool
+ * @param  {paper.Tool} tool The actual tool
+ */
 P.registerTool = function(name, tool) {
 	P.tools[name] = tool;
-}
-
-P.registerAction = function(name, action) {
-	P.actions[name] = action;
 }

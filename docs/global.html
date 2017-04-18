@@ -33,21 +33,21 @@
 			<li class="dropdown">
 				<a href="namespaces.list.html" class="dropdown-toggle" data-toggle="dropdown">Namespaces<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="P.html">P</a></li>
+					<li><a href="P.html">P</a></li><li><a href="P.actions.html">P.actions</a></li><li><a href="P.animations.html">P.animations</a></li><li><a href="P.tools.html">P.tools</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="classes.list.html" class="dropdown-toggle" data-toggle="dropdown">Classes<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="Animation.html">Animation</a></li><li><a href="Artefact.html">Artefact</a></li><li><a href="Artefact.Circle.html">Artefact.Circle</a></li><li><a href="Artefact.Group.html">Artefact.Group</a></li><li><a href="Artefact.Rectangle.html">Artefact.Rectangle</a></li><li><a href="History.html">History</a></li>
+					<li><a href="P.Animation.html">P.Animation</a></li><li><a href="P.Artefact.html">P.Artefact</a></li><li><a href="P.Artefact.Circle.html">P.Artefact.Circle</a></li><li><a href="P.Artefact.Group.html">P.Artefact.Group</a></li><li><a href="P.Artefact.Rectangle.html">P.Artefact.Rectangle</a></li><li><a href="P.History.html">P.History</a></li>
 				</ul>
 			</li>
 			
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#mmap">mmap</a></li>
+					<li><a href="global.html#mfilter">mfilter</a></li><li><a href="global.html#mmap">mmap</a></li>
 				</ul>
 			</li>
 			
@@ -160,6 +160,200 @@
             
 <hr>
 <dt>
+    <h4 class="name" id="mfilter"><span class="type-signature"></span>mfilter(name, args)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Method Filter. Just like <a href="global.html#mmap">mmap</a>, it filters an array based on the<br>output of a method called on each of the elements. </p>
+<p>This function is plugged into the Array prototype, so every array has this<br>method.</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The name of the method to filter by</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>args</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Optional arguments to pass to the method</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="painter.js.html">painter.js</a>,
+				 <a href="painter.js.html#sunlight-1-line-346">line 346</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <h5>Returns:</h5>
+    
+            
+<div class="param-desc">
+    <p>The filtered array</p>
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Array</span>
+
+
+
+    </dd>
+</dl>
+
+
+        
+
+    
+        <h5>Example</h5>
+        
+    <pre class="sunlight-highlight-javascript">// Get all selected artefacts with an animation
+var artefacts = getSelected().mfilter(&#x27;hasAnimation&#x27;)</pre>
+
+
+    
+</dd>
+
+        
+            
+<hr>
+<dt>
     <h4 class="name" id="mmap"><span class="type-signature"></span>mmap(name, args)</h4>
     
     
@@ -169,6 +363,7 @@
     
     <div class="description">
         <p>Method Map: calls a method of every element in an array. This makes<br>chaining super easy with arrays of Artefacts, for example.</p>
+<p>This function is plugged into the Array prototype, so every array has this<br>method.</p>
     </div>
     
 
@@ -289,7 +484,7 @@
 		<ul class="dummy">
 			<li>
 				<a href="painter.js.html">painter.js</a>,
-				 <a href="painter.js.html#sunlight-1-line-236">line 236</a>
+				 <a href="painter.js.html#sunlight-1-line-324">line 324</a>
 			</li>
 		</ul>
 	</dd>

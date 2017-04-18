@@ -12,6 +12,7 @@
  * new states.
  *
  * @name History
+ * @memberOf P
  */
 P.History = paper.Base.extend(/** @lends History */{
 
@@ -74,9 +75,11 @@ P.History = paper.Base.extend(/** @lends History */{
 })
 
 /**
- * Instance of the HistoryClass.
+ * Instance of the {@link P.History} class.
  * 
- * @type {P.HistoryClass}
+ * @type {P.History}
+ * @memberOf P
+ * @instance
  */
 P.history = new P.History();
 
