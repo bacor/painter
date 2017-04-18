@@ -186,4 +186,5 @@ $(window).ready(function() {
 					})
 		if(i == 0) $swatch.addClass('active');
 	}
+
 })

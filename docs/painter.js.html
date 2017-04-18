@@ -349,20 +349,39 @@ var P = {
 		animating.map(function(a) { a.getAnimation().stop(); });
 		
 		// Remove circular references
-		P.getArtefacts().map(function(artefact){
+		var bboxes = P.getArtefacts().map(function(artefact){
 			artefact.item.data._artefact = undefined;
-			if(artefact.bbox) artefact.bbox.data._artefact = undefined;
+			var output = {artefact: artefact};
+
+			if(artefact.bbox) {
+				artefact.bbox.data._artefact = undefined;
+				output.bbox = artefact.bbox;
+				output.index = artefact.bbox.index;
+				output.parent = artefact.bbox.parent
+				artefact.bbox.remove();
+			}
 
 			if(artefact.hasAnimation()) {
 				artefact.item.data._animation = undefined
 				var anim = artefact.getAnimation();
 				artefact.item.data.animation = anim.export();
 			}
+
+			return output
 		});
 
 		var svg = paper.project.exportSVG({
-			asString: true
+			asString: true,
+			matchShapes: true
 		});
+
+		// Restore bounding boxes
+		bboxes.map(function(obj) {
+			if(!obj.bbox) return false;
+			console.log(obj)
+			obj.artefact.bbox = obj.bbox;
+			obj.parent.insertChild(obj.index, obj.bbox);
+		})
 
 		// Restore circular references
 		P.getArtefacts().map(function(artefact){
@@ -372,6 +391,7 @@ var P = {
 				artefact.item.data._animation = artefact.getAnimation();
 			}
 		});
+
 
 		// Reset animations
 		animating.map( function(a){a.getAnimation().start() })
@@ -433,6 +453,32 @@ Array.prototype.mfilter = function(name, args) {
 	return this.filter(function(element) {
 		return element[name].apply(element, args);
 	});
+}
+
+
+/**
+ * Register an action, i.e. a function wich operates on one or more artefacts,
+ * such as deletion, cloning, grouping, ungrouping, etc. Actions are typically 
+ * triggered via the user interface. Registered actions can be accessed at 
+ * {@link P.actions} as `P.action.name` where `name` is the name of the action. 
+ * Technically, an action is just a function taking an array of {@link Artefact} 
+ * objects as its first input, and possibly other arguments:
+ *
+ * @example
+ * var myAction = function(artefacts, other, arguments) {
+ *   // Do something
+ * }
+ * P.registerAction('myAction', myAction);
+ *
+ * // Much later: perform the action
+ * P.actions.myAction(P.getSelected(), 'some', 'arguments');
+ * 
+ * @param  {String} name   Unique name of the action
+ * @param  {Function} action The action: a function that takes an array of 
+ * artefacts as its first argument.
+ */
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
 }
 
 /**

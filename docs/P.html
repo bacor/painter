@@ -276,88 +276,6 @@
         
             
 <hr>
-<dt class="name" id=".registerAction">
-    <h4 id=".registerAction"><span class="type-signature">&lt;static> </span>registerAction<span class="type-signature"></span></h4>
-
-    
-</dt>
-<dd>
-    
-    <div class="description">
-        <p>Register an action, i.e. a function wich operates on one or more artefacts,<br>such as deletion, cloning, grouping, ungrouping, etc. Actions are typically<br>triggered via the user interface. Registered actions can be accessed at<br><a href="P.actions.html">P.actions</a> as <code>P.action.name</code> where <code>name</code> is the name of the action.<br>Technically, an action is just a function taking an array of <a href="Artefact.html">Artefact</a><br>objects as its first input, and possibly other arguments:</p>
-    </div>
-    
-
-    
-
-    
-<dl class="details">
-    
-
-	
-
-	
-
-	
-
-    
-
-    
-
-    
-
-    
-
-	
-
-	
-
-	
-
-	
-
-	
-
-
-
-	
-	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
-	<dd class="tag-source">
-		<ul class="dummy">
-			<li>
-				<a href="actions.js.html">actions.js</a>,
-				 <a href="actions.js.html#sunlight-1-line-30">line 30</a>
-			</li>
-		</ul>
-	</dd>
-	
-
-	
-
-	
-
-	
-</dl>
-
-
-    
-        <h5>Example</h5>
-        
-    <pre class="sunlight-highlight-javascript">var myAction = function(artefacts, other, arguments) {
-  // Do something
-}
-P.registerAction(&#x27;myAction&#x27;, myAction);
-
-// Much later: perform the action
-P.actions.myAction(P.getSelected(), &#x27;some&#x27;, &#x27;arguments&#x27;);</pre>
-
-
-    
-</dd>
-
-        
-            
-<hr>
 <dt class="name" id="actions">
     <h4 id="actions"><span class="type-signature"></span>actions<span class="type-signature"> :Object</span></h4>
 
@@ -605,6 +523,180 @@ P.actions.myAction(P.getSelected(), &#x27;some&#x27;, &#x27;arguments&#x27;);</p
         <h3 class="subsection-title">Methods</h3>
 
         <dl>
+            
+<hr>
+<dt>
+    <h4 class="name" id=".registerAction"><span class="type-signature">&lt;static> </span>registerAction(name, action)</h4>
+    
+    
+</dt>
+<dd>
+
+    
+    <div class="description">
+        <p>Register an action, i.e. a function wich operates on one or more artefacts,<br>such as deletion, cloning, grouping, ungrouping, etc. Actions are typically<br>triggered via the user interface. Registered actions can be accessed at<br><a href="P.actions.html">P.actions</a> as <code>P.action.name</code> where <code>name</code> is the name of the action.<br>Technically, an action is just a function taking an array of <a href="Artefact.html">Artefact</a><br>objects as its first input, and possibly other arguments:</p>
+    </div>
+    
+
+    
+
+    
+
+    
+    
+        <h5>Parameters:</h5>
+        
+
+<table class="params table table-striped">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Unique name of the action</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>action</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>The action: a function that takes an array of<br>artefacts as its first argument.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+    
+
+    
+<dl class="details">
+    
+
+	
+
+	
+
+	
+
+    
+
+    
+
+    
+
+    
+
+	
+
+	
+
+	
+
+	
+
+	
+
+
+
+	
+	<dt class="tag-source method-doc-label method-doc-details-label">Source:</dt>
+	<dd class="tag-source">
+		<ul class="dummy">
+			<li>
+				<a href="painter.js.html">painter.js</a>,
+				 <a href="painter.js.html#sunlight-1-line-394">line 394</a>
+			</li>
+		</ul>
+	</dd>
+	
+
+	
+
+	
+
+	
+</dl>
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h5>Example</h5>
+        
+    <pre class="sunlight-highlight-javascript">var myAction = function(artefacts, other, arguments) {
+  // Do something
+}
+P.registerAction(&#x27;myAction&#x27;, myAction);
+
+// Much later: perform the action
+P.actions.myAction(P.getSelected(), &#x27;some&#x27;, &#x27;arguments&#x27;);</pre>
+
+
+    
+</dd>
+
+        
             
 <hr>
 <dt>
@@ -955,7 +1047,7 @@ P.actions.myAction(P.getSelected(), &#x27;some&#x27;, &#x27;arguments&#x27;);</p
 		<ul class="dummy">
 			<li>
 				<a href="painter.js.html">painter.js</a>,
-				 <a href="painter.js.html#sunlight-1-line-366">line 366</a>
+				 <a href="painter.js.html#sunlight-1-line-412">line 412</a>
 			</li>
 		</ul>
 	</dd>
@@ -1152,7 +1244,7 @@ P.actions.myAction(P.getSelected(), &#x27;some&#x27;, &#x27;arguments&#x27;);</p
 		<ul class="dummy">
 			<li>
 				<a href="actions.js.html">actions.js</a>,
-				 <a href="actions.js.html#sunlight-1-line-135">line 135</a>
+				 <a href="actions.js.html#sunlight-1-line-111">line 111</a>
 			</li>
 		</ul>
 	</dd>
@@ -3488,7 +3580,7 @@ P.actions.myAction(P.getSelected(), &#x27;some&#x27;, &#x27;arguments&#x27;);</p
 		<ul class="dummy">
 			<li>
 				<a href="actions.js.html">actions.js</a>,
-				 <a href="actions.js.html#sunlight-1-line-103">line 103</a>
+				 <a href="actions.js.html#sunlight-1-line-79">line 79</a>
 			</li>
 		</ul>
 	</dd>

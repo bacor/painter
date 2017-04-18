@@ -263,20 +263,39 @@ var P = {
 		animating.map(function(a) { a.getAnimation().stop(); });
 		
 		// Remove circular references
-		P.getArtefacts().map(function(artefact){
+		var bboxes = P.getArtefacts().map(function(artefact){
 			artefact.item.data._artefact = undefined;
-			if(artefact.bbox) artefact.bbox.data._artefact = undefined;
+			var output = {artefact: artefact};
+
+			if(artefact.bbox) {
+				artefact.bbox.data._artefact = undefined;
+				output.bbox = artefact.bbox;
+				output.index = artefact.bbox.index;
+				output.parent = artefact.bbox.parent
+				artefact.bbox.remove();
+			}
 
 			if(artefact.hasAnimation()) {
 				artefact.item.data._animation = undefined
 				var anim = artefact.getAnimation();
 				artefact.item.data.animation = anim.export();
 			}
+
+			return output
 		});
 
 		var svg = paper.project.exportSVG({
-			asString: true
+			asString: true,
+			matchShapes: true
 		});
+
+		// Restore bounding boxes
+		bboxes.map(function(obj) {
+			if(!obj.bbox) return false;
+			console.log(obj)
+			obj.artefact.bbox = obj.bbox;
+			obj.parent.insertChild(obj.index, obj.bbox);
+		})
 
 		// Restore circular references
 		P.getArtefacts().map(function(artefact){
@@ -286,6 +305,7 @@ var P = {
 				artefact.item.data._animation = artefact.getAnimation();
 			}
 		});
+
 
 		// Reset animations
 		animating.map( function(a){a.getAnimation().start() })
