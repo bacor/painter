@@ -429,8 +429,7 @@ div.painter {
   color: #fff;
   font-size: 10px;
   letter-spacing: 1px;
-  text-transform: uppercase;
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.2); }
+  text-transform: uppercase; }
   div.painter .tools {
     display: flex;
     flex-direction: column;
@@ -445,18 +444,44 @@ div.painter {
       height: 1em;
       padding: .5em;
       font-size: 18px;
-      border-radius: 100%; }
+      border-radius: 100%;
+      position: relative; }
       div.painter .tools a.tool.col-1 {
         margin-right: .1em; }
       div.painter .tools a.tool:hover:not(.disabled), div.painter .tools a.tool.active {
         background: #ED6755;
         box-shadow: 0 0 4px rgba(0, 0, 0, 0.2); }
+      div.painter .tools a.tool:hover:not(.disabled) span {
+        display: block; }
       div.painter .tools a.tool.hidden {
         display: none; }
       div.painter .tools a.tool.disabled {
         opacity: .3; }
       div.painter .tools a.tool span {
-        display: none; }
+        display: none;
+        font-size: .55em;
+        position: absolute;
+        background: #ED6755;
+        color: #fff;
+        left: 4.5em;
+        top: .65em;
+        width: 110px;
+        padding: .75em 1em;
+        border-radius: 3px;
+        z-index: 99;
+        box-shadow: 0 0 4px rgba(0, 0, 0, 0.2); }
+        div.painter .tools a.tool span code {
+          font-family: inherit;
+          background: #fff;
+          color: #ED6755;
+          padding: .2em .3em;
+          display: inline-block;
+          position: relative;
+          top: -.1em;
+          box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+          margin: 0 .5em; }
+          div.painter .tools a.tool span code:last-of-type {
+            margin-right: 0em; }
   div.painter div.canvas-container {
     flex-grow: 1;
     margin: 20px;
