@@ -484,7 +484,7 @@ P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
 		if(this.isAnimating()) return false;
 
 		var index, segments, adjacents, sameX, sameY, newWidth, newHeight, deltaX, deltaY;
-
+		var itemIndex = this.item.index;
 		// Get segment corresponding to the handle, and segments adjacent to that
 		index = handle.parent.children.indexOf(handle) - 1;
 		segment = this.item.segments[index];
@@ -505,6 +505,9 @@ P.Artefact.Rectangle = P.Artefact.extend(/** @lends Artefact.Rectangle */{
 
 		// Update bounding box
 		this.drawBoundingBox();
+
+		// Keep the item at the same 'vertical' position
+		this.item.parent.insertChild(itemIndex, this.item);
 
 		// Color selected handle
 		// Todo: doesn't work when flipping a rectangle, but at least the code is
@@ -576,16 +579,20 @@ P.Artefact.Circle = P.Artefact.extend(/** @lends Artefact.Circle */{
 	manipulate: function(event, handle) {
 		if(this.isAnimating()) return false;
 		var item = this.item;
+		var index = item.index;
 		var center = item.position,
 					radius = item.bounds.width,
 					newRadius = event.point.subtract(center).length * 2 - 6,
 					scaleFactor = newRadius/radius;
-			item.scale(scaleFactor);
-			this.drawBoundingBox();
+		item.scale(scaleFactor);
+		this.drawBoundingBox();
 
-			// Color the selected handle
-			var newHandle = this.bbox.children[1];
-			newHandle.fillColor = P.mainColor;
+		// Keep the item at the same 'vertical' position
+		item.parent.insertChild(index, item);
+
+		// Color the selected handle
+		var newHandle = this.bbox.children[1];
+		newHandle.fillColor = P.mainColor;
 	}
 
 })
@@ -690,7 +697,8 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 	manipulate: function(event, handle) {
 		if(this.isAnimating()) return false;
 		
-		var bounds = this.item.bounds,
+		var index = this.item.index,
+				bounds = this.item.bounds,
 				center = this.item.position,
 				width = bounds.width,
 				height = bounds.height,
@@ -702,6 +710,9 @@ P.Artefact.Group = P.Artefact.extend(/** @lends Artefact.Group */{
 
 		// Update the selection box
 		this.drawBoundingBox();
+
+		// Keep the item at the same 'vertical' position
+		this.item.parent.insertChild(index, this.item);
 
 		// Color selected handle
 		if(this.bbox.children[handle.name])
