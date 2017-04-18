@@ -152,6 +152,19 @@ $(window).ready(function() {
 		c.item.fillColor = P.getColor(1, 7);
 	}
 
+	// https://github.com/paperjs/paper.js/issues/673
+	function getBlobURL(content, type) {
+	    return URL.createObjectURL(new Blob([content], {
+	        type: type
+	    }));
+	}
+
+	$('#download').click(function() {
+		var svg = P.exportSVG();
+		this.href = getBlobURL(svg, 'image/svg+xml');
+		this.download = 'drawing.svg';
+	})
+
 	// Add all swatches
 	var $swatches = $('.swatches'),
 			numSwatches = parseInt($swatches.data('num-swatches'));

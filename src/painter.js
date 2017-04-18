@@ -211,6 +211,50 @@ var P = {
 		return P.getColor(index, numSwatches)
 	},
 
+	exportSVG: function() {
+
+		// Deselect all
+		var selected = P.getSelected();
+		P.deselectAll();
+
+		// Export animations
+		var animating = P.getArtefacts().mfilter('isAnimating')
+		animating.map(function(a) { a.getAnimation().stop(); });
+		
+		// Remove circular references
+		P.getArtefacts().map(function(artefact){
+			artefact.item.data._artefact = undefined;
+			if(artefact.bbox) artefact.bbox.data._artefact = undefined;
+
+			if(artefact.hasAnimation()) {
+				artefact.item.data._animation = undefined
+				var anim = artefact.getAnimation();
+				artefact.item.data.animation = anim.export();
+			}
+		});
+
+		var svg = paper.project.exportSVG({
+			asString: true
+		});
+
+		// Restore circular references
+		P.getArtefacts().map(function(artefact){
+			artefact.item.data._artefact = artefact;
+			if(artefact.bbox) artefact.bbox.data._artefact = artefact;
+			if(artefact.hasAnimation()) {
+				artefact.item.data._animation = artefact.getAnimation();
+			}
+		});
+
+		// Reset animations
+		animating.map( function(a){a.getAnimation().start() })
+
+		// Restore selection
+		P.select(selected);
+
+		return svg
+	}
+
 };
 
 

@@ -31,6 +31,7 @@ div.painter {
         align-items: flex-start;
         margin-top: $margin;
         padding: 0 10px;
+        width: 165px;
 
         .row {
             margin-bottom: 10px;
@@ -73,12 +74,12 @@ div.painter {
          
             span {
                 display: none;
-                font-size: .55em;
+                font-size: .6em;
                 position: absolute;
                 background: $orange;
                 color: #fff;
                 left: 4.5em;
-                top: .65em;
+                top: .4em;
                 width: 110px;
                 padding: .75em 1em;
                 border-radius: 3px;
@@ -95,6 +96,8 @@ div.painter {
                     top: -.1em;
                     box-shadow: 0 0 4px rgba(0,0,0,.2);
                     margin: 0 .5em;
+                    border-radius: 2px;
+
                     &:last-of-type {
                         margin-right: 0em;
                     }

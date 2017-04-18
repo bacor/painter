@@ -47,7 +47,7 @@
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#manipulateTool">manipulateTool</a></li><li><a href="global.html#mmap">mmap</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#selectTool">selectTool</a></li>
+					<li><a href="global.html#mmap">mmap</a></li>
 				</ul>
 			</li>
 			
@@ -103,6 +103,10 @@ var P = {
 	 * @private
 	 */
 	mainColor: '#78C3D0',
+
+	tools: {},
+
+	actions: {},
 
 	/**
 	 * Select an artefact or multiple artefacts.
@@ -319,6 +323,21 @@ Array.prototype.mmap = function(name, args) {
 	return this.map(function(element) {
 		return element[name].apply(element, args);
 	});
+}
+
+
+Array.prototype.mfilter = function(name, args) {
+	return this.filter(function(element) {
+		return element[name].apply(element, args);
+	});
+}
+
+P.registerTool = function(name, tool) {
+	P.tools[name] = tool;
+}
+
+P.registerAction = function(name, action) {
+	P.actions[name] = action;
 }
 </pre>
     </article>

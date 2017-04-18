@@ -47,7 +47,7 @@
 			<li class="dropdown">
 				<a href="global.html" class="dropdown-toggle" data-toggle="dropdown">Global<b class="caret"></b></a>
 				<ul class="dropdown-menu ">
-					<li><a href="global.html#circleTool">circleTool</a></li><li><a href="global.html#manipulateTool">manipulateTool</a></li><li><a href="global.html#mmap">mmap</a></li><li><a href="global.html#rectTool">rectTool</a></li><li><a href="global.html#selectTool">selectTool</a></li>
+					<li><a href="global.html#mmap">mmap</a></li>
 				</ul>
 			</li>
 			
@@ -148,6 +148,14 @@ P.History = paper.Base.extend(/** @lends History */{
 		if(this.index == 0) return false;
 		this.states[this.index].undo();
 		this.index -= 1;
+	},
+
+	canUndo: function() {
+		return this.index > 0
+	},
+
+	canRedo: function() {
+		return this.index &lt; this.states.length - 1
 	}
 })
 
@@ -157,6 +165,10 @@ P.History = paper.Base.extend(/** @lends History */{
  * @type {P.HistoryClass}
  */
 P.history = new P.History();
+
+// Register actions
+P.registerAction('undo', function() { P.history.undo() });
+P.registerAction('redo', function() { P.history.redo() })
 </pre>
     </article>
 </section>
